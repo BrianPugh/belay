@@ -12,6 +12,8 @@ Belay is a library that enables the rapid development of projects that interact 
 
 `Quick Video of Belay in 22 seconds.`_
 
+See `the documentation`_ for usage and other details.
+
 Who is Belay For?
 =================
 
@@ -88,4 +90,5 @@ Turning on an LED with Belay takes only 6 lines of code.
 .. |PyPi| image:: https://img.shields.io/pypi/v/belay.svg
         :target: https://pypi.python.org/pypi/belay
 .. _Quick Video of Belay in 22 seconds.: https://www.youtube.com/watch?v=wq3cyjSE8ek
+.. _the documentation: https://belay.readthedocs.io
 .. _For more examples, see the examples folder.:  https://github.com/BrianPugh/belay/tree/main/examples
