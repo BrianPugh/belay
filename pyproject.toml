@@ -26,6 +26,7 @@ pyserial = "^3.1"
 [tool.poetry.group.docs.dependencies]
 sphinx = "~4.5.0"
 sphinx_rtd_theme = "~1.0.0"
+sphinx-lfs-content = "^1.1.1"
 
 [tool.poetry.group.dev.dependencies]
 coverage = {extras = ["toml"], version = "^5.1"}
