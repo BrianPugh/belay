@@ -1,4 +1,4 @@
-.. image:: https://media.githubusercontent.com/media/BrianPugh/belay/main/assets/logo_white_400w.png
+.. image:: https://raw.githubusercontent.com/BrianPugh/belay/main/assets/logo_white_400w.png
 
 |Python compat| |PyPi| |GHA tests| |Codecov report| |readthedocs|
 
