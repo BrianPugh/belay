@@ -17,7 +17,7 @@ from belay import __version__
 
 # -- Project information -----------------------------------------------------
 
-project = "belay"
+project = "Belay"
 copyright = f"{date.today().year}, Brian Pugh"
 author = "Brian Pugh"
 
