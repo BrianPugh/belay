@@ -58,6 +58,8 @@ Examples
 ========
 
 Turning on an LED with Belay takes only 6 lines of code.
+Functions decorated with the ``task`` decorator are sent to the device and interpreted by the MicroPython interpreter.
+Calling the decorated function on-host sends a command to the device to execute the actual function.
 
 .. code-block:: python
 
