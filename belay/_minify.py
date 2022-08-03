@@ -3,7 +3,6 @@ from collections import deque
 from io import StringIO
 from tokenize import COMMENT, DEDENT, INDENT, NEWLINE, OP, STRING
 
-_nospace_tokens = {}
 _token_type_line_start = {NEWLINE, DEDENT, INDENT}
 
 
