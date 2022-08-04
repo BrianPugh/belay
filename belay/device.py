@@ -1,6 +1,5 @@
 import binascii
 import hashlib
-import inspect
 import json
 import linecache
 import tempfile
@@ -9,6 +8,7 @@ from pathlib import Path
 from typing import Callable, Dict, List, Optional, Union
 
 from ._minify import minify as minify_code
+from .inspect import getsource
 from .pyboard import Pyboard, PyboardException
 
 # Typing
@@ -241,16 +241,7 @@ class Device:
             return self
 
         name = f.__name__
-        lines, src_lineno = inspect.getsourcelines(f)
-        src_code = "".join(lines)
-        src_file = inspect.getsourcefile(f)
-        if src_file is None:
-            raise Exception(f"Unable to get source file for {f}.")
-
-        # Remove the decorator. This could be a little better.
-        decorator, src_code = src_code.split("\n", 1)
-
-        # Dont need the json_decorator since we aren't serializing the response.
+        src_code, src_lineno, src_file = getsource(f)
 
         # Send the source code over to the device.
         self(src_code, minify=minify)
@@ -286,18 +277,8 @@ class Device:
             return self
 
         name = f.__name__
-        lines, src_lineno = inspect.getsourcelines(f)
-        src_file = inspect.getsourcefile(f)
-        if src_file is None:
-            raise IOError(f"Cannot get source file for function {f}.")
+        src_code, src_lineno, src_file = getsource(f)
 
-        # Trim any leading whitespace so the json_decorator attaches correctly.
-        n_leading_whitespace = len(lines[0]) - len(lines[0].lstrip())
-        lines = [line[n_leading_whitespace:] for line in lines]
-        src_code = "".join(lines)
-
-        # Remove the decorator. This could be a little better.
-        decorator, src_code = src_code.split("\n", 1)
         # Add the json_decorator decorator for handling serialization.
         src_code = "@json_decorator\n" + src_code
 
