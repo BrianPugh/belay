@@ -68,3 +68,11 @@ def test_getsource_decorated_4(foo):
     )
     assert lineno == 35
     assert file == foo.__file__
+
+
+def test_getsource_decorated_5(foo):
+    """Removes leading indent."""
+    code, lineno, file = belay.inspect.getsource(foo.foo_decorated_5)
+    assert code == "def foo_decorated_5(arg1, arg2):\n    return arg1 + arg2\n"
+    assert lineno == 45
+    assert file == foo.__file__

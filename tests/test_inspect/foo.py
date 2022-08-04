@@ -37,3 +37,10 @@ def foo_decorated_4(
     arg2,
 ):
     return arg1 + arg2
+
+
+if True:
+
+    @decorator
+    def foo_decorated_5(arg1, arg2):
+        return arg1 + arg2

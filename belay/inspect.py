@@ -6,8 +6,10 @@ _pat_no_decorators = re.compile(
 )
 
 
-def getsource(f):
+def getsource(f) -> tuple[str, int, str]:
     """Get source code data without decorators.
+
+    Trims leading whitespace and removes decorators.
 
     Parameters
     ----------
@@ -23,8 +25,10 @@ def getsource(f):
     src_file: str
         Path to file containing source code.
     """
-    lines, src_lineno = inspect.getsourcelines(f)
     src_file = inspect.getsourcefile(f)
+    if src_file is None:
+        raise Exception(f"Unable to get source file for {f}.")
+    lines, src_lineno = inspect.getsourcelines(f)
 
     offset = 0
     for line in lines:
@@ -33,6 +37,11 @@ def getsource(f):
         offset += 1
 
     lines = lines[offset:]
+
+    # Trim leading whitespace
+    n_leading_whitespace = len(lines[0]) - len(lines[0].lstrip())
+    lines = [line[n_leading_whitespace:] for line in lines]
+
     src_code = "".join(lines)
     src_lineno += offset
 
