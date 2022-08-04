@@ -1,12 +1,13 @@
 import inspect
 import re
+from typing import Tuple
 
 _pat_no_decorators = re.compile(
     r"^(\s*def\s)|(\s*async\s+def\s)|(.*(?<!\w)lambda(:|\s))"
 )
 
 
-def getsource(f) -> tuple[str, int, str]:
+def getsource(f) -> Tuple[str, int, str]:
     """Get source code data without decorators.
 
     Trims leading whitespace and removes decorators.
