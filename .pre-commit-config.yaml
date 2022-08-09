@@ -63,7 +63,6 @@ repos:
     rev: v1.9.0
     hooks:
       - id: python-check-blanket-noqa
-      - id: python-check-blanket-type-ignore
       - id: python-check-mock-methods
       - id: python-no-log-warn
       - id: rst-backticks

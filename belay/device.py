@@ -3,6 +3,7 @@ import hashlib
 import json
 import linecache
 import tempfile
+from abc import ABC, abstractmethod
 from functools import wraps
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Union
@@ -90,21 +91,28 @@ def local_hash_file(fn):
     return binascii.hexlify(hasher.digest()).decode()
 
 
-class Executer:
-    __belay_protected = {
-        "__belay_device",
-        "__belay_protected",
-        "__belay_registry",
-        "__call__",
-        "__len__",
-        "__slots__",
-        "__setattr__",
-        "__getattr__",
-    }
-
+class Executer(ABC):
     def __init__(self, device):
-        self.__belay_device = device
+        # To avoid Executer.__setattr__ raising an error
+        object.__setattr__(self, "_belay_device", device)
 
+    def __setattr__(self, name: str, value: Callable):
+        if name.startswith("_belay") or (name.startswith("__") and name.endswith("__")):
+            raise SpecialFunctionNameError(
+                f'Not allowed to register function named "{name}".'
+            )
+        super().__setattr__(name, value)
+
+    def __getattr__(self, name: str) -> Callable:
+        # Just here for linting purposes.
+        raise AttributeError
+
+    @abstractmethod
+    def __call__(self):
+        raise NotImplementedError
+
+
+class TaskExecuter(Executer):
     def __call__(
         self,
         f: Optional[Callable[..., JsonSerializeable]] = None,
@@ -126,7 +134,7 @@ class Executer:
             Remote-executor function.
         """
         if f is None:
-            return self
+            return self  # type: ignore
 
         name = f.__name__
         src_code, src_lineno, src_file = getsource(f)
@@ -135,26 +143,57 @@ class Executer:
         src_code = "@json_decorator\n" + src_code
 
         # Send the source code over to the device.
-        self.__belay_device(src_code, minify=minify)
+        self._belay_device(src_code, minify=minify)
 
         @wraps(f)
         def wrap(*args, **kwargs):
             cmd = f"{_BELAY_PREFIX + name}(*{args}, **{kwargs})"
-            return self.__belay_device._traceback_execute(
+            return self._belay_device._traceback_execute(
                 src_file, src_lineno, name, cmd
             )
 
+        setattr(self, name, wrap)
+
         return wrap
 
-    def __setattr__(self, name: str, value: Callable):
-        if name in self.__belay_protected:
-            raise SpecialFunctionNameError(
-                f'Not allowed to register function named "{name}".'
-            )
-        super().__setattr__(name, value)
 
-    def __getattr__(self, name: str) -> Callable:
-        raise AttributeError
+class ThreadExecuter(Executer):
+    def __call__(
+        self,
+        f: Optional[Callable[..., None]] = None,
+        minify: bool = True,
+    ) -> Callable[..., None]:
+        """Send code to device that spawns a thread when executed.
+
+        Parameters
+        ----------
+        f: Callable
+            Function to decorate.
+        minify: bool
+            Minify ``cmd`` code prior to sending.
+
+        Returns
+        -------
+        Callable
+            Remote-executor function.
+        """
+        if f is None:
+            return self  # type: ignore
+
+        name = f.__name__
+        src_code, src_lineno, src_file = getsource(f)
+
+        # Send the source code over to the device.
+        self._belay_device(src_code, minify=minify)
+
+        @wraps(f)
+        def wrap(*args, **kwargs):
+            cmd = f"import _thread; _thread.start_new_thread({name}, {args}, {kwargs})"
+            self._belay_device._traceback_execute(src_file, src_lineno, name, cmd)
+
+        setattr(self, name, wrap)
+
+        return wrap
 
 
 class Device:
@@ -176,7 +215,8 @@ class Device:
         self._board = Pyboard(*args, **kwargs)
         self._board.enter_raw_repl()
 
-        self.task = Executer(self)
+        self.task = TaskExecuter(self)
+        self.thread = ThreadExecuter(self)
 
         self(_BELAY_STARTUP_CODE)
         if startup:
@@ -291,41 +331,6 @@ class Device:
 
         # Remove all the files and directories that did not exist in local filesystem.
         self(_CLEANUP_SYNC_CODE)
-
-    def thread(
-        self,
-        f: Optional[Callable[..., None]] = None,
-        minify: bool = True,
-    ) -> Callable[..., None]:
-        """Send code to device that spawns a thread when executed.
-
-        Parameters
-        ----------
-        f: Callable
-            Function to decorate.
-        minify: bool
-            Minify ``cmd`` code prior to sending.
-
-        Returns
-        -------
-        Callable
-            Remote-executor function.
-        """
-        if f is None:
-            return self
-
-        name = f.__name__
-        src_code, src_lineno, src_file = getsource(f)
-
-        # Send the source code over to the device.
-        self(src_code, minify=minify)
-
-        @wraps(f)
-        def wrap(*args, **kwargs):
-            cmd = f"import _thread; _thread.start_new_thread({name}, {args}, {kwargs})"
-            self._traceback_execute(src_file, src_lineno, name, cmd)
-
-        return wrap
 
     def _traceback_execute(
         self,
