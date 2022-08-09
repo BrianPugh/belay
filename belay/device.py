@@ -148,10 +148,16 @@ class TaskExecuter(Executer):
         @wraps(f)
         def wrap(*args, **kwargs):
             cmd = f"{_BELAY_PREFIX + name}(*{args}, **{kwargs})"
-            return self._belay_device._traceback_execute(
-                src_file, src_lineno, name, cmd
-            )
 
+            res = self._belay_device._traceback_execute(src_file, src_lineno, name, cmd)
+
+            if hasattr(f, "__belay__"):
+                # Call next device's wrapper.
+                res = [res, f(*args, **kwargs)]
+
+            return res
+
+        wrap.__belay__ = self
         setattr(self, name, wrap)
 
         return wrap
