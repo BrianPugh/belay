@@ -151,13 +151,19 @@ class TaskExecuter(Executer):
 
             res = self._belay_device._traceback_execute(src_file, src_lineno, name, cmd)
 
-            if hasattr(f, "__belay__"):
+            if hasattr(f, "_belay_level"):
                 # Call next device's wrapper.
-                res = [res, f(*args, **kwargs)]
+                if f._belay_level == 1:
+                    res = [f(*args, **kwargs), res]
+                else:
+                    res = [*f(*args, **kwargs), res]
 
             return res
 
-        wrap.__belay__ = self
+        wrap._belay_level = 1
+        if hasattr(f, "_belay_level"):
+            wrap._belay_level += f._belay_level
+
         setattr(self, name, wrap)
 
         return wrap
