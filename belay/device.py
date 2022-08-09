@@ -75,6 +75,10 @@ class SpecialFilenameError(Exception):
     """Not allowed filename like ``boot.py`` or ``main.py``."""
 
 
+class SpecialFunctionNameError(Exception):
+    """Not allowed function name."""
+
+
 def local_hash_file(fn):
     hasher = hashlib.sha256()
     with open(fn, "rb") as f:  # noqa: PL123
@@ -84,6 +88,73 @@ def local_hash_file(fn):
                 break
             hasher.update(data)
     return binascii.hexlify(hasher.digest()).decode()
+
+
+class Executer:
+    __belay_protected = {
+        "__belay_device",
+        "__belay_protected",
+        "__belay_registry",
+        "__call__",
+        "__len__",
+        "__slots__",
+        "__setattr__",
+        "__getattr__",
+    }
+
+    def __init__(self, device):
+        self.__belay_device = device
+
+    def __call__(
+        self,
+        f: Optional[Callable[..., JsonSerializeable]] = None,
+        /,
+        minify: bool = True,
+    ) -> Callable[..., JsonSerializeable]:
+        """Send code to device that executes when decorated function is called on-host.
+
+        Parameters
+        ----------
+        f: Callable
+            Function to decorate.
+        minify: bool
+            Minify ``cmd`` code prior to sending.
+
+        Returns
+        -------
+        Callable
+            Remote-executor function.
+        """
+        if f is None:
+            return self
+
+        name = f.__name__
+        src_code, src_lineno, src_file = getsource(f)
+
+        # Add the json_decorator decorator for handling serialization.
+        src_code = "@json_decorator\n" + src_code
+
+        # Send the source code over to the device.
+        self.__belay_device(src_code, minify=minify)
+
+        @wraps(f)
+        def wrap(*args, **kwargs):
+            cmd = f"{_BELAY_PREFIX + name}(*{args}, **{kwargs})"
+            return self.__belay_device._traceback_execute(
+                src_file, src_lineno, name, cmd
+            )
+
+        return wrap
+
+    def __setattr__(self, name: str, value: Callable):
+        if name in self.__belay_protected:
+            raise SpecialFunctionNameError(
+                f'Not allowed to register function named "{name}".'
+            )
+        super().__setattr__(name, value)
+
+    def __getattr__(self, name: str) -> Callable:
+        raise AttributeError
 
 
 class Device:
@@ -104,6 +175,9 @@ class Device:
         """
         self._board = Pyboard(*args, **kwargs)
         self._board.enter_raw_repl()
+
+        self.task = Executer(self)
+
         self(_BELAY_STARTUP_CODE)
         if startup:
             self(startup)
@@ -250,45 +324,6 @@ class Device:
         def wrap(*args, **kwargs):
             cmd = f"import _thread; _thread.start_new_thread({name}, {args}, {kwargs})"
             self._traceback_execute(src_file, src_lineno, name, cmd)
-
-        return wrap
-
-    def task(
-        self,
-        f: Optional[Callable[..., JsonSerializeable]] = None,
-        /,
-        minify: bool = True,
-    ) -> Callable[..., JsonSerializeable]:
-        """Send code to device that executes when decorated function is called on-host.
-
-        Parameters
-        ----------
-        f: Callable
-            Function to decorate.
-        minify: bool
-            Minify ``cmd`` code prior to sending.
-
-        Returns
-        -------
-        Callable
-            Remote-executor function.
-        """
-        if f is None:
-            return self
-
-        name = f.__name__
-        src_code, src_lineno, src_file = getsource(f)
-
-        # Add the json_decorator decorator for handling serialization.
-        src_code = "@json_decorator\n" + src_code
-
-        # Send the source code over to the device.
-        self(src_code, minify=minify)
-
-        @wraps(f)
-        def wrap(*args, **kwargs):
-            cmd = f"{_BELAY_PREFIX + name}(*{args}, **{kwargs})"
-            return self._traceback_execute(src_file, src_lineno, name, cmd)
 
         return wrap
 

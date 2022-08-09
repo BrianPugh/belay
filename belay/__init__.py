@@ -8,5 +8,5 @@ __all__ = [
     "PyboardException",
 ]
 from ._minify import minify
-from .device import Device, SpecialFilenameError
+from .device import Device, SpecialFilenameError, SpecialFunctionNameError
 from .pyboard import PyboardException
