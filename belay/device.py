@@ -91,7 +91,7 @@ def local_hash_file(fn):
     return binascii.hexlify(hasher.digest()).decode()
 
 
-class Executer(ABC):
+class _Executer(ABC):
     def __init__(self, device):
         # To avoid Executer.__setattr__ raising an error
         object.__setattr__(self, "_belay_device", device)
@@ -112,7 +112,7 @@ class Executer(ABC):
         raise NotImplementedError
 
 
-class TaskExecuter(Executer):
+class _TaskExecuter(_Executer):
     def __call__(
         self,
         f: Optional[Callable[..., JsonSerializeable]] = None,
@@ -120,7 +120,7 @@ class TaskExecuter(Executer):
         minify: bool = True,
         register: bool = True,
     ) -> Callable[..., JsonSerializeable]:
-        """Send code to device that executes when decorated function is called on-host.
+        """Decorator that send code to device that executes when decorated function is called on-host.
 
         Parameters
         ----------
@@ -180,7 +180,7 @@ class TaskExecuter(Executer):
         return multi_executer
 
 
-class ThreadExecuter(Executer):
+class _ThreadExecuter(_Executer):
     def __call__(
         self,
         f: Optional[Callable[..., None]] = None,
@@ -188,7 +188,7 @@ class ThreadExecuter(Executer):
         minify: bool = True,
         register: bool = True,
     ) -> Callable[..., None]:
-        """Send code to device that spawns a thread when executed.
+        """Decorator that send code to device that spawns a thread when executed.
 
         Parameters
         ----------
@@ -196,6 +196,7 @@ class ThreadExecuter(Executer):
             Function to decorate.
         minify: bool
             Minify ``cmd`` code prior to sending.
+            Defaults to ``True``.
         register: bool
             Assign an attribute to ``self`` with same name as ``f``.
             Defaults to ``True``.
@@ -260,8 +261,8 @@ class Device:
         self._board = Pyboard(*args, **kwargs)
         self._board.enter_raw_repl()
 
-        self.task = TaskExecuter(self)
-        self.thread = ThreadExecuter(self)
+        self.task = _TaskExecuter(self)
+        self.thread = _ThreadExecuter(self)
 
         self(_BELAY_STARTUP_CODE)
         if startup:

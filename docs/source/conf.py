@@ -47,6 +47,7 @@ templates_path = ["_templates"]
 exclude_patterns = []
 
 smartquotes = False
+add_module_names = False
 
 # Napoleon settings
 napoleon_google_docstring = True

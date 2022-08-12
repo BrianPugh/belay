@@ -48,6 +48,11 @@ Invoking ``bar = foo(5)`` on host sends a command to the device to execute the f
 The result, ``10``, is sent back to the host and results in ``bar == 10``.
 This is the preferable way to interact with hardware.
 
+If a task is registered to multiple Belay devices, it will execute sequentially on the devices in the order that they were decorated (bottom upwards).
+The return value would be a list of results in order.
+
+To explicitly call a task on just one device, it can be invoked ``device.task.foo()``.
+
 thread
 ^^^^^^
 
@@ -67,6 +72,10 @@ thread
 
 Not all MicroPython boards support threading, and those that do typically have a maximum of ``1`` thread.
 The decorated function has no return value.
+
+If a thread is registered to multiple Belay devices, it will execute sequentially on the devices in the order that they were decorated (bottom upwards).
+
+To explicitly call a thread on just one device, it can be invoked ``device.thread.led_loop()``.
 
 sync
 ^^^^
