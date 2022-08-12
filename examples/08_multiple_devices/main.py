@@ -68,7 +68,7 @@ print("Starting blinking thread on all devices.")
 
 @device2.thread
 @device1.thread
-def blink_thread():
+def blink_loop():
     while True:
         set_led(True)
         time.sleep(0.5)
@@ -76,4 +76,4 @@ def blink_thread():
         time.sleep(0.5)
 
 
-blink_thread()
+blink_loop()
