@@ -57,10 +57,11 @@ After minification, the code looks like:
 .. code-block:: python
 
    def set_led(state):
-       0
-       Pin(25,Pin.OUT).value(state)
+    0
+    Pin(25,Pin.OUT).value(state)
 
 The ``0`` is just a one character way of saying ``pass``, in case the removed docstring was the entire body.
+This reduces the number of transmitted characters from 158 to just 53, offering a 3x speed boost.
 
 After minification, the ``@json_decorator`` is added. On-device, this defines a variant of the function, ``__belay_FUNCTION_NAME``
 that performs the following actions:
