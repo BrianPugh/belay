@@ -58,8 +58,7 @@ After minification, the code looks like:
 
    def set_led(state):
        0
-
-       Pin(25, Pin.OUT).value(state)
+       Pin(25,Pin.OUT).value(state)
 
 The ``0`` is just a one character way of saying ``pass``, in case the removed docstring was the entire body.
 
