@@ -118,6 +118,7 @@ class TaskExecuter(Executer):
         f: Optional[Callable[..., JsonSerializeable]] = None,
         /,
         minify: bool = True,
+        register: bool = True,
     ) -> Callable[..., JsonSerializeable]:
         """Send code to device that executes when decorated function is called on-host.
 
@@ -127,6 +128,10 @@ class TaskExecuter(Executer):
             Function to decorate.
         minify: bool
             Minify ``cmd`` code prior to sending.
+            Defaults to ``True``.
+        register: bool
+            Assign an attribute to ``self`` with same name as ``f``.
+            Defaults to ``True``.
 
         Returns
         -------
@@ -146,11 +151,16 @@ class TaskExecuter(Executer):
         self._belay_device(src_code, minify=minify)
 
         @wraps(f)
-        def wrap(*args, **kwargs):
+        def executer(*args, **kwargs):
             cmd = f"{_BELAY_PREFIX + name}(*{args}, **{kwargs})"
 
-            res = self._belay_device._traceback_execute(src_file, src_lineno, name, cmd)
+            return self._belay_device._traceback_execute(
+                src_file, src_lineno, name, cmd
+            )
 
+        @wraps(f)
+        def multi_executer(*args, **kwargs):
+            res = executer(*args, **kwargs)
             if hasattr(f, "_belay_level"):
                 # Call next device's wrapper.
                 if f._belay_level == 1:
@@ -160,20 +170,23 @@ class TaskExecuter(Executer):
 
             return res
 
-        wrap._belay_level = 1
+        multi_executer._belay_level = 1
         if hasattr(f, "_belay_level"):
-            wrap._belay_level += f._belay_level
+            multi_executer._belay_level += f._belay_level
 
-        setattr(self, name, wrap)
+        if register:
+            setattr(self, name, executer)
 
-        return wrap
+        return multi_executer
 
 
 class ThreadExecuter(Executer):
     def __call__(
         self,
         f: Optional[Callable[..., None]] = None,
+        /,
         minify: bool = True,
+        register: bool = True,
     ) -> Callable[..., None]:
         """Send code to device that spawns a thread when executed.
 
@@ -183,6 +196,9 @@ class ThreadExecuter(Executer):
             Function to decorate.
         minify: bool
             Minify ``cmd`` code prior to sending.
+        register: bool
+            Assign an attribute to ``self`` with same name as ``f``.
+            Defaults to ``True``.
 
         Returns
         -------
@@ -199,13 +215,30 @@ class ThreadExecuter(Executer):
         self._belay_device(src_code, minify=minify)
 
         @wraps(f)
-        def wrap(*args, **kwargs):
+        def executer(*args, **kwargs):
             cmd = f"import _thread; _thread.start_new_thread({name}, {args}, {kwargs})"
             self._belay_device._traceback_execute(src_file, src_lineno, name, cmd)
 
-        setattr(self, name, wrap)
+        @wraps(f)
+        def multi_executer(*args, **kwargs):
+            res = executer(*args, **kwargs)
+            if hasattr(f, "_belay_level"):
+                # Call next device's wrapper.
+                if f._belay_level == 1:
+                    res = [f(*args, **kwargs), res]
+                else:
+                    res = [*f(*args, **kwargs), res]
 
-        return wrap
+            return res
+
+        multi_executer._belay_level = 1
+        if hasattr(f, "_belay_level"):
+            multi_executer._belay_level += f._belay_level
+
+        if register:
+            setattr(self, name, executer)
+
+        return multi_executer
 
 
 class Device:
@@ -298,7 +331,7 @@ class Device:
         # This is so we know what to clean up after done syncing.
         self(_BEGIN_SYNC_CODE)
 
-        @self.task
+        @self.task(register=False)
         def remote_hash_file(fn):
             hasher = hashlib.sha256()
             try:
