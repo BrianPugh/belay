@@ -107,8 +107,8 @@ and then parses back the response. The complete lifecycle looks like this:
 
 This has a few limitations, namely:
 
-1. Each passed in argument must be completely reconstructable by their printable representation. This is true for python literals like numbers, strings, lists, dicts, and sets.
+1. Each passed in argument must be a python literals (``None``, booleans, bytes, numbers, strings, sets, lists, and dicts).
 
-2. The invoked function cannot be printing to stdout, otherwise the host-side parsing of the result won't work.
+2. The invoked code cannot ``print``. Belay uses stdout for data transfer and spurious prints will corrupt the data sent to host.
 
-3. The returned data of the function must be a python literal(s).
+3. The returned data of the function must also be a python literal(s).

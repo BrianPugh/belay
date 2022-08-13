@@ -5,6 +5,7 @@ __all__ = [
     "minify",
     "Device",
     "SpecialFilenameError",
+    "SpecialFunctionNameError",
     "PyboardException",
 ]
 from ._minify import minify

@@ -82,11 +82,18 @@ del all_files, all_dirs, __belay_hash_file
 
 
 class SpecialFilenameError(Exception):
-    """Not allowed filename like ``boot.py`` or ``main.py``."""
+    """Reserved filename like ``boot.py`` or ``main.py`` that may impact Belay functionality."""
 
 
 class SpecialFunctionNameError(Exception):
-    """Not allowed function name."""
+    """Reserved function name that may impact Belay functionality.
+
+    Currently limited to:
+
+        * Names that start and end with double underscore, ``__``.
+
+        * Names that start with ``_belay`` or ``__belay``
+    """
 
 
 def local_hash_file(fn):
@@ -106,7 +113,11 @@ class _Executer(ABC):
         object.__setattr__(self, "_belay_device", device)
 
     def __setattr__(self, name: str, value: Callable):
-        if name.startswith("_belay") or (name.startswith("__") and name.endswith("__")):
+        if (
+            name.startswith("_belay")
+            or name.startswith("__belay")
+            or (name.startswith("__") and name.endswith("__"))
+        ):
             raise SpecialFunctionNameError(
                 f'Not allowed to register function named "{name}".'
             )
