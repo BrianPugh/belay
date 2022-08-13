@@ -13,12 +13,12 @@ from .inspect import getsource
 from .pyboard import Pyboard, PyboardException
 
 # Typing
-JsonSerializeable = Union[None, bool, bytes, int, float, str, List, Dict, Set]
+PythonLiteral = Union[None, bool, bytes, int, float, str, List, Dict, Set]
 
 # MicroPython Code Snippets
 _BELAY_PREFIX = "_belay_"
 
-_BELAY_STARTUP_CODE = f"""def __belay_json(f):
+_BELAY_STARTUP_CODE = f"""def __belay(f):
     def belay_interface(*args, **kwargs):
         res = f(*args, **kwargs)
         print(repr(res))
@@ -126,17 +126,17 @@ class _Executer(ABC):
 class _TaskExecuter(_Executer):
     def __call__(
         self,
-        f: Optional[Callable[..., JsonSerializeable]] = None,
+        f: Optional[Callable[..., PythonLiteral]] = None,
         /,
         minify: bool = True,
         register: bool = True,
-    ) -> Callable[..., JsonSerializeable]:
+    ) -> Callable[..., PythonLiteral]:
         """Decorator that send code to device that executes when decorated function is called on-host.
 
         Parameters
         ----------
         f: Callable
-            Function to decorate.
+            Function to decorate. Can only accept and return python literals.
         minify: bool
             Minify ``cmd`` code prior to sending.
             Defaults to ``True``.
@@ -155,8 +155,8 @@ class _TaskExecuter(_Executer):
         name = f.__name__
         src_code, src_lineno, src_file = getsource(f)
 
-        # Add the json_decorator decorator for handling serialization.
-        src_code = "@__belay_json\n" + src_code
+        # Add the __belay decorator for handling result serialization.
+        src_code = "@__belay\n" + src_code
 
         # Send the source code over to the device.
         self._belay_device(src_code, minify=minify)
@@ -204,7 +204,7 @@ class _ThreadExecuter(_Executer):
         Parameters
         ----------
         f: Callable
-            Function to decorate.
+            Function to decorate. Can only accept python literals as arguments.
         minify: bool
             Minify ``cmd`` code prior to sending.
             Defaults to ``True``.
@@ -284,7 +284,7 @@ class Device:
         cmd: str,
         deserialize: bool = True,
         minify: bool = True,
-    ) -> JsonSerializeable:
+    ) -> PythonLiteral:
         """Execute code on-device.
 
         Parameters
@@ -292,7 +292,7 @@ class Device:
         cmd: str
             Python code to execute.
         deserialize: bool
-            Deserialize the received bytestream from device stdout as JSON data.
+            Deserialize the received bytestream to a python literal.
             Defaults to ``True``.
         minify: bool
             Minify ``cmd`` code prior to sending.

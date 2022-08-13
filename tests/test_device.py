@@ -1,4 +1,3 @@
-import json
 from unittest.mock import call
 
 import pytest
@@ -35,7 +34,7 @@ def test_device_task(mocker, mock_device):
     def foo(a, b):
         c = a + b  # noqa: F841
 
-    mock_device._board.exec.assert_any_call("@__belay_json\ndef foo(a,b):\n c=a+b\n")
+    mock_device._board.exec.assert_any_call("@__belay\ndef foo(a,b):\n c=a+b\n")
 
     foo(1, 2)
     assert (
@@ -136,7 +135,7 @@ def sync_path(tmp_path):
 
 
 def test_device_sync_empty_remote(mocker, mock_device, sync_path):
-    payload = bytes(json.dumps("0" * 64), encoding="utf8")
+    payload = bytes(repr("0" * 64), encoding="utf8")
     mock_device._board.exec = mocker.MagicMock(return_value=payload)
 
     mock_device.sync(sync_path)
