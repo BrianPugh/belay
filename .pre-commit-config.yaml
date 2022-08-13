@@ -19,10 +19,12 @@ repos:
       - id: isort
         name: isort
         args: ["--profile=black"]
+        exclude: ^(belay/snippets/)
       - id: isort
         name: isort (cython)
         types: [cython]
         args: ["--profile=black"]
+        exclude: ^(belay/snippets/)
 
   - repo: https://github.com/psf/black
     rev: 22.3.0
@@ -33,6 +35,7 @@ repos:
           - "--target-version=py39"
           - "--target-version=py310"
         types: [python]
+        exclude: ^(belay/snippets/)
 
   - repo: https://github.com/asottile/blacken-docs
     rev: v1.12.1
@@ -107,7 +110,7 @@ repos:
     rev: 4.0.1
     hooks:
       - id: flake8
-        exclude: ^(examples/|belay/pyboard.py)
+        exclude: ^(examples/|belay/snippets/|belay/pyboard.py)
         additional_dependencies:
           - flake8-2020
           - flake8-bugbear

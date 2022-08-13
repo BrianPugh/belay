@@ -20,3 +20,4 @@ exclude =
     venv
     .venv
     examples/
+    belay/snippets/
