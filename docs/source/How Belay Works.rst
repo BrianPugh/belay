@@ -63,7 +63,7 @@ After minification, the code looks like:
 The ``0`` is just a one character way of saying ``pass``, in case the removed docstring was the entire body.
 This reduces the number of transmitted characters from 158 to just 53, offering a 3x speed boost.
 
-After minification, the ``@json_decorator`` is added. On-device, this defines a variant of the function, ``__belay_FUNCTION_NAME``
+After minification, the ``@__belay_json`` decorator is added. On-device, this defines a variant of the function, ``_belay_FUNCTION_NAME``
 that performs the following actions:
 
  1. Takes the returned value of the function, and serializes it to json data. Json was chosen since its built into micropython and is "good enough."
@@ -79,7 +79,7 @@ Conceptually, its as if the following code ran on-device (minification removed f
        Pin(25, Pin.OUT).value(state)
 
 
-   def __belay_set_led(*args, **kwargs):
+   def _belay_set_led(*args, **kwargs):
        res = set_led(*args, **kwargs)
        print(json.dumps(res))
 
@@ -95,7 +95,7 @@ and then parses back the response. The complete lifecycle looks like this:
 
 1. ``set_led(True)`` is called on the host. This doesn't execute the function we defined on host. Instead it triggers the following actions.
 
-2. Belay creates the string ``"__belay_set_led(True)"``.
+2. Belay creates the string ``"_belay_set_led(True)"``.
 
 3. Belay sends this command over serial to the REPL, causing it to execute on-device.
 
