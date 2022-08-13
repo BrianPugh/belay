@@ -10,7 +10,7 @@ Belay
 
 Belay is a library that enables the rapid development of projects that interact with hardware via a micropython-compatible board.
 
-Belay works by automatically using the REPL interface of a micropython board from Python code running on PC.
+Belay works by interacting with the REPL interface of a micropython board from Python code running on PC.
 
 `Quick Video of Belay in 22 seconds.`_
 
