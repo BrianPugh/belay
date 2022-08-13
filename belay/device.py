@@ -1,28 +1,27 @@
+import ast
 import binascii
 import hashlib
-import json
 import linecache
 import tempfile
 from abc import ABC, abstractmethod
 from functools import wraps
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Union
+from typing import Callable, Dict, List, Optional, Set, Union
 
 from ._minify import minify as minify_code
 from .inspect import getsource
 from .pyboard import Pyboard, PyboardException
 
 # Typing
-JsonSerializeable = Union[None, bool, int, float, str, List, Dict]
+JsonSerializeable = Union[None, bool, bytes, int, float, str, List, Dict, Set]
 
 # MicroPython Code Snippets
 _BELAY_PREFIX = "_belay_"
 
-_BELAY_STARTUP_CODE = f"""import json
-def __belay_json(f):
+_BELAY_STARTUP_CODE = f"""def __belay_json(f):
     def belay_interface(*args, **kwargs):
         res = f(*args, **kwargs)
-        print(json.dumps(res, separators=(',', ':')))
+        print(repr(res))
         return res
     globals()["{_BELAY_PREFIX}" + f.__name__] = belay_interface
     return f
@@ -164,7 +163,7 @@ class _TaskExecuter(_Executer):
 
         @wraps(f)
         def executer(*args, **kwargs):
-            cmd = f"{_BELAY_PREFIX + name}(*{args}, **{kwargs})"
+            cmd = f"{_BELAY_PREFIX + name}(*{repr(args)}, **{repr(kwargs)})"
 
             return self._belay_device._traceback_execute(
                 src_file, src_lineno, name, cmd
@@ -229,7 +228,7 @@ class _ThreadExecuter(_Executer):
 
         @wraps(f)
         def executer(*args, **kwargs):
-            cmd = f"import _thread; _thread.start_new_thread({name}, {args}, {kwargs})"
+            cmd = f"import _thread; _thread.start_new_thread({name}, {repr(args)}, {repr(kwargs)})"
             self._belay_device._traceback_execute(src_file, src_lineno, name, cmd)
 
         @wraps(f)
@@ -311,7 +310,7 @@ class Device:
 
         if deserialize:
             if res:
-                return json.loads(res)
+                return ast.literal_eval(res)
             else:
                 return None
         else:
@@ -368,7 +367,7 @@ class Device:
 
                 # All other files, just sync over.
                 local_hash = local_hash_file(src)
-                remote_hash = self(f"__belay_hash_file({json.dumps(dst)})")
+                remote_hash = self(f"__belay_hash_file({repr(dst)})")
                 if local_hash != remote_hash:
                     self._board.fs_put(src, dst)
                 self(f'all_files.discard("{dst}")')
