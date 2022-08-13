@@ -63,12 +63,12 @@ After minification, the code looks like:
 The ``0`` is just a one character way of saying ``pass``, in case the removed docstring was the entire body.
 This reduces the number of transmitted characters from 158 to just 53, offering a 3x speed boost.
 
-After minification, the ``@__belay_json`` decorator is added. On-device, this defines a variant of the function, ``_belay_FUNCTION_NAME``
+After minification, the ``@__belay`` decorator is added. On-device, this defines a variant of the function, ``_belay_FUNCTION_NAME``
 that performs the following actions:
 
- 1. Takes the returned value of the function, and serializes it to json data. Json was chosen since its built into micropython and is "good enough."
+ 1. Takes the returned value of the function, and serializes it to a string using ``repr``.
 
- 2. Prints the resulting json data to stdout, so it can be read by the host computer.
+ 2. Prints the resulting string to stdout, so it can be read by the host computer and deserialized via ``ast.literal_eval``.
 
 
 Conceptually, its as if the following code ran on-device (minification removed for clarity):
@@ -81,7 +81,7 @@ Conceptually, its as if the following code ran on-device (minification removed f
 
    def _belay_set_led(*args, **kwargs):
        res = set_led(*args, **kwargs)
-       print(json.dumps(res))
+       print(repr(res))
 
 A separate private function is defined with this serialization in case another on-device function calls ``set_led``.
 
@@ -99,16 +99,16 @@ and then parses back the response. The complete lifecycle looks like this:
 
 3. Belay sends this command over serial to the REPL, causing it to execute on-device.
 
-4. On-device, the result of ``set_led(True)`` is ``None``. This gets json-serialized to ``null``, which gets printed to stdout.
+4. On-device, the result of ``set_led(True)`` is ``None``. This gets serialized to the string ``None``, which gets printed to stdout.
 
-5. Belay reads this response form stdout, and deserializes it back to ``None``.
+5. Belay reads this response form stdout, and deserializes it back to the ``None`` object.
 
 6. ``None`` is returned on host from the ``set_led(True)`` call.
 
 This has a few limitations, namely:
 
-1. Each passed in argument must be completely reconstructable by their string representation. This is true for basic python builtins like numbers, strings, lists, dicts, and sets.
+1. Each passed in argument must be a python literals (``None``, booleans, bytes, numbers, strings, sets, lists, and dicts).
 
-2. The invoked function cannot be printing to stdout, otherwise the host-side parsing of the result won't work.
+2. The invoked code cannot ``print``. Belay uses stdout for data transfer and spurious prints will corrupt the data sent to host.
 
-3. The returned data of the function must be json-serializeable.
+3. The returned data of the function must also be a python literal(s).

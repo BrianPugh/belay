@@ -1,4 +1,3 @@
-import json
 from unittest.mock import call
 
 import pytest
@@ -10,7 +9,7 @@ import belay
 def mock_pyboard(mocker):
     mocker.patch("belay.device.Pyboard.__init__", return_value=None)
     mocker.patch("belay.device.Pyboard.enter_raw_repl", return_value=None)
-    mocker.patch("belay.device.Pyboard.exec", return_value=b"null")
+    mocker.patch("belay.device.Pyboard.exec", return_value=b"None")
     mocker.patch("belay.device.Pyboard.fs_put")
 
 
@@ -35,7 +34,7 @@ def test_device_task(mocker, mock_device):
     def foo(a, b):
         c = a + b  # noqa: F841
 
-    mock_device._board.exec.assert_any_call("@__belay_json\ndef foo(a,b):\n c=a+b\n")
+    mock_device._board.exec.assert_any_call("@__belay\ndef foo(a,b):\n c=a+b\n")
 
     foo(1, 2)
     assert (
@@ -136,17 +135,17 @@ def sync_path(tmp_path):
 
 
 def test_device_sync_empty_remote(mocker, mock_device, sync_path):
-    payload = bytes(json.dumps("0" * 64), encoding="utf8")
+    payload = bytes(repr("0" * 64), encoding="utf8")
     mock_device._board.exec = mocker.MagicMock(return_value=payload)
 
     mock_device.sync(sync_path)
 
     expected_cmds = [
-        '__belay_hash_file("/alpha.py")',
-        '__belay_hash_file("/bar.txt")',
-        '__belay_hash_file("/folder1/file1.txt")',
-        '__belay_hash_file("/folder1/folder1_1/file1_1.txt")',
-        '__belay_hash_file("/foo.txt")',
+        "__belay_hash_file('/alpha.py')",
+        "__belay_hash_file('/bar.txt')",
+        "__belay_hash_file('/folder1/file1.txt')",
+        "__belay_hash_file('/folder1/folder1_1/file1_1.txt')",
+        "__belay_hash_file('/foo.txt')",
     ]
     call_args_list = mock_device._board.exec.call_args_list[1:]
     assert len(expected_cmds) <= len(call_args_list)
