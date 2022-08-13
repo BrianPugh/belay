@@ -16,13 +16,13 @@ from .pyboard import Pyboard, PyboardException
 JsonSerializeable = Union[None, bool, int, float, str, List, Dict]
 
 # MicroPython Code Snippets
-_BELAY_PREFIX = "__belay_"
+_BELAY_PREFIX = "_belay_"
 
-_BELAY_STARTUP_CODE = f"""import ujson
-def json_decorator(f):
+_BELAY_STARTUP_CODE = f"""import json
+def __belay_json(f):
     def belay_interface(*args, **kwargs):
         res = f(*args, **kwargs)
-        print(ujson.dumps(res))
+        print(json.dumps(res, separators=(',', ':')))
         return res
     globals()["{_BELAY_PREFIX}" + f.__name__] = belay_interface
     return f
@@ -46,6 +46,18 @@ except OSError as e:
 
 # Creates and populates two set[str]: all_files, all_dirs
 _BEGIN_SYNC_CODE = """import os, hashlib, binascii
+def __belay_hash_file(fn):
+    hasher = hashlib.sha256()
+    try:
+        with open(fn, "rb") as f:
+            while True:
+                data = f.read(4096)
+                if not data:
+                    break
+                hasher.update(data)
+    except OSError:
+        return "0" * 64
+    return str(binascii.hexlify(hasher.digest()))
 all_files, all_dirs = set(), []
 def enumerate_fs(path=""):
     for elem in os.ilistdir(path):
@@ -68,7 +80,7 @@ for folder in reversed(all_dirs):
         os.rmdir(folder)
     except OSError:
         pass
-del all_files, all_dirs
+del all_files, all_dirs, __belay_hash_file
 """
 
 
@@ -145,7 +157,7 @@ class _TaskExecuter(_Executer):
         src_code, src_lineno, src_file = getsource(f)
 
         # Add the json_decorator decorator for handling serialization.
-        src_code = "@json_decorator\n" + src_code
+        src_code = "@__belay_json\n" + src_code
 
         # Send the source code over to the device.
         self._belay_device(src_code, minify=minify)
@@ -332,20 +344,6 @@ class Device:
         # This is so we know what to clean up after done syncing.
         self(_BEGIN_SYNC_CODE)
 
-        @self.task(register=False)
-        def remote_hash_file(fn):
-            hasher = hashlib.sha256()
-            try:
-                with open(fn, "rb") as f:  # noqa: PL123
-                    while True:
-                        data = f.read(4096)
-                        if not data:
-                            break
-                        hasher.update(data)
-            except OSError:
-                return "0" * 64
-            return str(binascii.hexlify(hasher.digest()))
-
         # Sort so that folder creation comes before file sending.
         local_files = sorted(folder.rglob("*"))
         for src in local_files:
@@ -370,7 +368,7 @@ class Device:
 
                 # All other files, just sync over.
                 local_hash = local_hash_file(src)
-                remote_hash = remote_hash_file(dst)
+                remote_hash = self(f"__belay_hash_file({json.dumps(dst)})")
                 if local_hash != remote_hash:
                     self._board.fs_put(src, dst)
                 self(f'all_files.discard("{dst}")')
