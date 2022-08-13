@@ -9,7 +9,7 @@ import belay
 def mock_pyboard(mocker):
     mocker.patch("belay.device.Pyboard.__init__", return_value=None)
     mocker.patch("belay.device.Pyboard.enter_raw_repl", return_value=None)
-    mocker.patch("belay.device.Pyboard.exec", return_value=b"null")
+    mocker.patch("belay.device.Pyboard.exec", return_value=b"None")
     mocker.patch("belay.device.Pyboard.fs_put")
 
 
@@ -141,11 +141,11 @@ def test_device_sync_empty_remote(mocker, mock_device, sync_path):
     mock_device.sync(sync_path)
 
     expected_cmds = [
-        '__belay_hash_file("/alpha.py")',
-        '__belay_hash_file("/bar.txt")',
-        '__belay_hash_file("/folder1/file1.txt")',
-        '__belay_hash_file("/folder1/folder1_1/file1_1.txt")',
-        '__belay_hash_file("/foo.txt")',
+        "__belay_hash_file('/alpha.py')",
+        "__belay_hash_file('/bar.txt')",
+        "__belay_hash_file('/folder1/file1.txt')",
+        "__belay_hash_file('/folder1/folder1_1/file1_1.txt')",
+        "__belay_hash_file('/foo.txt')",
     ]
     call_args_list = mock_device._board.exec.call_args_list[1:]
     assert len(expected_cmds) <= len(call_args_list)
