@@ -175,7 +175,7 @@ def test_device_sync_partial_remote(mocker, mock_device, sync_path):
         if local_fn.stem.endswith("1"):
             return "0" * 64
         else:
-            return belay.device.local_hash_file(local_fn)
+            return belay.device._local_hash_file(local_fn)
 
     def side_effect(src_file, src_lineno, name, cmd):
         nonlocal __belay_hash_file

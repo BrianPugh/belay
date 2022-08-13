@@ -1,84 +1,21 @@
 import ast
 import binascii
 import hashlib
+import importlib.resources as pkg_resources
 import linecache
 import tempfile
 from abc import ABC, abstractmethod
-from functools import wraps
+from functools import lru_cache, wraps
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Set, Union
 
+from . import snippets
 from ._minify import minify as minify_code
 from .inspect import getsource
 from .pyboard import Pyboard, PyboardException
 
 # Typing
 PythonLiteral = Union[None, bool, bytes, int, float, str, List, Dict, Set]
-
-# MicroPython Code Snippets
-_BELAY_PREFIX = "_belay_"
-
-_BELAY_STARTUP_CODE = f"""def __belay(f):
-    def belay_interface(*args, **kwargs):
-        print(repr(f(*args, **kwargs)))
-    globals()["{_BELAY_PREFIX}" + f.__name__] = belay_interface
-    return f
-"""
-
-# Super common imports to speed up development
-_DEFAULT_STARTUP_CODE = """
-import binascii, errno, hashlib, machine, os, time
-from machine import ADC, I2C, Pin, PWM, SPI, Timer
-from time import sleep
-from micropython import const
-"""
-
-_TRY_MKDIR_CODE = """import os; import errno
-try:
-    os.mkdir('%s')
-except OSError as e:
-    if e.errno != errno.EEXIST:
-        raise
-"""
-
-# Creates and populates two set[str]: all_files, all_dirs
-_BEGIN_SYNC_CODE = """import os, hashlib, binascii
-def __belay_hash_file(fn):
-    hasher = hashlib.sha256()
-    try:
-        with open(fn, "rb") as f:
-            while True:
-                data = f.read(4096)
-                if not data:
-                    break
-                hasher.update(data)
-    except OSError:
-        return "0" * 64
-    return str(binascii.hexlify(hasher.digest()))
-all_files, all_dirs = set(), []
-def enumerate_fs(path=""):
-    for elem in os.ilistdir(path):
-        full_name = path + "/" + elem[0]
-        if elem[1] & 0x4000:  # is_dir
-            all_dirs.append(full_name)
-            enumerate_fs(full_name)
-        else:
-            all_files.add(full_name)
-enumerate_fs()
-all_dirs.sort()
-del enumerate_fs
-"""
-
-_CLEANUP_SYNC_CODE = """
-for file in all_files:
-    os.remove(file)
-for folder in reversed(all_dirs):
-    try:
-        os.rmdir(folder)
-    except OSError:
-        pass
-del all_files, all_dirs, __belay_hash_file
-"""
 
 
 class SpecialFilenameError(Exception):
@@ -96,7 +33,12 @@ class SpecialFunctionNameError(Exception):
     """
 
 
-def local_hash_file(fn):
+@lru_cache
+def _read_snippet(name):
+    return pkg_resources.read_text(snippets, f"{name}.py")
+
+
+def _local_hash_file(fn):
     hasher = hashlib.sha256()
     with open(fn, "rb") as f:  # noqa: PL123
         while True:
@@ -172,7 +114,7 @@ class _TaskExecuter(_Executer):
 
         @wraps(f)
         def executer(*args, **kwargs):
-            cmd = f"{_BELAY_PREFIX + name}(*{repr(args)}, **{repr(kwargs)})"
+            cmd = f"{'_belay_' + name}(*{repr(args)}, **{repr(kwargs)})"
 
             return self._belay_device._traceback_execute(
                 src_file, src_lineno, name, cmd
@@ -268,7 +210,7 @@ class Device:
     def __init__(
         self,
         *args,
-        startup: str = _DEFAULT_STARTUP_CODE,
+        startup: Optional[str] = None,
         **kwargs,
     ):
         """Create a MicroPython device.
@@ -284,9 +226,27 @@ class Device:
         self.task = _TaskExecuter(self)
         self.thread = _ThreadExecuter(self)
 
-        self(_BELAY_STARTUP_CODE)
-        if startup:
+        self._exec_snippet("startup")
+
+        if startup is None:
+            self._exec_snippet("convenience_imports")
+        elif startup:
             self(startup)
+
+    def _exec_snippet(self, name: str, *args):
+        """Load and execute a snippet from the snippets sub-package.
+
+        Parameters
+        ----------
+        name : str
+            Snippet to load.
+        args
+            If provided, substitutes into loaded snippet.
+        """
+        snippet = _read_snippet(name)
+        if args:
+            snippet = snippet % args
+        return self(snippet)
 
     def __call__(
         self,
@@ -350,7 +310,7 @@ class Device:
 
         # Create a list of all files and dirs (on-device).
         # This is so we know what to clean up after done syncing.
-        self(_BEGIN_SYNC_CODE)
+        self._exec_snippet("sync_begin")
 
         # Sort so that folder creation comes before file sending.
         local_files = sorted(folder.rglob("*"))
@@ -366,7 +326,7 @@ class Device:
                 tmp_dir = Path(tmp_dir)  # Used if we need to perform a conversion
 
                 if src.is_dir():
-                    self(_TRY_MKDIR_CODE % dst)
+                    self._exec_snippet("try_mkdir", dst)
                     continue
 
                 if minify and src.suffix == ".py":
@@ -375,14 +335,14 @@ class Device:
                     src.write_text(minified)
 
                 # All other files, just sync over.
-                local_hash = local_hash_file(src)
+                local_hash = _local_hash_file(src)
                 remote_hash = self(f"__belay_hash_file({repr(dst)})")
                 if local_hash != remote_hash:
                     self._board.fs_put(src, dst)
                 self(f'all_files.discard("{dst}")')
 
         # Remove all the files and directories that did not exist in local filesystem.
-        self(_CLEANUP_SYNC_CODE)
+        self._exec_snippet("sync_end")
 
     def _traceback_execute(
         self,
