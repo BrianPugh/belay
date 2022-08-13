@@ -20,9 +20,7 @@ _BELAY_PREFIX = "_belay_"
 
 _BELAY_STARTUP_CODE = f"""def __belay(f):
     def belay_interface(*args, **kwargs):
-        res = f(*args, **kwargs)
-        print(repr(res))
-        return res
+        print(repr(f(*args, **kwargs)))
     globals()["{_BELAY_PREFIX}" + f.__name__] = belay_interface
     return f
 """
