@@ -284,7 +284,8 @@ class Device:
     def sync(
         self,
         folder: Union[str, Path],
-        minify=True,
+        minify: bool = True,
+        keep: Union[None, list, str] = None,
     ) -> None:
         """Sync a local directory to the root of remote filesystem.
 
@@ -296,6 +297,12 @@ class Device:
         ----------
         folder: str, Path
             Directory of files to sync to the root of the board's filesystem.
+        minify: bool
+            Minify python files prior to syncing.
+            Defaults to ``True``.
+        keep: str or list
+            Do NOT delete these file(s) on-device if not present in ``folder``.
+            Defaults to ``["boot.py", "webrepl_cfg.py"]``.
         """
         folder = Path(folder).resolve()
 
@@ -307,6 +314,17 @@ class Device:
         # Create a list of all files and dirs (on-device).
         # This is so we know what to clean up after done syncing.
         self._exec_snippet("sync_begin")
+
+        # Remove the keep files from the on-device ``all_files`` set
+        # so they don't get deleted.
+        if keep is None:
+            keep = ["boot.py", "webrepl_cfg.py"]
+        elif isinstance(keep, str):
+            keep = [keep]
+        for dst in keep:
+            if dst[0] != "/":
+                dst = "/" + dst
+            self(f'all_files.discard("{dst}")')
 
         # Sort so that folder creation comes before file sending.
         local_files = sorted(folder.rglob("*"))
