@@ -226,27 +226,21 @@ class Device:
         self.task = _TaskExecuter(self)
         self.thread = _ThreadExecuter(self)
 
-        self._exec_snippet("startup")
-
         if startup is None:
-            self._exec_snippet("convenience_imports")
+            self._exec_snippet("startup", "convenience_imports")
         elif startup:
-            self(startup)
+            self(_read_snippet("startup") + "\n" + startup)
 
-    def _exec_snippet(self, name: str, *args):
+    def _exec_snippet(self, *names: str):
         """Load and execute a snippet from the snippets sub-package.
 
         Parameters
         ----------
-        name : str
-            Snippet to load.
-        args
-            If provided, substitutes into loaded snippet.
+        names : str
+            Snippet(s) to load and execute.
         """
-        snippet = _read_snippet(name)
-        if args:
-            snippet = snippet % args
-        return self(snippet)
+        snippets = [_read_snippet(name) for name in names]
+        return self("\n".join(snippets))
 
     def __call__(
         self,
