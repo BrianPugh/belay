@@ -7,7 +7,10 @@ import belay
 
 @pytest.fixture
 def mock_pyboard(mocker):
-    mocker.patch("belay.device.Pyboard.__init__", return_value=None)
+    def mock_init(self, *args, **kwargs):
+        self.serial = None
+
+    mocker.patch.object(belay.device.Pyboard, "__init__", mock_init)
     mocker.patch("belay.device.Pyboard.enter_raw_repl", return_value=None)
     mocker.patch("belay.device.Pyboard.exec", return_value=b"None")
     mocker.patch("belay.device.Pyboard.fs_put")
@@ -135,26 +138,23 @@ def sync_path(tmp_path):
 
 
 def test_device_sync_empty_remote(mocker, mock_device, sync_path):
-    payload = bytes(repr("0" * 64), encoding="utf8")
+    payload = repr([b"\x00"] * 5).encode("utf-8")
+    # payload = [bytes(repr("0" * 64), encoding="utf8")] * 5
     mock_device._board.exec = mocker.MagicMock(return_value=payload)
 
     mock_device.sync(sync_path)
 
-    expected_cmds = [
-        "__belay_hash_file('/alpha.py')",
-        "__belay_hash_file('/bar.txt')",
-        "__belay_hash_file('/folder1/file1.txt')",
-        "__belay_hash_file('/folder1/folder1_1/file1_1.txt')",
-        "__belay_hash_file('/foo.txt')",
-    ]
-    call_args_list = mock_device._board.exec.call_args_list[1:]
-    assert len(expected_cmds) <= len(call_args_list)
-    for i, expected_cmd in enumerate(expected_cmds):
-        for actual_call in call_args_list:
-            if actual_call.args[-1] == expected_cmd:
-                break
-        else:
-            raise Exception(f"cmd {i} not found: {expected_cmd}")
+    mock_device._board.exec.assert_has_calls(
+        [
+            call(
+                "for x in['/alpha.py','/bar.txt','/folder1/file1.txt','/folder1/folder1_1/file1_1.txt','/foo.txt','/boot.py','/webrepl_cfg.py']:\n all_files.discard(x)"
+            ),
+            call("__belay_mkdirs(['/folder1','/folder1/folder1_1'])"),
+            call(
+                "__belay_hfs(['/alpha.py','/bar.txt','/folder1/file1.txt','/folder1/folder1_1/file1_1.txt','/foo.txt'])"
+            ),
+        ]
+    )
 
     mock_device._board.fs_put.assert_has_calls(
         [
@@ -170,18 +170,23 @@ def test_device_sync_empty_remote(mocker, mock_device, sync_path):
 
 
 def test_device_sync_partial_remote(mocker, mock_device, sync_path):
-    def __belay_hash_file(fn):
-        local_fn = sync_path / fn[1:]
-        if local_fn.stem.endswith("1"):
-            return "0" * 64
-        else:
-            return belay.device._local_hash_file(local_fn)
+    def __belay_hfs(fns):
+        out = []
+        for fn in fns:
+            local_fn = sync_path / fn[1:]
+            if local_fn.stem.endswith("1"):
+                out.append(b"\x00")
+            else:
+                out.append(belay.device._local_hash_file(local_fn))
+        return out
 
-    def side_effect(src_file, src_lineno, name, cmd):
-        nonlocal __belay_hash_file
-        return eval(cmd)
+    def side_effect(cmd):
+        if not cmd.startswith("__belay_hfs"):
+            return b""
+        nonlocal __belay_hfs
+        return repr(eval(cmd)).encode("utf-8")
 
-    mock_device._traceback_execute = mocker.MagicMock(side_effect=side_effect)
+    mock_device._board.exec = mocker.MagicMock(side_effect=side_effect)
 
     mock_device.sync(sync_path)
 
