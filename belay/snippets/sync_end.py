@@ -5,4 +5,4 @@ for folder in reversed(all_dirs):
         os.rmdir(folder)
     except OSError:
         pass
-del all_files, all_dirs, __belay_hash_file, __belay_hash_files, __belay_mkdirs
+del all_files, all_dirs, __belay_hf, __belay_hfs, __belay_mkdirs

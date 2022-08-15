@@ -336,10 +336,11 @@ class Device:
         self(f"for x in {repr(dst_files)}:\n all_files.discard(x)")
 
         # Try and make all remote dirs
-        self(f"__belay_mkdirs({repr(dst_dirs)})")
+        if dst_dirs:
+            self(f"__belay_mkdirs({repr(dst_dirs)})")
 
         # Get all remote hashes
-        dst_hashes = self(f"__belay_hash_files({repr(dst_files)})")
+        dst_hashes = self(f"__belay_hfs({repr(dst_files)})")
 
         if len(dst_hashes) != len(dst_files):
             raise Exception
