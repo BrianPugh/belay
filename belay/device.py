@@ -320,8 +320,6 @@ class Device:
         elif isinstance(keep, str):
             keep = [keep]
         keep = [x if x[0] == "/" else "/" + x for x in keep]
-        if keep:
-            self(f"for x in {repr(keep)}:\n all_files.discard(x)")
 
         # Sort so that folder creation comes before file sending.
         src_objects = sorted(folder.rglob("*"))
@@ -333,7 +331,9 @@ class Device:
                 src_files.append(src_object)
         dst_files = [f"/{src.relative_to(folder)}" for src in src_files]
         dst_dirs = [f"/{src.relative_to(folder)}" for src in src_dirs]
-        self(f"for x in {repr(dst_files)}:\n all_files.discard(x)")
+        keep = [x for x in keep if x not in dst_files]
+        if dst_files + keep:
+            self(f"for x in {repr(dst_files + keep)}:\n all_files.discard(x)")
 
         # Try and make all remote dirs
         if dst_dirs:
