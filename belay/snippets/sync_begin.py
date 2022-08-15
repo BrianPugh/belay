@@ -10,7 +10,7 @@ def __belay_hf(fn):
                     break
                 h.update(data)
     except OSError:
-        return b"\x00"
+        return b""
     return h.digest()
 def __belay_hfs(fns):
     print(repr([__belay_hf(fn) for fn in fns]))
