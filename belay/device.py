@@ -13,6 +13,7 @@ from . import snippets
 from ._minify import minify as minify_code
 from .inspect import getsource
 from .pyboard import Pyboard, PyboardException
+from .webrepl import WebreplToSerial
 
 # Typing
 PythonLiteral = Union[None, bool, bytes, int, float, str, List, Dict, Set]
@@ -217,7 +218,11 @@ class Device:
             Code to run on startup. Defaults to a few common imports.
         """
         self._board = Pyboard(*args, **kwargs)
-        self._board.enter_raw_repl()
+        if isinstance(self._board.serial, WebreplToSerial):
+            soft_reset = False
+        else:
+            soft_reset = True
+        self._board.enter_raw_repl(soft_reset=soft_reset)
 
         self.task = _TaskExecuter(self)
         self.thread = _ThreadExecuter(self)

@@ -1,1 +1,1 @@
-PASS = "abc123"  # nosec
+PASS = "python"  # nosec

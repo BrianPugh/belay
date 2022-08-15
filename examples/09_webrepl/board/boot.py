@@ -12,8 +12,11 @@ def do_connect(ssid, pwd):
 
 
 # Attempt to connect to WiFi network
-do_connect("your_ssid", "your_password")
+do_connect("your wifi ssid", "your password")
 
 import webrepl
 
 webrepl.start()
+
+# import utelnetserver
+# utelnetserver.start()

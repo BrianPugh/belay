@@ -72,6 +72,8 @@ import os
 import sys
 import time
 
+from .webrepl import WebreplToSerial
+
 try:
     stdout = sys.stdout.buffer
 except AttributeError:
@@ -286,6 +288,8 @@ class Pyboard:
         ):
             # device looks like an IP address
             self.serial = TelnetToSerial(device, user, password, read_timeout=10)
+        elif device and device.startswith("ws://"):
+            self.serial = WebreplToSerial(device, password, read_timeout=10)
         else:
             import serial
 
