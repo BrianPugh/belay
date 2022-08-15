@@ -1,6 +1,5 @@
-#!/usr/bin/env python
 """
-The MIT License (MIT)
+The MIT License (MIT).
 
 Copyright (c) 2016 Damien P. George
 Copyright (c) 2016 Paul Sokolovsky
@@ -30,6 +29,7 @@ import socket
 import struct
 import sys
 from collections import deque
+from pathlib import Path
 
 # Treat this remote directory as a root for file transfers
 SANDBOX = ""
@@ -47,27 +47,31 @@ def debugmsg(msg):
         print(msg)
 
 
+class WebreplError(Exception):
+    pass
+
+
 class Websocket:
     def __init__(self, s: socket.socket):
         self.s = s
         self.buf = b""
 
     def write(self, data):
-        l = len(data)
-        if l < 126:
+        data_len = len(data)
+        if data_len < 126:
             # TODO: hardcoded "binary" type
-            hdr = struct.pack(">BB", 0x82, l)
+            hdr = struct.pack(">BB", 0x82, data_len)
         else:
-            hdr = struct.pack(">BBH", 0x82, 126, l)
+            hdr = struct.pack(">BBH", 0x82, 126, data_len)
         self.s.send(hdr)
         self.s.send(data)
 
     def writetext(self, data: bytes):
-        l = len(data)
-        if l < 126:
-            hdr = struct.pack(">BB", 0x81, l)
+        data_len = len(data)
+        if data_len < 126:
+            hdr = struct.pack(">BB", 0x81, data_len)
         else:
-            hdr = struct.pack(">BBH", 0x81, 126, l)
+            hdr = struct.pack(">BBH", 0x81, 126, data_len)
         self.s.send(hdr)
         self.s.send(data)
 
@@ -85,11 +89,13 @@ class Websocket:
         if not self.buf:
             while True:
                 hdr = self.recvexactly(2)
-                assert len(hdr) == 2
+                if len(hdr) != 2:
+                    raise WebreplError
                 fl, sz = struct.unpack(">BB", hdr)
                 if sz == 126:
                     hdr = self.recvexactly(2)
-                    assert len(hdr) == 2
+                    if len(hdr) != 2:
+                        raise WebreplError
                     (sz,) = struct.unpack(">H", hdr)
                 if fl == 0x82:
                     break
@@ -101,24 +107,27 @@ class Websocket:
                     debugmsg("Skip data: %s" % skip)
                     sz -= len(skip)
             data = self.recvexactly(sz)
-            assert len(data) == sz
+            if len(data) != sz:
+                raise WebreplError
             self.buf = data
 
         d = self.buf[:size]
         self.buf = self.buf[size:]
-        if size_match:
-            assert len(d) == size
+        if size_match and len(d) != size:
+            raise WebreplError
         return d
 
     def ioctl(self, req, val):
-        assert req == 9 and val == 2
+        if req != 9 and val != 2:
+            raise WebreplError
 
 
 def login(ws, passwd):
     while True:
         c = ws.read(1, text_ok=True)
         if c == b":":
-            assert ws.read(1, text_ok=True) == b" "
+            if ws.read(1, text_ok=True) != b" ":
+                raise WebreplError
             break
     ws.write(passwd.encode("utf-8") + b"\r")
 
@@ -126,7 +135,8 @@ def login(ws, passwd):
 def read_resp(ws):
     data = ws.read(4)
     sig, code = struct.unpack("<2sH", data)
-    assert sig == b"WB"
+    if sig != b"WB":
+        raise WebreplError
     return code
 
 
@@ -144,7 +154,8 @@ def get_ver(ws):
 
 
 def put_file(ws, local_file, remote_file):
-    sz = os.stat(local_file)[6]
+    local_file = Path(local_file)
+    sz = local_file.stat().st_size
     dest_fname = (SANDBOX + remote_file).encode("utf-8")
     rec = struct.pack(
         WEBREPL_REQ_S, b"WA", WEBREPL_PUT_FILE, 0, 0, sz, len(dest_fname), dest_fname
@@ -152,9 +163,10 @@ def put_file(ws, local_file, remote_file):
     debugmsg("%r %d" % (rec, len(rec)))
     ws.write(rec[:10])
     ws.write(rec[10:])
-    assert read_resp(ws) == 0
+    if read_resp(ws) != 0:
+        raise WebreplError
     cnt = 0
-    with open(local_file, "rb") as f:
+    with local_file.open("rb") as f:
         while True:
             sys.stdout.write("Sent %d of %d bytes\r" % (cnt, sz))
             sys.stdout.flush()
@@ -164,18 +176,21 @@ def put_file(ws, local_file, remote_file):
             ws.write(buf)
             cnt += len(buf)
     print()
-    assert read_resp(ws) == 0
+    if read_resp(ws) != 0:
+        raise WebreplError
 
 
 def get_file(ws, local_file, remote_file):
+    local_file = Path(local_file)
     src_fname = (SANDBOX + remote_file).encode("utf-8")
     rec = struct.pack(
         WEBREPL_REQ_S, b"WA", WEBREPL_GET_FILE, 0, 0, 0, len(src_fname), src_fname
     )
     debugmsg("%r %d" % (rec, len(rec)))
     ws.write(rec)
-    assert read_resp(ws) == 0
-    with open(local_file, "wb") as f:
+    if read_resp(ws) != 0:
+        raise WebreplError
+    with local_file.open("wb") as f:
         cnt = 0
         while True:
             ws.write(b"\0")
@@ -192,7 +207,8 @@ def get_file(ws, local_file, remote_file):
                 sys.stdout.write("Received %d bytes\r" % cnt)
                 sys.stdout.flush()
     print()
-    assert read_resp(ws) == 0
+    if read_resp(ws) != 0:
+        raise WebreplError
 
 
 def help(rc=0):
@@ -232,10 +248,10 @@ def parse_remote(remote):
 
 
 def client_handshake(sock):
-    """
-    Very simplified client handshake, works for MicroPython's
-    websocket server implementation, but probably not for other
-    servers.
+    """Simplified client handshake.
+
+    Works for MicroPython's websocket server implementation, but probably not
+    for other servers.
     """
     cl = sock.makefile("rwb", 0)
     cl.write(
@@ -248,10 +264,10 @@ Sec-WebSocket-Key: foo\r
 \r
 """
     )
-    l = cl.readline()
+    line = cl.readline()
     while 1:
-        l = cl.readline()
-        if l == b"\r\n":
+        line = cl.readline()
+        if line == b"\r\n":
             break
 
 
@@ -277,7 +293,8 @@ class WebreplToSerial:
         self.ws = Websocket(self.s)
 
         login(self.ws, password)
-        assert self.read(1024) == b"\r\nWebREPL connected\r\n>>> "
+        if self.read(1024) != b"\r\nWebREPL connected\r\n>>> ":
+            raise WebreplError
 
     def close(self):
         if self.s is not None:
