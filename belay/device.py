@@ -1,5 +1,4 @@
 import ast
-import binascii
 import hashlib
 import importlib.resources as pkg_resources
 import linecache
@@ -43,7 +42,7 @@ def _local_hash_file(fn):
             if not data:
                 break
             hasher.update(data)
-    return binascii.hexlify(hasher.digest()).decode()
+    return hasher.digest()
 
 
 class _Executer(ABC):
@@ -326,22 +325,34 @@ class Device:
             keep = ["boot.py", "webrepl_cfg.py"]
         elif isinstance(keep, str):
             keep = [keep]
-        for dst in keep:
-            if dst[0] != "/":
-                dst = "/" + dst
-            self(f'all_files.discard("{dst}")')
+        keep = [x if x[0] == "/" else "/" + x for x in keep]
+        if keep:
+            self(f"for x in {repr(keep)}:\n all_files.discard(x)")
 
         # Sort so that folder creation comes before file sending.
-        local_files = sorted(folder.rglob("*"))
-        for src in local_files:
-            dst = f"/{src.relative_to(folder)}"
+        src_objects = sorted(folder.rglob("*"))
+        src_files, src_dirs = [], []
+        for src_object in src_objects:
+            if src_object.is_dir():
+                src_dirs.append(src_object)
+            else:
+                src_files.append(src_object)
+        dst_files = [f"/{src.relative_to(folder)}" for src in src_files]
+        dst_dirs = [f"/{src.relative_to(folder)}" for src in src_dirs]
+        self(f"for x in {repr(dst_files)}:\n all_files.discard(x)")
 
+        # Try and make all remote dirs
+        self(f"__belay_mkdirs({repr(dst_dirs)})")
+
+        # Get all remote hashes
+        dst_hashes = self(f"__belay_hash_files({repr(dst_files)})")
+
+        if len(dst_hashes) != len(dst_files):
+            raise Exception
+
+        for src, dst, dst_hash in zip(src_files, dst_files, dst_hashes):
             with tempfile.TemporaryDirectory() as tmp_dir:
-                tmp_dir = Path(tmp_dir)  # Used if we need to perform a conversion
-
-                if src.is_dir():
-                    self._exec_snippet("try_mkdir", dst)
-                    continue
+                tmp_dir = Path(tmp_dir)
 
                 if minify and src.suffix == ".py":
                     minified = minify_code(src.read_text())
@@ -349,11 +360,9 @@ class Device:
                     src.write_text(minified)
 
                 # All other files, just sync over.
-                local_hash = _local_hash_file(src)
-                remote_hash = self(f"__belay_hash_file({repr(dst)})")
-                if local_hash != remote_hash:
+                src_hash = _local_hash_file(src)
+                if src_hash != dst_hash:
                     self._board.fs_put(src, dst)
-                self(f'all_files.discard("{dst}")')
 
         # Remove all the files and directories that did not exist in local filesystem.
         self._exec_snippet("sync_end")

@@ -1,5 +1,5 @@
 # Creates and populates two set[str]: all_files, all_dirs
-import os, hashlib, binascii
+import os, hashlib, errno
 def __belay_hash_file(fn):
     hasher = hashlib.sha256()
     try:
@@ -10,8 +10,17 @@ def __belay_hash_file(fn):
                     break
                 hasher.update(data)
     except OSError:
-        return "0" * 64
-    return str(binascii.hexlify(hasher.digest()))
+        return b"\x00"
+    return hasher.digest()
+def __belay_hash_files(fns):
+    print(repr([__belay_hash_file(fn) for fn in fns]))
+def __belay_mkdirs(fns):
+    for fn in fns:
+        try:
+            os.mkdir('%s')
+        except OSError as e:
+            if e.errno != errno.EEXIST:
+                raise
 all_files, all_dirs = set(), []
 def enumerate_fs(path=""):
     for elem in os.ilistdir(path):
