@@ -17,6 +17,3 @@ do_connect("your wifi ssid", "your password")
 import webrepl
 
 webrepl.start()
-
-# import utelnetserver
-# utelnetserver.start()

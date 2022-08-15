@@ -7,7 +7,7 @@ First, run the code using the serial port so that the configurations in the ``bo
 
    python main.py --port /dev/ttyUSB0
 
-You can then get the IP address by examining the terminal output on boot, or looking at your router configuration.
+You can then get the IP address by examining the terminal output (using a tool like ``minicom`` or ``mpremote``) on boot, or looking at your router configuration.
 
 .. code-block: bash
 
@@ -17,7 +17,7 @@ This should return something like:
 
 .. code-block: text
 
-   Connected to MicroPython at /dev/tty.usbserial-0001
+   Connected to MicroPython at /dev/ttyUSB0
    Use Ctrl-] to exit this shell
    OK
    MPY: soft reboot
@@ -27,6 +27,8 @@ This should return something like:
    Started webrepl in normal mode
    raw REPL; CTRL-B to exit
    >
+
+Now that a WebREPL server is running on-device, and we know the device's IP address, we can wirelessly run the script via:
 
 .. code-block: bash
 
