@@ -24,12 +24,13 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 import errno
-import os
 import socket
 import struct
 import sys
 from collections import deque
 from pathlib import Path
+
+from .exceptions import AuthenticationError
 
 # Treat this remote directory as a root for file transfers
 SANDBOX = ""
@@ -293,8 +294,11 @@ class WebreplToSerial:
         self.ws = Websocket(self.s)
 
         login(self.ws, password)
-        if self.read(1024) != b"\r\nWebREPL connected\r\n>>> ":
-            raise WebreplError
+        response = self.read(1024)
+        if response == b"\r\nAccess denied\r\n":
+            raise AuthenticationError(f"Incorrect password: {repr(password)}")
+        elif response != b"\r\nWebREPL connected\r\n>>> ":
+            raise WebreplError(f"Unknown login response: {response}")
 
     def close(self):
         if self.s is not None:
