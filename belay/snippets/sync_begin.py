@@ -17,7 +17,7 @@ def __belay_hfs(fns):
 def __belay_mkdirs(fns):
     for fn in fns:
         try:
-            os.mkdir('%s')
+            os.mkdir(fn)
         except OSError as e:
             if e.errno != errno.EEXIST:
                 raise
