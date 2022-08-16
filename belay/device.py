@@ -331,6 +331,7 @@ class Device:
                 src_files.append(src_object)
         dst_files = [f"/{src.relative_to(folder)}" for src in src_files]
         dst_dirs = [f"/{src.relative_to(folder)}" for src in src_dirs]
+        dst_dirs.sort()
         keep = [x for x in keep if x not in dst_files]
         if dst_files + keep:
             self(f"for x in {repr(dst_files + keep)}:\n all_files.discard(x)")
