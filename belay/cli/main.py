@@ -16,24 +16,16 @@ state = {}
 console: Console
 
 
-class SingleTaskProgress(Progress):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, console=console, **kwargs)
-        self.last_task_id = self.add_task("")
-
-    def update(self, *args, **kwargs):
-        return super().update(task_id=self.last_task_id, *args, **kwargs)
-
-
 @app.callback()
 def callback(silent: bool = False):
     """Tool to interact with MicroPython hardware."""
-    global console
+    global console, Progress
     state["silent"] = silent
     console_kwargs = {}
     if state["silent"]:
         console_kwargs["quiet"] = True
     console = Console(**console_kwargs)
+    Progress = partial(Progress, console=console)
 
 
 @app.command()
@@ -48,14 +40,16 @@ def sync(
     ),
 ):
     """Synchronize a folder to device."""
-    with SingleTaskProgress() as progress:
-        progress.update(description=f"Connecting to {port}")
+    with Progress() as progress:
+        task_id = progress.add_task("")
+        progress_update = partial(progress.update, task_id)
+        progress_update(description=f"Connecting to {port}")
         device = belay.Device(port, password=password)
-        progress.update(description=f"Connected to {port}.")
+        progress_update(description=f"Connected to {port}.")
 
-        device.sync(folder, progress=progress)
+        device.sync(folder, progress_update=progress_update)
 
-        progress.update(description="Sync complete.")
+        progress_update(description="Sync complete.")
 
 
 def main():
