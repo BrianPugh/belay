@@ -18,10 +18,14 @@ authors = ["Brian Pugh"]
 readme = "README.rst"
 packages = [{include = "belay"}]
 
+[tool.poetry.scripts]
+belay = "belay.cli.main:app"
+
 [tool.poetry.dependencies]
 # Be as loose as possible if writing a library.
 python = "^3.8"
 pyserial = "^3.1"
+typer = {extras = ["all"], version = "^0.6"}
 
 [tool.poetry.group.docs.dependencies]
 sphinx = "~4.5.0"
