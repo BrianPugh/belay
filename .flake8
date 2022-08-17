@@ -21,3 +21,9 @@ exclude =
     .venv
     examples/
     belay/snippets/
+
+extend-immutable-calls =
+    Argument
+    Arg
+    Option
+    Opt

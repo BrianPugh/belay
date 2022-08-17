@@ -8,6 +8,8 @@ from functools import lru_cache, wraps
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Set, Union
 
+import rich.progress
+
 from . import snippets
 from ._minify import minify as minify_code
 from .inspect import getsource
@@ -284,6 +286,7 @@ class Device:
         folder: Union[str, Path],
         minify: bool = True,
         keep: Union[None, list, str] = None,
+        progress=None,
     ) -> None:
         """Sync a local directory to the root of remote filesystem.
 
@@ -301,6 +304,8 @@ class Device:
         keep: str or list
             Do NOT delete these file(s) on-device if not present in ``folder``.
             Defaults to ``["boot.py", "webrepl_cfg.py"]``.
+        progress: rich.progress.Progress
+            ``Progress`` object to update with status as sync is performed.
         """
         folder = Path(folder).resolve()
 
@@ -311,6 +316,8 @@ class Device:
 
         # Create a list of all files and dirs (on-device).
         # This is so we know what to clean up after done syncing.
+        if progress:
+            progress.update(description="Bootstrapping sync...")
         self._exec_snippet("sync_begin")
 
         # Remove the keep files from the on-device ``all_files`` set
@@ -338,15 +345,24 @@ class Device:
 
         # Try and make all remote dirs
         if dst_dirs:
+            if progress:
+                progress.update(description="Creating remote directories...")
             self(f"__belay_mkdirs({repr(dst_dirs)})")
 
         # Get all remote hashes
+        if progress:
+            progress.update(description="Fetching remote hashes...")
         dst_hashes = self(f"__belay_hfs({repr(dst_files)})")
 
         if len(dst_hashes) != len(dst_files):
             raise Exception
 
+        if progress:
+            progress.update(total=len(src_files))
         for src, dst, dst_hash in zip(src_files, dst_files, dst_hashes):
+            if progress:
+                progress.update(description=f"Syncing: {dst[1:]}")
+
             with tempfile.TemporaryDirectory() as tmp_dir:
                 tmp_dir = Path(tmp_dir)
 
@@ -360,7 +376,12 @@ class Device:
                 if src_hash != dst_hash:
                     self._board.fs_put(src, dst)
 
+            if progress:
+                progress.update(advance=1)
+
         # Remove all the files and directories that did not exist in local filesystem.
+        if progress:
+            progress.update(description="Cleaning up...")
         self._exec_snippet("sync_end")
 
     def _traceback_execute(
