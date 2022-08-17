@@ -50,7 +50,3 @@ def sync(
         device.sync(folder, progress_update=progress_update)
 
         progress_update(description="Sync complete.")
-
-
-def main():
-    app()

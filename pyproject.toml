@@ -19,7 +19,7 @@ readme = "README.rst"
 packages = [{include = "belay"}]
 
 [tool.poetry.scripts]
-belay = "belay.cli.main:main"
+belay = "belay.cli.main:app"
 
 [tool.poetry.dependencies]
 # Be as loose as possible if writing a library.
