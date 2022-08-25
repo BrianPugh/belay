@@ -273,9 +273,14 @@ class Device:
         lines = res.split("\r\n")
 
         for line in lines[:-1]:
-            if line.startswith("_BELAY_R"):
-                line = line[8:]
-                return ast.literal_eval(line)
+            if line.startswith("_BELAY"):
+                line = line[6:]
+                code, line = line[0], line[1:]
+
+                if code == "R":
+                    return ast.literal_eval(line)
+                else:
+                    raise ValueError(f'Received unknown code: "{code}"')
 
             if stream_out:
                 stream_out.write(line)

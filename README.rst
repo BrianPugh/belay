@@ -1,6 +1,6 @@
 .. image:: https://raw.githubusercontent.com/BrianPugh/belay/main/assets/logo_white_400w.png
 
-|Python compat| |PyPi| |GHA tests| |Codecov report| |readthedocs|
+|Python compat| |PyPi| |GHA tests| |readthedocs|
 
 
 Belay
@@ -76,11 +76,13 @@ Calling the decorated function on-host sends a command to the device to execute 
 
    @device.task
    def set_led(state):
+       print(f"Printing from device; turning LED to {state}.")
        Pin(25, Pin.OUT).value(state)
 
 
    set_led(True)
 
+Outputs from ``print`` calls from on-device user-code are forwarded to host ``stdout``.
 
 `For more examples, see the examples folder.`_
 
