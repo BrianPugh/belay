@@ -138,8 +138,7 @@ def sync_path(tmp_path):
 
 
 def test_device_sync_empty_remote(mocker, mock_device, sync_path):
-    payload = repr([b"\x00"] * 5).encode("utf-8")
-    # payload = [bytes(repr("0" * 64), encoding="utf8")] * 5
+    payload = ("_BELAYR" + repr([b""] * 5) + "\r\n").encode("utf-8")
     mock_device._board.exec = mocker.MagicMock(return_value=payload)
 
     mock_device.sync(sync_path)
@@ -184,7 +183,7 @@ def test_device_sync_partial_remote(mocker, mock_device, sync_path):
         if not cmd.startswith("__belay_hfs"):
             return b""
         nonlocal __belay_hfs
-        return repr(eval(cmd)).encode("utf-8")
+        return ("_BELAYR" + repr(eval(cmd)) + "\r\n").encode("utf-8")
 
     mock_device._board.exec = mocker.MagicMock(side_effect=side_effect)
 
