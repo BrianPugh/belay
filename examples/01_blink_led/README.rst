@@ -54,9 +54,11 @@ The body of this function will never execute on host.
 
    @device.task
    def set_led(state):
+       print(f"Printing from device; turning LED to {state}.")
        Pin(25, Pin.OUT).value(state)
 
 The pin number may vary, depending on your hardware setup.
 Now that the function ``set_led`` is defined in the board's current environment, we can execute it.
 Calling ``set_led(True)`` won't invoke the function on the host, but will send a command to execute it on-device with the argument ``True``.
+On-device ``print`` calls have their results forwarded to the host's ``stdout``.
 This results in the LED turning on.

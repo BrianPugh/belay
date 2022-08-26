@@ -18,6 +18,7 @@ device = belay.Device(args.port)
 @device.task
 def set_led(state):
     # Configuration for a Pi Pico board.
+    print(f"Printing from device; turning LED to {state}.")
     Pin(25, Pin.OUT).value(state)
 
 

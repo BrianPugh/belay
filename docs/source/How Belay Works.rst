@@ -81,7 +81,7 @@ Conceptually, its as if the following code ran on-device (minification removed f
 
    def _belay_set_led(*args, **kwargs):
        res = set_led(*args, **kwargs)
-       print(repr(res))
+       print("_BELAYR" + repr(res))
 
 A separate private function is defined with this serialization in case another on-device function calls ``set_led``.
 
@@ -109,6 +109,6 @@ This has a few limitations, namely:
 
 1. Each passed in argument must be a python literals (``None``, booleans, bytes, numbers, strings, sets, lists, and dicts).
 
-2. The invoked code cannot ``print``. Belay uses stdout for data transfer and spurious prints will corrupt the data sent to host.
+2. User code cannot print a message that begins with ``_BELAY``, otherwise the remainder of the message will attempt to be parsed.
 
 3. The returned data of the function must also be a python literal(s).

@@ -1,7 +1,9 @@
 import ast
 import hashlib
 import importlib.resources as pkg_resources
+import io
 import linecache
+import sys
 import tempfile
 from abc import ABC, abstractmethod
 from functools import lru_cache, wraps
@@ -245,8 +247,8 @@ class Device:
     def __call__(
         self,
         cmd: str,
-        deserialize: bool = True,
         minify: bool = True,
+        stream_out: io.IOBase = sys.stdout,
     ) -> PythonLiteral:
         """Execute code on-device.
 
@@ -254,9 +256,6 @@ class Device:
         ----------
         cmd: str
             Python code to execute.
-        deserialize: bool
-            Deserialize the received bytestream to a python literal.
-            Defaults to ``True``.
         minify: bool
             Minify ``cmd`` code prior to sending.
             Reduces the number of characters that need to be transmitted.
@@ -271,13 +270,21 @@ class Device:
 
         res = self._board.exec(cmd).decode()
 
-        if deserialize:
-            if res:
-                return ast.literal_eval(res)
-            else:
-                return None
-        else:
-            return res
+        lines = res.split("\r\n")
+
+        for line in lines[:-1]:
+            if line.startswith("_BELAY"):
+                line = line[6:]
+                code, line = line[0], line[1:]
+
+                if code == "R":
+                    return ast.literal_eval(line)
+                else:
+                    raise ValueError(f'Received unknown code: "{code}"')
+
+            if stream_out:
+                stream_out.write(line)
+                stream_out.write("\n")
 
     def sync(
         self,

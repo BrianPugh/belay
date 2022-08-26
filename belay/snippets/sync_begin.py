@@ -13,7 +13,7 @@ def __belay_hf(fn):
         return b""
     return h.digest()
 def __belay_hfs(fns):
-    print(repr([__belay_hf(fn) for fn in fns]))
+    print("_BELAYR" + repr([__belay_hf(fn) for fn in fns]))
 def __belay_mkdirs(fns):
     for fn in fns:
         try:
