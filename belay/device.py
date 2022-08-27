@@ -1,7 +1,6 @@
 import ast
 import hashlib
 import importlib.resources as pkg_resources
-import io
 import linecache
 import secrets
 import string
@@ -11,7 +10,7 @@ from abc import ABC, abstractmethod
 from functools import lru_cache, wraps
 from inspect import isgeneratorfunction
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Set, Union
+from typing import Callable, Dict, Generator, List, Optional, Set, TextIO, Union
 
 from . import snippets
 from ._minify import minify as minify_code
@@ -21,6 +20,9 @@ from .webrepl import WebreplToSerial
 
 # Typing
 PythonLiteral = Union[None, bool, bytes, int, float, str, List, Dict, Set]
+BelayGenerator = Generator[PythonLiteral, None, None]
+BelayReturn = Union[BelayGenerator, PythonLiteral]
+BelayCallable = Callable[..., BelayReturn]
 
 
 _python_identifier_chars = (
@@ -64,7 +66,7 @@ class _Executer(ABC):
         # To avoid Executer.__setattr__ raising an error
         object.__setattr__(self, "_belay_device", device)
 
-    def __setattr__(self, name: str, value: Callable):
+    def __setattr__(self, name: str, value: BelayCallable):
         if (
             name.startswith("_belay")
             or name.startswith("__belay")
@@ -75,7 +77,7 @@ class _Executer(ABC):
             )
         super().__setattr__(name, value)
 
-    def __getattr__(self, name: str) -> Callable:
+    def __getattr__(self, name: str) -> BelayCallable:
         # Just here for linting purposes.
         raise AttributeError
 
@@ -87,11 +89,11 @@ class _Executer(ABC):
 class _TaskExecuter(_Executer):
     def __call__(
         self,
-        f: Optional[Callable[..., PythonLiteral]] = None,
+        f: Optional[BelayCallable] = None,
         /,
         minify: bool = True,
         register: bool = True,
-    ) -> Callable[..., PythonLiteral]:
+    ) -> BelayCallable:
         """Decorator that send code to device that executes when decorated function is called on-host.
 
         Parameters
@@ -286,7 +288,7 @@ class Device:
         elif startup:
             self(_read_snippet("startup") + "\n" + startup)
 
-    def _exec_snippet(self, *names: str):
+    def _exec_snippet(self, *names: str) -> BelayReturn:
         """Load and execute a snippet from the snippets sub-package.
 
         Parameters
@@ -301,8 +303,8 @@ class Device:
         self,
         cmd: str,
         minify: bool = True,
-        stream_out: io.IOBase = sys.stdout,
-    ) -> PythonLiteral:
+        stream_out: TextIO = sys.stdout,
+    ) -> BelayReturn:
         """Execute code on-device.
 
         Parameters
@@ -456,7 +458,7 @@ class Device:
         src_lineno: int,
         name: str,
         cmd: str,
-    ):
+    ) -> BelayReturn:
         """Invoke ``cmd``, and reinterprets raised stacktrace in ``PyboardException``.
 
         Parameters
