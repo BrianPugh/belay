@@ -8,9 +8,11 @@ import sys
 import tempfile
 from abc import ABC, abstractmethod
 from functools import lru_cache, wraps
-from inspect import isgeneratorfunction
+from inspect import isgeneratorfunction, signature
 from pathlib import Path
 from typing import Callable, Dict, Generator, List, Optional, Set, TextIO, Union
+
+from serial import SerialException
 
 from . import snippets
 from ._minify import minify as minify_code
@@ -29,6 +31,8 @@ _python_identifier_chars = (
     string.ascii_uppercase + string.ascii_lowercase + string.digits
 )
 
+_MAX_RECORD_LEN = 1000
+
 
 class SpecialFunctionNameError(Exception):
     """Reserved function name that may impact Belay functionality.
@@ -39,6 +43,14 @@ class SpecialFunctionNameError(Exception):
 
         * Names that start with ``_belay`` or ``__belay``
     """
+
+
+class ReconstructionError(Exception):
+    """Too many commands were given."""
+
+
+class ConnectionLost(Exception):
+    """Lost connection to device."""
 
 
 @lru_cache
@@ -122,7 +134,7 @@ class _TaskExecuter(_Executer):
         src_code = "@__belay\n" + src_code
 
         # Send the source code over to the device.
-        self._belay_device(src_code, minify=minify)
+        self._belay_device._exec(src_code, minify=minify)
 
         @wraps(f)
         def func_executer(*args, **kwargs):
@@ -228,7 +240,7 @@ class _ThreadExecuter(_Executer):
         src_code, src_lineno, src_file = getsource(f)
 
         # Send the source code over to the device.
-        self._belay_device(src_code, minify=minify)
+        self._belay_device._exec(src_code, minify=minify)
 
         @wraps(f)
         def executer(*args, **kwargs):
@@ -264,6 +276,7 @@ class Device:
         self,
         *args,
         startup: Optional[str] = None,
+        attempts: int = 0,
         **kwargs,
     ):
         """Create a MicroPython device.
@@ -272,13 +285,15 @@ class Device:
         ----------
         startup: str
             Code to run on startup. Defaults to a few common imports.
+        attempts: int
+            If device disconnects, attempt to re-connect this many times (with 2 seconds between tries).
+            WARNING: this may result in unexpectedly long blocking calls!
         """
-        self._board = Pyboard(*args, **kwargs)
-        if isinstance(self._board.serial, WebreplToSerial):
-            soft_reset = False
-        else:
-            soft_reset = True
-        self._board.enter_raw_repl(soft_reset=soft_reset)
+        self._board_kwargs = signature(Pyboard).bind(*args, **kwargs).arguments
+        self.attempts = attempts
+        self._cmd_history = []
+
+        self._connect_to_board(**self._board_kwargs)
 
         self.task = _TaskExecuter(self)
         self.thread = _ThreadExecuter(self)
@@ -286,7 +301,15 @@ class Device:
         if startup is None:
             self._exec_snippet("startup", "convenience_imports")
         elif startup:
-            self(_read_snippet("startup") + "\n" + startup)
+            self._exec(_read_snippet("startup") + "\n" + startup)
+
+    def _connect_to_board(self, **kwargs):
+        self._board = Pyboard(**kwargs)
+        if isinstance(self._board.serial, WebreplToSerial):
+            soft_reset = False
+        else:
+            soft_reset = True
+        self._board.enter_raw_repl(soft_reset=soft_reset)
 
     def _exec_snippet(self, *names: str) -> BelayReturn:
         """Load and execute a snippet from the snippets sub-package.
@@ -297,7 +320,7 @@ class Device:
             Snippet(s) to load and execute.
         """
         snippets = [_read_snippet(name) for name in names]
-        return self("\n".join(snippets))
+        return self._exec("\n".join(snippets))
 
     def __call__(
         self,
@@ -320,10 +343,31 @@ class Device:
         -------
             Return value from executing code on-device.
         """
+        return self._exec(record=False, cmd=cmd, minify=minify, stream_out=stream_out)
+
+    def _exec(
+        self,
+        cmd: str,
+        minify: bool = True,
+        stream_out: TextIO = sys.stdout,
+        record=True,
+    ) -> BelayReturn:
+
         if minify:
             cmd = minify_code(cmd)
 
-        res = self._board.exec(cmd).decode()
+        if record and len(self._cmd_history) < _MAX_RECORD_LEN:
+            self._cmd_history.append(cmd)
+
+        try:
+            res = self._board.exec(cmd).decode()
+        except (SerialException, ConnectionResetError):
+            # Board probably disconnected.
+            if self.attempts:
+                self.reconnect()
+                res = self._board.exec(cmd).decode()
+            else:
+                raise ConnectionLost
 
         lines = res.split("\r\n")
 
@@ -451,6 +495,19 @@ class Device:
     def close(self):
         """Close the connection to device."""
         return self._board.close()
+
+    def reconnect(self, attempts=None):
+        if len(self._cmd_history) == _MAX_RECORD_LEN:
+            raise ReconstructionError
+
+        kwargs = self._board_kwargs.copy()
+        kwargs["attempts"] = self.attempts if attempts is None else attempts
+
+        self._connect_to_board(**kwargs)
+
+        # Playback the setup history
+        for cmd in self._cmd_history:
+            self(cmd)
 
     def _traceback_execute(
         self,

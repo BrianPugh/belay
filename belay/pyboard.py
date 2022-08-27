@@ -271,9 +271,15 @@ class Pyboard:
         baudrate=115200,
         user="micro",
         password="python",
-        wait=0,
+        attempts=1,
         exclusive=True,
     ):
+        """
+        Parameters
+        ----------
+        wait: int
+            (N-1) of attempts to try and connect
+        """
         self.in_raw_repl = False
         self.use_raw_paste = True
         if device.startswith("exec:"):
@@ -299,19 +305,15 @@ class Pyboard:
                 serial_kwargs["exclusive"] = exclusive
 
             delayed = False
-            for attempt in range(wait + 1):
+            for _ in range(attempts):
                 try:
                     self.serial = serial.Serial(device, **serial_kwargs)
                     break
                 except (OSError, IOError):  # Py2 and Py3 have different errors
-                    if wait == 0:
+                    if attempts == 1:
                         continue
-                    if attempt == 0:
-                        sys.stdout.write("Waiting {} seconds for pyboard ".format(wait))
-                        delayed = True
-                time.sleep(1)
-                sys.stdout.write(".")
-                sys.stdout.flush()
+                    delayed = True
+                time.sleep(2.0)
             else:
                 if delayed:
                     print("")
