@@ -3,10 +3,13 @@ import hashlib
 import importlib.resources as pkg_resources
 import io
 import linecache
+import secrets
+import string
 import sys
 import tempfile
 from abc import ABC, abstractmethod
 from functools import lru_cache, wraps
+from inspect import isgeneratorfunction
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Set, Union
 
@@ -18,6 +21,11 @@ from .webrepl import WebreplToSerial
 
 # Typing
 PythonLiteral = Union[None, bool, bytes, int, float, str, List, Dict, Set]
+
+
+_python_identifier_chars = (
+    string.ascii_uppercase + string.ascii_lowercase + string.digits
+)
 
 
 class SpecialFunctionNameError(Exception):
@@ -45,6 +53,10 @@ def _local_hash_file(fn):
                 break
             hasher.update(data)
     return hasher.digest()
+
+
+def _random_python_identifier(n=16):
+    return "_" + "".join(secrets.choice(_python_identifier_chars) for _ in range(n))
 
 
 class _Executer(ABC):
@@ -111,16 +123,16 @@ class _TaskExecuter(_Executer):
         self._belay_device(src_code, minify=minify)
 
         @wraps(f)
-        def executer(*args, **kwargs):
-            cmd = f"{'_belay_' + name}(*{repr(args)}, **{repr(kwargs)})"
+        def func_executer(*args, **kwargs):
+            cmd = f"_belay_{name}(*{repr(args)}, **{repr(kwargs)})"
 
             return self._belay_device._traceback_execute(
                 src_file, src_lineno, name, cmd
             )
 
         @wraps(f)
-        def multi_executer(*args, **kwargs):
-            res = executer(*args, **kwargs)
+        def multi_func_executer(*args, **kwargs):
+            res = func_executer(*args, **kwargs)
             if hasattr(f, "_belay_level"):
                 # Call next device's wrapper.
                 if f._belay_level == 1:
@@ -130,14 +142,55 @@ class _TaskExecuter(_Executer):
 
             return res
 
-        multi_executer._belay_level = 1
+        multi_func_executer._belay_level = 1
         if hasattr(f, "_belay_level"):
-            multi_executer._belay_level += f._belay_level
+            multi_func_executer._belay_level += f._belay_level
+
+        @wraps(f)
+        def gen_executer(*args, **kwargs):
+            # Step 1: Create the on-device generator
+            gen_identifier = _random_python_identifier()
+            cmd = f"{gen_identifier} = _belay_{name}(*{repr(args)}, **{repr(kwargs)})"
+            self._belay_device._traceback_execute(src_file, src_lineno, name, cmd)
+            # Step 2: Create the host generator that invokes ``next()`` on-device.
+            cmd = f"__belay_gen_next({gen_identifier})"
+
+            def gen_inner():
+                try:
+                    while True:
+                        yield self._belay_device._traceback_execute(
+                            src_file, src_lineno, name, cmd
+                        )
+                except StopIteration:
+                    pass
+                # Delete the exhausted generator on-device.
+                self._belay_device(f"del {gen_identifier}")
+
+            return gen_inner()
+
+        @wraps(f)
+        def multi_gen_executer(*args, **kwargs):
+            raise NotImplementedError
+
+        multi_gen_executer._belay_level = 1
+        if hasattr(f, "_belay_level"):
+            multi_gen_executer._belay_level += f._belay_level
+
+        if isgeneratorfunction(f):
+            executer = gen_executer
+
+            # TODO: define multi_gen_executer
+            if multi_gen_executer._belay_level > 1:
+                raise NotImplementedError(
+                    "Multi-device generator task decorating not yet implemented."
+                )
+        else:
+            executer = multi_func_executer
 
         if register:
             setattr(self, name, executer)
 
-        return multi_executer
+        return executer
 
 
 class _ThreadExecuter(_Executer):
@@ -278,7 +331,11 @@ class Device:
                 code, line = line[0], line[1:]
 
                 if code == "R":
+                    # Result
                     return ast.literal_eval(line)
+                elif code == "S":
+                    # StopIteration
+                    raise StopIteration
                 else:
                     raise ValueError(f'Received unknown code: "{code}"')
 
