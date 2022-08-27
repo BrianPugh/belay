@@ -13,6 +13,8 @@ jobs:
         uses: JRubics/poetry-publish@v1.11
         with:
           pypi_token: ${{ secrets.PYPI_TOKEN }}
+          # TODO: remove poetry_version once upstream github action is updated.
+          poetry_version: "==1.2.0b3"
           allow_poetry_pre_release: "yes"
           ignore_dev_requirements: "yes"
           plugins: "poetry-dynamic-versioning-plugin"
