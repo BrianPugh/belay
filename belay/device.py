@@ -389,6 +389,10 @@ class Device:
             progress_update(description="Cleaning up...")
         self._exec_snippet("sync_end")
 
+    def close(self):
+        """Close the connection to device."""
+        return self._board.close()
+
     def _traceback_execute(
         self,
         src_file: Union[str, Path],
