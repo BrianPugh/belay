@@ -9,6 +9,8 @@ args = parser.parse_args()
 
 device = belay.Device(args.port)
 
+device("import microcontroller")
+
 
 @device.task
 def read_temperature():

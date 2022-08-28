@@ -47,14 +47,17 @@ def _read_snippet(name):
 
 
 def _local_hash_file(fn):
-    hasher = hashlib.sha256()
+    h = 0xCBF29CE484222325
+    size = 1 << 64
     with open(fn, "rb") as f:  # noqa: PL123
         while True:
             data = f.read(65536)
             if not data:
                 break
-            hasher.update(data)
-    return hasher.digest()
+            for byte in data:
+                h = h ^ byte
+                h = (h * 0x100000001B3) % size
+    return h
 
 
 def _random_python_identifier(n=16):
