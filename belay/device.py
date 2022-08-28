@@ -310,12 +310,7 @@ class Device:
         self.task = _TaskExecuter(self)
         self.thread = _ThreadExecuter(self)
 
-        self.implementation = self._exec_snippet("startup")
-
-        if startup is None:
-            self._exec_snippet("convenience_imports")
-        elif startup:
-            self(startup)
+        self._exec_snippet("startup")
 
         self.implementation = Implementation(
             *self(
@@ -325,6 +320,14 @@ class Device:
                 '+")")'
             )
         )
+
+        if startup is None:
+            if self.implementation.name == "circuitpython":
+                self._exec_snippet("convenience_imports_circuitpython")
+            else:
+                self._exec_snippet("convenience_imports_micropython")
+        elif startup:
+            self(startup)
 
     def _exec_snippet(self, *names: str) -> BelayReturn:
         """Load and execute a snippet from the snippets sub-package.
