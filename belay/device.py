@@ -1,5 +1,4 @@
 import ast
-import hashlib
 import importlib.resources as pkg_resources
 import linecache
 import secrets
@@ -7,10 +6,11 @@ import string
 import sys
 import tempfile
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from functools import lru_cache, wraps
 from inspect import isgeneratorfunction
 from pathlib import Path
-from typing import Callable, Dict, Generator, List, Optional, Set, TextIO, Union
+from typing import Callable, Dict, Generator, List, Optional, Set, TextIO, Tuple, Union
 
 from . import snippets
 from ._minify import minify as minify_code
@@ -260,8 +260,31 @@ class _ThreadExecuter(_Executer):
         return multi_executer
 
 
+@dataclass
+class Implementation:
+    """Implementation dataclass detailing the device.
+
+    Parameters
+    ----------
+    name: str
+        Type of python running on device.
+        One of ``{"micropython", "circuitpython"}``.
+    version: Tuple[int, int, int]
+        ``(major, minor, patch)`` Semantic versioning of device's firmware.
+    """
+
+    name: str
+    version: Tuple[int, int, int]
+
+
 class Device:
-    """Belay interface into a micropython device."""
+    """Belay interface into a micropython device.
+
+    Attributes
+    ----------
+    implementation: Implementation
+        Implementation details of device.
+    """
 
     def __init__(
         self,
@@ -286,10 +309,21 @@ class Device:
         self.task = _TaskExecuter(self)
         self.thread = _ThreadExecuter(self)
 
+        self.implementation = self._exec_snippet("startup")
+
         if startup is None:
-            self._exec_snippet("startup", "convenience_imports")
+            self._exec_snippet("convenience_imports")
         elif startup:
-            self(_read_snippet("startup") + "\n" + startup)
+            self(startup)
+
+        self.implementation = Implementation(
+            *self(
+                'print("_BELAYR("'
+                '+ repr(sys.implementation.name) + ","'
+                "+ repr(sys.implementation.version)"
+                '+")")'
+            )
+        )
 
     def _exec_snippet(self, *names: str) -> BelayReturn:
         """Load and execute a snippet from the snippets sub-package.
