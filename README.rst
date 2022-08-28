@@ -8,9 +8,9 @@ Belay
 
 .. inclusion-marker-do-not-remove
 
-Belay is a library that enables the rapid development of projects that interact with hardware via a micropython or circuitpython compatible board.
+Belay is a library that enables the rapid development of projects that interact with hardware via a MicroPython or CircuitPython compatible board.
 
-Belay works by interacting with the REPL interface of a micropython board from Python code running on PC.
+Belay works by interacting with the REPL interface of a MicroPython board from Python code running on PC.
 
 Belay supports wired serial connections (USB) and wireless connections via WebREPL over WiFi.
 
@@ -58,7 +58,8 @@ Belay requires Python ``>=3.8`` and can be installed via:
 
    pip install belay
 
-The micropython-compatible board only needs micropython installed; no additional preparation is required.
+The MicroPython-compatible board only needs MicroPython installed; no additional preparation is required.
+If using CircuitPython, and additional modification needs to be made to ``boot.py``. See `documentation <https://belay.readthedocs.io/en/latest/CircuitPython.html>`_ for details.
 
 Examples
 ========

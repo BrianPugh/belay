@@ -46,7 +46,7 @@ def _read_snippet(name):
     return pkg_resources.read_text(snippets, f"{name}.py")
 
 
-def _local_hash_file(fn):
+def _local_hash_file(fn: str) -> int:
     h = 0xCBF29CE484222325
     size = 1 << 64
     with open(fn, "rb") as f:  # noqa: PL123
