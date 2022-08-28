@@ -47,6 +47,7 @@ def _read_snippet(name):
 
 
 def _local_hash_file(fn: str) -> int:
+    """Compute the FNV-1a 64-bit hash of a file."""
     h = 0xCBF29CE484222325
     size = 1 << 64
     with open(fn, "rb") as f:  # noqa: PL123
