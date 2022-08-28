@@ -18,4 +18,4 @@ print("")
 
 @device.thread
 def run_led_loop(period):
-    print("hi")
+    pass
