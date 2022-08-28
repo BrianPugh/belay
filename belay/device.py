@@ -119,7 +119,7 @@ class _TaskExecuter(_Executer):
         src_code, src_lineno, src_file = getsource(f)
 
         # Add the __belay decorator for handling result serialization.
-        src_code = "@__belay\n" + src_code
+        src_code = f"@__belay({repr(name)})\n" + src_code
 
         # Send the source code over to the device.
         self._belay_device(src_code, minify=minify)

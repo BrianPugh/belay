@@ -1,26 +1,30 @@
 # Creates and populates two set[str]: all_files, all_dirs
-import os, hashlib, errno
-def __belay_hf(fn):
-    h = hashlib.sha256()
-    try:
-        with open(fn, "rb") as f:
-            while True:
-                data = f.read(4096)
-                if not data:
-                    break
-                h.update(data)
-    except OSError:
+import os
+if sys.implementation.name == "circuitpython":
+    def __belay_hf(fn):
         return b""
-    return h.digest()
+else:
+    import hashlib
+    def __belay_hf(fn):
+        h = hashlib.sha256()
+        try:
+            with open(fn, "rb") as f:
+                while True:
+                    data = f.read(4096)
+                    if not data:
+                        break
+                    h.update(data)
+        except OSError:
+            return b""
+        return h.digest()
 def __belay_hfs(fns):
     print("_BELAYR" + repr([__belay_hf(fn) for fn in fns]))
 def __belay_mkdirs(fns):
     for fn in fns:
         try:
             os.mkdir(fn)
-        except OSError as e:
-            if e.errno != errno.EEXIST:
-                raise
+        except OSError:
+            pass
 all_files, all_dirs = set(), []
 def __belay_fs(path=""):
     for elem in os.ilistdir(path):
