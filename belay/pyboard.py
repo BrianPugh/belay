@@ -311,7 +311,7 @@ class Pyboard:
                 except (OSError, IOError):  # Py2 and Py3 have different errors
                     if attempts == 1:
                         continue
-                time.sleep(2.0)
+                time.sleep(1.0)
             else:
                 raise PyboardError("failed to access " + device)
 

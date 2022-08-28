@@ -290,7 +290,7 @@ class Device:
         startup: str
             Code to run on startup. Defaults to a few common imports.
         attempts: int
-            If device disconnects, attempt to re-connect this many times (with 2 seconds between tries).
+            If device disconnects, attempt to re-connect this many times (with 1 second between attempts).
             WARNING: this may result in unexpectedly long blocking calls!
         """
         self._board_kwargs = signature(Pyboard).bind(*args, **kwargs).arguments
