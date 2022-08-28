@@ -14,15 +14,7 @@ Device Creation
    device = belay.Device("/dev/ttyUSB0")
 
 This creates a ``Device`` object that connects to the microcontroller.
-Belay resets it, enters REPL mode, and then runs a few common imports on-device for convenience.
-Currently, these convenience imports are:
-
-.. code-block:: python
-
-   import binascii, errno, hashlib, machine, os, time
-   from machine import ADC, I2C, Pin, PWM, SPI, Timer
-   from time import sleep
-   from micropython import const
+Belay resets it, enters REPL mode, and then runs `some convenience imports on the board`_.
 
 
 Task - Sending Code Over
@@ -112,3 +104,7 @@ This has a few limitations, namely:
 2. User code cannot print a message that begins with ``_BELAY``, otherwise the remainder of the message will attempt to be parsed.
 
 3. The returned data of the function must also be a python literal(s).
+
+
+
+.. _some convenience imports on the board: https://github.com/BrianPugh/belay/blob/main/belay/snippets/convenience_imports_micropython.py
