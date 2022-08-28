@@ -304,7 +304,6 @@ class Pyboard:
             if serial.__version__ >= "3.3":
                 serial_kwargs["exclusive"] = exclusive
 
-            delayed = False
             for _ in range(attempts):
                 try:
                     self.serial = serial.Serial(device, **serial_kwargs)
@@ -312,14 +311,9 @@ class Pyboard:
                 except (OSError, IOError):  # Py2 and Py3 have different errors
                     if attempts == 1:
                         continue
-                    delayed = True
                 time.sleep(2.0)
             else:
-                if delayed:
-                    print("")
                 raise PyboardError("failed to access " + device)
-            if delayed:
-                print("")
 
     def close(self):
         self.serial.close()

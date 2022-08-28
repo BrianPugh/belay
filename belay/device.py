@@ -134,14 +134,14 @@ class _TaskExecuter(_Executer):
         src_code = "@__belay\n" + src_code
 
         # Send the source code over to the device.
-        self._belay_device._exec(src_code, minify=minify)
+        self._belay_device(src_code, minify=minify)
 
         @wraps(f)
         def func_executer(*args, **kwargs):
             cmd = f"_belay_{name}(*{repr(args)}, **{repr(kwargs)})"
 
             return self._belay_device._traceback_execute(
-                src_file, src_lineno, name, cmd
+                src_file, src_lineno, name, cmd, record=False
             )
 
         @wraps(f)
@@ -165,7 +165,9 @@ class _TaskExecuter(_Executer):
             # Step 1: Create the on-device generator
             gen_identifier = _random_python_identifier()
             cmd = f"{gen_identifier} = _belay_{name}(*{repr(args)}, **{repr(kwargs)})"
-            self._belay_device._traceback_execute(src_file, src_lineno, name, cmd)
+            self._belay_device._traceback_execute(
+                src_file, src_lineno, name, cmd, record=False
+            )
             # Step 2: Create the host generator that invokes ``next()`` on-device.
             cmd = f"__belay_gen_next({gen_identifier})"
 
@@ -173,7 +175,7 @@ class _TaskExecuter(_Executer):
                 try:
                     while True:
                         yield self._belay_device._traceback_execute(
-                            src_file, src_lineno, name, cmd
+                            src_file, src_lineno, name, cmd, record=False
                         )
                 except StopIteration:
                     pass
@@ -240,12 +242,14 @@ class _ThreadExecuter(_Executer):
         src_code, src_lineno, src_file = getsource(f)
 
         # Send the source code over to the device.
-        self._belay_device._exec(src_code, minify=minify)
+        self._belay_device(src_code, minify=minify)
 
         @wraps(f)
         def executer(*args, **kwargs):
             cmd = f"import _thread; _thread.start_new_thread({name}, {repr(args)}, {repr(kwargs)})"
-            self._belay_device._traceback_execute(src_file, src_lineno, name, cmd)
+            self._belay_device._traceback_execute(
+                src_file, src_lineno, name, cmd, record=False
+            )
 
         @wraps(f)
         def multi_executer(*args, **kwargs):
@@ -301,7 +305,7 @@ class Device:
         if startup is None:
             self._exec_snippet("startup", "convenience_imports")
         elif startup:
-            self._exec(_read_snippet("startup") + "\n" + startup)
+            self(_read_snippet("startup") + "\n" + startup)
 
     def _connect_to_board(self, **kwargs):
         self._board = Pyboard(**kwargs)
@@ -320,13 +324,14 @@ class Device:
             Snippet(s) to load and execute.
         """
         snippets = [_read_snippet(name) for name in names]
-        return self._exec("\n".join(snippets))
+        return self("\n".join(snippets))
 
     def __call__(
         self,
         cmd: str,
         minify: bool = True,
         stream_out: TextIO = sys.stdout,
+        record=True,
     ) -> BelayReturn:
         """Execute code on-device.
 
@@ -338,25 +343,18 @@ class Device:
             Minify ``cmd`` code prior to sending.
             Reduces the number of characters that need to be transmitted.
             Defaults to ``True``.
+        record: bool
+            Record the call for state-reconstruction if device is accidentally reset.
+            Defaults to ``True``.
 
         Returns
         -------
             Return value from executing code on-device.
         """
-        return self._exec(record=False, cmd=cmd, minify=minify, stream_out=stream_out)
-
-    def _exec(
-        self,
-        cmd: str,
-        minify: bool = True,
-        stream_out: TextIO = sys.stdout,
-        record=True,
-    ) -> BelayReturn:
-
         if minify:
             cmd = minify_code(cmd)
 
-        if record and len(self._cmd_history) < _MAX_RECORD_LEN:
+        if record and self.attempts and len(self._cmd_history) < _MAX_RECORD_LEN:
             self._cmd_history.append(cmd)
 
         try:
@@ -505,8 +503,10 @@ class Device:
 
         self._connect_to_board(**kwargs)
 
+        cmd_history = self._cmd_history
+        self._cmd_history = []
         # Playback the setup history
-        for cmd in self._cmd_history:
+        for cmd in cmd_history:
             self(cmd)
 
     def _traceback_execute(
@@ -515,6 +515,7 @@ class Device:
         src_lineno: int,
         name: str,
         cmd: str,
+        record: bool = True,
     ) -> BelayReturn:
         """Invoke ``cmd``, and reinterprets raised stacktrace in ``PyboardException``.
 
@@ -532,7 +533,7 @@ class Device:
         src_file = str(src_file)
 
         try:
-            res = self(cmd)
+            res = self(cmd, record=record)
         except PyboardException as e:
             new_lines = []
 
