@@ -14,6 +14,7 @@ from typing import Callable, Dict, Generator, List, Optional, Set, TextIO, Tuple
 
 from . import snippets
 from ._minify import minify as minify_code
+from .exceptions import FeatureUnavailableError, SpecialFunctionNameError
 from .inspect import getsource
 from .pyboard import Pyboard, PyboardException
 from .webrepl import WebreplToSerial
@@ -28,17 +29,6 @@ BelayCallable = Callable[..., BelayReturn]
 _python_identifier_chars = (
     string.ascii_uppercase + string.ascii_lowercase + string.digits
 )
-
-
-class SpecialFunctionNameError(Exception):
-    """Reserved function name that may impact Belay functionality.
-
-    Currently limited to:
-
-        * Names that start and end with double underscore, ``__``.
-
-        * Names that start with ``_belay`` or ``__belay``
-    """
 
 
 @lru_cache
@@ -227,6 +217,9 @@ class _ThreadExecuter(_Executer):
         """
         if f is None:
             return self  # type: ignore
+
+        if self._belay_device.implementation.name == "circuitpython":
+            raise FeatureUnavailableError("CircuitPython does not support threading.")
 
         name = f.__name__
         src_code, src_lineno, src_file = getsource(f)
