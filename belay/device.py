@@ -111,7 +111,7 @@ class _TaskExecuter(_Executer):
 
         name = f.__name__
         src_code, src_lineno, src_file = getsource(f)
-        src_lineno -= 1  # Because of the injected decorator
+        src_lineno -= 1  # Because of the injected ``@__belay`` decorator below
 
         # Add the __belay decorator for handling result serialization.
         src_code = f"@__belay({repr(name)})\n" + src_code
