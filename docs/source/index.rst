@@ -10,6 +10,7 @@ Welcome to Belay's documentation!
 
    Installation
    Quick Start
+   CircuitPython
    Connections
    How Belay Works
    api
