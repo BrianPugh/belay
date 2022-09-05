@@ -10,7 +10,7 @@ def mock_pyboard(mocker):
     def mock_init(self, *args, **kwargs):
         self.serial = None
 
-    exec_side_effect = [b'_BELAYR("micropython", (1, 19, 1))\r\n'] * 100
+    exec_side_effect = [b'_BELAYR("micropython", (1, 19, 1), "rp2")\r\n'] * 100
 
     mocker.patch.object(belay.device.Pyboard, "__init__", mock_init)
     mocker.patch("belay.device.Pyboard.enter_raw_repl", return_value=None)

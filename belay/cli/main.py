@@ -50,3 +50,20 @@ def sync(
         device.sync(folder, progress_update=progress_update)
 
         progress_update(description="Sync complete.")
+
+
+@app.command()
+def info(
+    port: str = Arg(
+        help="Port (like /dev/ttyUSB0) or WebSocket (like ws://192.168.1.100) of device."
+    ),
+    password: str = Opt(
+        "",
+        help="Password for communication methods (like WebREPL) that require authentication.",
+    ),
+):
+    device = belay.Device(port, password=password)
+    version_str = "v" + ".".join(str(x) for x in device.implementation.version)
+    print(
+        f"{device.implementation.name} {version_str} - {device.implementation.platform}"
+    )
