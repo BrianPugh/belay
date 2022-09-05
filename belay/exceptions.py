@@ -1,12 +1,16 @@
-class AuthenticationError(Exception):
+class BelayException(Exception):
+    """Root Belay Exception class."""
+
+
+class AuthenticationError(BelayException):
     """Invalid password or similar."""
 
 
-class FeatureUnavailableError(Exception):
+class FeatureUnavailableError(BelayException):
     """Feature unavailable for your board's implementation."""
 
 
-class SpecialFunctionNameError(Exception):
+class SpecialFunctionNameError(BelayException):
     """Reserved function name that may impact Belay functionality.
 
     Currently limited to:
@@ -17,9 +21,9 @@ class SpecialFunctionNameError(Exception):
     """
 
 
-class ReconstructionError(Exception):
+class ReconstructionError(BelayException):
     """Too many commands were given."""
 
 
-class ConnectionLost(Exception):
+class ConnectionLost(BelayException):
     """Lost connection to device."""
