@@ -266,10 +266,14 @@ class Implementation:
         One of ``{"micropython", "circuitpython"}``.
     version: Tuple[int, int, int]
         ``(major, minor, patch)`` Semantic versioning of device's firmware.
+    platform: str
+        Board identifier. May not be consistent from MicroPython to CircuitPython.
+        e.g. The Pi Pico is "rp2" in MicroPython, but "RP2040"  in CircuitPython.
     """
 
     name: str
     version: Tuple[int, int, int]
+    platform: str
 
 
 class Device:
@@ -310,7 +314,8 @@ class Device:
             *self(
                 'print("_BELAYR("'
                 '+ repr(sys.implementation.name) + ","'
-                "+ repr(sys.implementation.version)"
+                '+ repr(sys.implementation.version) + ","'
+                '+ repr(sys.platform) + ","'
                 '+")")'
             )
         )

@@ -64,4 +64,6 @@ def info(
 ):
     device = belay.Device(port, password=password)
     version_str = "v" + ".".join(str(x) for x in device.implementation.version)
-    print(f"{device.implementation.name} {version_str}")
+    print(
+        f"{device.implementation.name} {version_str} - {device.implementation.platform}"
+    )
