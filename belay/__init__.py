@@ -7,8 +7,16 @@ __all__ = [
     "Device",
     "SpecialFunctionNameError",
     "PyboardException",
+    "Implementation",
+    "FeatureUnavailableError",
 ]
 from ._minify import minify
-from .device import ConnectionLost, Device, SpecialFunctionNameError
-from .exceptions import AuthenticationError
+from .device import Device, Implementation
+from .exceptions import (
+    AuthenticationError,
+    ConnectionLost,
+    FeatureUnavailableError,
+    ReconstructionError,
+    SpecialFunctionNameError,
+)
 from .pyboard import PyboardException

@@ -36,15 +36,7 @@ Next, we will create a ``Device`` object that will connect to the board.
 
       device = belay.Device("/dev/ttyUSB0")
 
-This also executes some convenience imports on the board, specifically:
-
-.. code-block:: python
-
-   import binascii, errno, hashlib, machine, os, time
-   from machine import ADC, I2C, Pin, PWM, SPI, Timer
-   from time import sleep
-   from micropython import const
-
+This also executes `some convenience imports on the board`_.
 We will be only using the ``Pin`` class in this example.
 Next, we will decorate a function with the ``task`` decorator.
 The function decorated by this decorator will be sent to the board.
@@ -62,3 +54,5 @@ Now that the function ``set_led`` is defined in the board's current environment,
 Calling ``set_led(True)`` won't invoke the function on the host, but will send a command to execute it on-device with the argument ``True``.
 On-device ``print`` calls have their results forwarded to the host's ``stdout``.
 This results in the LED turning on.
+
+.. _some convenience imports on the board: https://github.com/BrianPugh/belay/blob/main/belay/snippets/convenience_imports_micropython.py

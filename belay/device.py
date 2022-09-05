@@ -1,5 +1,4 @@
 import ast
-import hashlib
 import importlib.resources as pkg_resources
 import linecache
 import secrets
@@ -7,15 +6,22 @@ import string
 import sys
 import tempfile
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from functools import lru_cache, wraps
 from inspect import isgeneratorfunction, signature
 from pathlib import Path
-from typing import Callable, Dict, Generator, List, Optional, Set, TextIO, Union
+from typing import Callable, Dict, Generator, List, Optional, Set, TextIO, Tuple, Union
 
 from serial import SerialException
 
 from . import snippets
 from ._minify import minify as minify_code
+from .exceptions import (
+    ConnectionLost,
+    FeatureUnavailableError,
+    ReconstructionError,
+    SpecialFunctionNameError,
+)
 from .inspect import getsource
 from .pyboard import Pyboard, PyboardException
 from .webrepl import WebreplToSerial
@@ -34,39 +40,24 @@ _python_identifier_chars = (
 _MAX_RECORD_LEN = 1000
 
 
-class SpecialFunctionNameError(Exception):
-    """Reserved function name that may impact Belay functionality.
-
-    Currently limited to:
-
-        * Names that start and end with double underscore, ``__``.
-
-        * Names that start with ``_belay`` or ``__belay``
-    """
-
-
-class ReconstructionError(Exception):
-    """Too many commands were given."""
-
-
-class ConnectionLost(Exception):
-    """Lost connection to device."""
-
-
 @lru_cache
 def _read_snippet(name):
     return pkg_resources.read_text(snippets, f"{name}.py")
 
 
-def _local_hash_file(fn):
-    hasher = hashlib.sha256()
+def _local_hash_file(fn: str) -> int:
+    """Compute the FNV-1a 64-bit hash of a file."""
+    h = 0xCBF29CE484222325
+    size = 1 << 64
     with open(fn, "rb") as f:  # noqa: PL123
         while True:
             data = f.read(65536)
             if not data:
                 break
-            hasher.update(data)
-    return hasher.digest()
+            for byte in data:
+                h = h ^ byte
+                h = (h * 0x100000001B3) % size
+    return h
 
 
 def _random_python_identifier(n=16):
@@ -129,9 +120,10 @@ class _TaskExecuter(_Executer):
 
         name = f.__name__
         src_code, src_lineno, src_file = getsource(f)
+        src_lineno -= 1  # Because of the injected ``@__belay`` decorator below
 
         # Add the __belay decorator for handling result serialization.
-        src_code = "@__belay\n" + src_code
+        src_code = f"@__belay({repr(name)})\n" + src_code
 
         # Send the source code over to the device.
         self._belay_device(src_code, minify=minify)
@@ -238,6 +230,9 @@ class _ThreadExecuter(_Executer):
         if f is None:
             return self  # type: ignore
 
+        if self._belay_device.implementation.name == "circuitpython":
+            raise FeatureUnavailableError("CircuitPython does not support threading.")
+
         name = f.__name__
         src_code, src_lineno, src_file = getsource(f)
 
@@ -273,8 +268,35 @@ class _ThreadExecuter(_Executer):
         return multi_executer
 
 
+@dataclass
+class Implementation:
+    """Implementation dataclass detailing the device.
+
+    Parameters
+    ----------
+    name: str
+        Type of python running on device.
+        One of ``{"micropython", "circuitpython"}``.
+    version: Tuple[int, int, int]
+        ``(major, minor, patch)`` Semantic versioning of device's firmware.
+    platform: str
+        Board identifier. May not be consistent from MicroPython to CircuitPython.
+        e.g. The Pi Pico is "rp2" in MicroPython, but "RP2040"  in CircuitPython.
+    """
+
+    name: str
+    version: Tuple[int, int, int]
+    platform: str
+
+
 class Device:
-    """Belay interface into a micropython device."""
+    """Belay interface into a micropython device.
+
+    Attributes
+    ----------
+    implementation: Implementation
+        Implementation details of device.
+    """
 
     def __init__(
         self,
@@ -302,10 +324,25 @@ class Device:
         self.task = _TaskExecuter(self)
         self.thread = _ThreadExecuter(self)
 
+        self._exec_snippet("startup")
+
+        self.implementation = Implementation(
+            *self(
+                'print("_BELAYR("'
+                '+ repr(sys.implementation.name) + ","'
+                '+ repr(sys.implementation.version) + ","'
+                '+ repr(sys.platform) + ","'
+                '+")")'
+            )
+        )
+
         if startup is None:
-            self._exec_snippet("startup", "convenience_imports")
+            if self.implementation.name == "circuitpython":
+                self._exec_snippet("convenience_imports_circuitpython")
+            else:
+                self._exec_snippet("convenience_imports_micropython")
         elif startup:
-            self(_read_snippet("startup") + "\n" + startup)
+            self(startup)
 
     def _connect_to_board(self, **kwargs):
         self._board = Pyboard(**kwargs)
