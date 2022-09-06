@@ -16,6 +16,7 @@ build:
       - poetry config virtualenvs.create false
     post_install:
       - poetry install --without=dev
+      - poetry env info
 
 # Build documentation in the docs/ directory with Sphinx
 sphinx:
