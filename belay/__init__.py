@@ -14,7 +14,9 @@ from ._minify import minify
 from .device import Device, Implementation
 from .exceptions import (
     AuthenticationError,
+    ConnectionLost,
     FeatureUnavailableError,
+    MaxHistoryLengthError,
     SpecialFunctionNameError,
 )
 from .pyboard import PyboardException

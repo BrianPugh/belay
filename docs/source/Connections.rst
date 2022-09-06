@@ -1,7 +1,66 @@
 Connections
 ===========
 
-Belay currently supports two connection mediums:
+This section describes the connection with the device, as well as other elements
+regarding the connection of the device.
+
+
+Reconnect
+---------
+In the event that the device is temporarily disconnected, Belay can re-attempt to
+connect to the device and restore state. Typically, this will only work with projects
+that are purely sensor/actuator IO and do not have complicated internal states.
+
+To enable this feature, set the keyword ``attempts`` when declaring your ``Device``.
+Belay will attempt up to ``attempts`` times to reconnect to the device with
+1 second delay in-between attempts. If Belay cannot restore the connection, it will raise
+a ``ConnectionLost`` exception.
+
+Example:
+
+.. code-block:: python
+
+   device = Device("/dev/ttyUSB0", attempts=10)
+
+By default, ``attempts=0``, meaning that Belay will **not** attempt to reconnect with the device.
+
+
+How State is Restored
+^^^^^^^^^^^^^^^^^^^^^
+This section describes how the state is restored on-device, so the user can understand
+the limitations of Belay's reconnect feature.
+
+1. When Belay sends a command to the device, the command is recorded into a command history.
+   Function/generator calls **are not** recorded.
+   These calls are expected to be frequent and not significantly modify the device's internal state.
+
+2. On device disconnect, nothing happens.
+
+3. On the next attempted Belay call, Belay will begin to attempt to reconnect with the device.
+   This inherently resets the device, and consequently resets the device's python interpreter state.
+
+4. Upon reconnection, **Belay will replay the entire call history.**
+   For most projects, this should be relatively short and typically includes things like:
+
+   a. File-syncs:  ``device.sync("board/")``
+
+   b. Library imports:  ``device("import mysensor")``
+
+   b. Global object creations:  ``device("sensor = mysensor.Sensor()")``
+
+   c. Task definitions::
+
+          @device.task
+          def read_sensor():
+              return sensor.read()
+
+   This history replay can result in a longer-than-expected blocking call.
+
+
+Interface
+---------
+
+Belay currently supports two connection interfaces:
 
 1. Serial, typically over a USB cable. Recommended connection method.
 

@@ -8,13 +8,20 @@ import tempfile
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from functools import lru_cache, wraps
-from inspect import isgeneratorfunction
+from inspect import isgeneratorfunction, signature
 from pathlib import Path
 from typing import Callable, Dict, Generator, List, Optional, Set, TextIO, Tuple, Union
 
+from serial import SerialException
+
 from . import snippets
 from ._minify import minify as minify_code
-from .exceptions import FeatureUnavailableError, SpecialFunctionNameError
+from .exceptions import (
+    ConnectionLost,
+    FeatureUnavailableError,
+    MaxHistoryLengthError,
+    SpecialFunctionNameError,
+)
 from .inspect import getsource
 from .pyboard import Pyboard, PyboardException
 from .webrepl import WebreplToSerial
@@ -124,7 +131,7 @@ class _TaskExecuter(_Executer):
             cmd = f"_belay_{name}(*{repr(args)}, **{repr(kwargs)})"
 
             return self._belay_device._traceback_execute(
-                src_file, src_lineno, name, cmd
+                src_file, src_lineno, name, cmd, record=False
             )
 
         @wraps(f)
@@ -148,7 +155,9 @@ class _TaskExecuter(_Executer):
             # Step 1: Create the on-device generator
             gen_identifier = _random_python_identifier()
             cmd = f"{gen_identifier} = _belay_{name}(*{repr(args)}, **{repr(kwargs)})"
-            self._belay_device._traceback_execute(src_file, src_lineno, name, cmd)
+            self._belay_device._traceback_execute(
+                src_file, src_lineno, name, cmd, record=False
+            )
             # Step 2: Create the host generator that invokes ``next()`` on-device.
             cmd = f"__belay_gen_next({gen_identifier})"
 
@@ -156,7 +165,7 @@ class _TaskExecuter(_Executer):
                 try:
                     while True:
                         yield self._belay_device._traceback_execute(
-                            src_file, src_lineno, name, cmd
+                            src_file, src_lineno, name, cmd, record=False
                         )
                 except StopIteration:
                     pass
@@ -231,7 +240,9 @@ class _ThreadExecuter(_Executer):
         @wraps(f)
         def executer(*args, **kwargs):
             cmd = f"import _thread; _thread.start_new_thread({name}, {repr(args)}, {repr(kwargs)})"
-            self._belay_device._traceback_execute(src_file, src_lineno, name, cmd)
+            self._belay_device._traceback_execute(
+                src_file, src_lineno, name, cmd, record=False
+            )
 
         @wraps(f)
         def multi_executer(*args, **kwargs):
@@ -285,10 +296,13 @@ class Device:
         Implementation details of device.
     """
 
+    MAX_CMD_HISTORY_LEN = 1000
+
     def __init__(
         self,
         *args,
         startup: Optional[str] = None,
+        attempts: int = 0,
         **kwargs,
     ):
         """Create a MicroPython device.
@@ -297,13 +311,15 @@ class Device:
         ----------
         startup: str
             Code to run on startup. Defaults to a few common imports.
+        attempts: int
+            If device disconnects, attempt to re-connect this many times (with 1 second between attempts).
+            WARNING: this may result in unexpectedly long blocking calls when reconnecting!
         """
-        self._board = Pyboard(*args, **kwargs)
-        if isinstance(self._board.serial, WebreplToSerial):
-            soft_reset = False
-        else:
-            soft_reset = True
-        self._board.enter_raw_repl(soft_reset=soft_reset)
+        self._board_kwargs = signature(Pyboard).bind(*args, **kwargs).arguments
+        self.attempts = attempts
+        self._cmd_history = []
+
+        self._connect_to_board(**self._board_kwargs)
 
         self.task = _TaskExecuter(self)
         self.thread = _ThreadExecuter(self)
@@ -328,6 +344,14 @@ class Device:
         elif startup:
             self(startup)
 
+    def _connect_to_board(self, **kwargs):
+        self._board = Pyboard(**kwargs)
+        if isinstance(self._board.serial, WebreplToSerial):
+            soft_reset = False
+        else:
+            soft_reset = True
+        self._board.enter_raw_repl(soft_reset=soft_reset)
+
     def _exec_snippet(self, *names: str) -> BelayReturn:
         """Load and execute a snippet from the snippets sub-package.
 
@@ -344,6 +368,7 @@ class Device:
         cmd: str,
         minify: bool = True,
         stream_out: TextIO = sys.stdout,
+        record=True,
     ) -> BelayReturn:
         """Execute code on-device.
 
@@ -355,6 +380,9 @@ class Device:
             Minify ``cmd`` code prior to sending.
             Reduces the number of characters that need to be transmitted.
             Defaults to ``True``.
+        record: bool
+            Record the call for state-reconstruction if device is accidentally reset.
+            Defaults to ``True``.
 
         Returns
         -------
@@ -363,7 +391,22 @@ class Device:
         if minify:
             cmd = minify_code(cmd)
 
-        res = self._board.exec(cmd).decode()
+        if (
+            record
+            and self.attempts
+            and len(self._cmd_history) < self.MAX_CMD_HISTORY_LEN
+        ):
+            self._cmd_history.append(cmd)
+
+        try:
+            res = self._board.exec(cmd).decode()
+        except (SerialException, ConnectionResetError):
+            # Board probably disconnected.
+            if self.attempts:
+                self.reconnect()
+                res = self._board.exec(cmd).decode()
+            else:
+                raise ConnectionLost
 
         lines = res.split("\r\n")
 
@@ -492,12 +535,26 @@ class Device:
         """Close the connection to device."""
         return self._board.close()
 
+    def reconnect(self, attempts=None):
+        if len(self._cmd_history) == self.MAX_CMD_HISTORY_LEN:
+            raise MaxHistoryLengthError
+
+        kwargs = self._board_kwargs.copy()
+        kwargs["attempts"] = self.attempts if attempts is None else attempts
+
+        self._connect_to_board(**kwargs)
+
+        # Playback the history
+        for cmd in self._cmd_history:
+            self(cmd, record=False)
+
     def _traceback_execute(
         self,
         src_file: Union[str, Path],
         src_lineno: int,
         name: str,
         cmd: str,
+        record: bool = True,
     ) -> BelayReturn:
         """Invoke ``cmd``, and reinterprets raised stacktrace in ``PyboardException``.
 
@@ -511,11 +568,14 @@ class Device:
             Name of the function.
         cmd: str
             Python command that executes a function on-device.
+        record: bool
+            Record the call for state-reconstruction if device is accidentally reset.
+            Defaults to ``True``.
         """
         src_file = str(src_file)
 
         try:
-            res = self(cmd)
+            res = self(cmd, record=record)
         except PyboardException as e:
             new_lines = []
 
