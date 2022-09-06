@@ -21,7 +21,7 @@ class SpecialFunctionNameError(BelayException):
     """
 
 
-class ReconstructionError(BelayException):
+class MaxHistoryLengthError(BelayException):
     """Too many commands were given."""
 
 

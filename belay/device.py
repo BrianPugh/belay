@@ -19,7 +19,7 @@ from ._minify import minify as minify_code
 from .exceptions import (
     ConnectionLost,
     FeatureUnavailableError,
-    ReconstructionError,
+    MaxHistoryLengthError,
     SpecialFunctionNameError,
 )
 from .inspect import getsource
@@ -537,7 +537,7 @@ class Device:
 
     def reconnect(self, attempts=None):
         if len(self._cmd_history) == self.MAX_CMD_HISTORY_LEN:
-            raise ReconstructionError
+            raise MaxHistoryLengthError
 
         kwargs = self._board_kwargs.copy()
         kwargs["attempts"] = self.attempts if attempts is None else attempts

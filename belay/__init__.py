@@ -16,7 +16,7 @@ from .exceptions import (
     AuthenticationError,
     ConnectionLost,
     FeatureUnavailableError,
-    ReconstructionError,
+    MaxHistoryLengthError,
     SpecialFunctionNameError,
 )
 from .pyboard import PyboardException
