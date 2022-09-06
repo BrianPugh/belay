@@ -313,7 +313,7 @@ class Device:
             Code to run on startup. Defaults to a few common imports.
         attempts: int
             If device disconnects, attempt to re-connect this many times (with 1 second between attempts).
-            WARNING: this may result in unexpectedly long blocking calls!
+            WARNING: this may result in unexpectedly long blocking calls when reconnecting!
         """
         self._board_kwargs = signature(Pyboard).bind(*args, **kwargs).arguments
         self.attempts = attempts
@@ -568,6 +568,9 @@ class Device:
             Name of the function.
         cmd: str
             Python command that executes a function on-device.
+        record: bool
+            Record the call for state-reconstruction if device is accidentally reset.
+            Defaults to ``True``.
         """
         src_file = str(src_file)
 
