@@ -37,8 +37,6 @@ _python_identifier_chars = (
     string.ascii_uppercase + string.ascii_lowercase + string.digits
 )
 
-_MAX_RECORD_LEN = 1000
-
 
 @lru_cache
 def _read_snippet(name):
@@ -298,6 +296,8 @@ class Device:
         Implementation details of device.
     """
 
+    MAX_CMD_HISTORY_LEN = 1000
+
     def __init__(
         self,
         *args,
@@ -391,7 +391,11 @@ class Device:
         if minify:
             cmd = minify_code(cmd)
 
-        if record and self.attempts and len(self._cmd_history) < _MAX_RECORD_LEN:
+        if (
+            record
+            and self.attempts
+            and len(self._cmd_history) < self.MAX_CMD_HISTORY_LEN
+        ):
             self._cmd_history.append(cmd)
 
         try:
@@ -532,7 +536,7 @@ class Device:
         return self._board.close()
 
     def reconnect(self, attempts=None):
-        if len(self._cmd_history) == _MAX_RECORD_LEN:
+        if len(self._cmd_history) == self.MAX_CMD_HISTORY_LEN:
             raise ReconstructionError
 
         kwargs = self._board_kwargs.copy()
@@ -540,11 +544,9 @@ class Device:
 
         self._connect_to_board(**kwargs)
 
-        cmd_history = self._cmd_history
-        self._cmd_history = []
-        # Playback the setup history
-        for cmd in cmd_history:
-            self(cmd)
+        # Playback the history
+        for cmd in self._cmd_history:
+            self(cmd, record=False)
 
     def _traceback_execute(
         self,

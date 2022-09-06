@@ -1,5 +1,5 @@
 class BelayException(Exception):
-    """Root Belay Exception class."""
+    """Root Belay exception class."""
 
 
 class AuthenticationError(BelayException):
