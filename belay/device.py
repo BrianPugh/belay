@@ -535,7 +535,15 @@ class Device:
         """Close the connection to device."""
         return self._board.close()
 
-    def reconnect(self, attempts=None):
+    def reconnect(self, attempts: Optional[int] = None):
+        """Reconnect to the device and replay the command history.
+
+        Parameters
+        ----------
+        attempts : int
+            Number of times to attempt to connect to board with a 1 second delay in-between.
+            If ``None``, defaults to whatever value was supplied to init (1).
+        """
         if len(self._cmd_history) == self.MAX_CMD_HISTORY_LEN:
             raise MaxHistoryLengthError
 
