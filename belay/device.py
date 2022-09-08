@@ -23,7 +23,7 @@ from .exceptions import (
     SpecialFunctionNameError,
 )
 from .inspect import getsource
-from .pyboard import Pyboard, PyboardException
+from .pyboard import Pyboard, PyboardError, PyboardException
 from .webrepl import WebreplToSerial
 
 # Typing
@@ -531,26 +531,32 @@ class Device:
             progress_update(description="Cleaning up...")
         self._exec_snippet("sync_end")
 
-    def close(self):
+    def close(self) -> None:
         """Close the connection to device."""
         return self._board.close()
 
-    def reconnect(self, attempts: Optional[int] = None):
+    def reconnect(self, attempts: Optional[int] = None) -> None:
         """Reconnect to the device and replay the command history.
 
         Parameters
         ----------
         attempts : int
             Number of times to attempt to connect to board with a 1 second delay in-between.
-            If ``None``, defaults to whatever value was supplied to init (1).
+            If ``None``, defaults to whatever value was supplied to init.
+            If init value is 0, then defaults to 1.
         """
         if len(self._cmd_history) == self.MAX_CMD_HISTORY_LEN:
             raise MaxHistoryLengthError
 
         kwargs = self._board_kwargs.copy()
-        kwargs["attempts"] = self.attempts if attempts is None else attempts
+        kwargs["attempts"] = attempts
+        if kwargs["attempts"] is None:
+            kwargs["attempts"] = self.attempts if self.attempts else 1
 
-        self._connect_to_board(**kwargs)
+        try:
+            self._connect_to_board(**kwargs)
+        except PyboardError as e:
+            raise ConnectionLost from e
 
         # Playback the history
         for cmd in self._cmd_history:

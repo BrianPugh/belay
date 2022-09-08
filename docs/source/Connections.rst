@@ -23,6 +23,7 @@ Example:
    device = Device("/dev/ttyUSB0", attempts=10)
 
 By default, ``attempts=0``, meaning that Belay will **not** attempt to reconnect with the device.
+If ``attempts`` is set to a negative value, Belay will infinitely attempt to reconnect with the device.
 If using a serial connection, a serial device __might__ not be assigned to the name upon reconnecting.
 See the `UDev Rules`_ section for ways to ensure the same name is assigned upon reconnection.
 
