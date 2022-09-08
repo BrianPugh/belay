@@ -68,6 +68,7 @@ Or:
 """
 
 import ast
+import itertools
 import os
 import sys
 import time
@@ -267,19 +268,32 @@ class ProcessPtyToTerminal:
 class Pyboard:
     def __init__(
         self,
-        device,
-        baudrate=115200,
-        user="micro",
-        password="python",
-        attempts=1,
-        exclusive=True,
+        device: str,
+        baudrate: int = 115200,
+        user: str = "micro",
+        password: str = "python",
+        attempts: int = 1,
+        exclusive: bool = True,
     ):
         """
         Parameters
         ----------
-        wait: int
-            (N-1) of attempts to try and connect
+        device: str
+            Some device specificier like ``'/dev/ttyACM0'`` or ``'192.168.1.1'``.
+        baudrate: int
+            If a serial-like connection, this baudrate will be used.
+        user: str
+            If connection requires a username, this will be used.
+        password: str
+            If connection requires a password, this will be used.
+        attempts: int
+            Number of attempts to try and connect to board.
+            If a ``<0`` value is provided, will infinitely try to connect.
+        exclusive: bool
+            If a serial-like connection, this configures the ``exclusive`` flag.
         """
+        if attempts == 0:
+            raise ValueError('"attempts" cannot be 0.')
         self.in_raw_repl = False
         self.use_raw_paste = True
         if device.startswith("exec:"):
@@ -304,16 +318,17 @@ class Pyboard:
             if serial.__version__ >= "3.3":
                 serial_kwargs["exclusive"] = exclusive
 
-            for _ in range(attempts):
+            for attempt_count in itertools.count(start=1):
                 try:
                     self.serial = serial.Serial(device, **serial_kwargs)
                     break
                 except (OSError, IOError):  # Py2 and Py3 have different errors
-                    if attempts == 1:
-                        continue
+                    pass
+
+                if attempt_count == attempts:
+                    raise PyboardError("failed to access " + device)
+
                 time.sleep(1.0)
-            else:
-                raise PyboardError("failed to access " + device)
 
     def close(self):
         self.serial.close()
