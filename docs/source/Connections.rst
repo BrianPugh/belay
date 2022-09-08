@@ -23,6 +23,8 @@ Example:
    device = Device("/dev/ttyUSB0", attempts=10)
 
 By default, ``attempts=0``, meaning that Belay will **not** attempt to reconnect with the device.
+If using a serial connection, a serial device __might__ not be assigned to the name upon reconnecting.
+See the `UDev Rules`_ section for ways to ensure the same name is assigned upon reconnection.
 
 
 How State is Restored
@@ -71,6 +73,37 @@ Serial
 ^^^^^^
 This is the typical connection method over a cable and is fairly self-explanatory.
 
+UDev Rules
+**********
+To ensure your serial device always connects with the same name, we can create a udev rule.
+Invoke ``lsusb`` to figure out some device information; the response should look like:
+
+.. code-block:: bash
+
+   belay:~/belay$ lsusb
+   Bus 002 Device 001: ID 1d6b:0003 Linux Foundation 3.0 root hub
+   Bus 001 Device 003: ID 239a:80f4 Adafruit Pico
+   Bus 001 Device 002: ID 2109:3431 VIA Labs, Inc. Hub
+   Bus 001 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub
+
+Left of the colon is the 4-character ``idVendor`` value, and right of the colon is the 4-character ``idProduct`` value.
+Next, edit a file at ``/etc/udev/rules.d/99-usb-serial.rules`` to contain:
+
+.. code-block:: text
+
+   SUBSYSTEM=="tty", ATTRS{idVendor}=="xxxx", ATTRS{idProduct}=="yyyy", SYMLINK+="target"
+
+For example, the following will map the "Adafruit Pico" to ``/dev/ttyACM10``:
+
+.. code-block:: text
+
+   SUBSYSTEM=="tty", ATTRS{idVendor}=="239a", ATTRS{idProduct}=="80f4", SYMLINK+="ttyACM10"
+
+Finally, the following command will reload the udev rules without having to do a reboot:
+
+.. code-block:: bash
+
+   sudo udevadm control --reload-rules && sudo udevadm trigger
 
 WebREPL
 ^^^^^^^
