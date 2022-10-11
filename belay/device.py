@@ -432,21 +432,24 @@ class Device:
     def sync(
         self,
         folder: Union[str, Path],
+        dst: str = "/",
         minify: bool = True,
         keep: Union[None, list, str] = None,
         mpy_cross_binary: Union[str, Path] = "",
         progress_update=None,
     ) -> None:
-        """Sync a local directory to the root of remote filesystem.
+        """Sync a local directory to the remote filesystem.
 
         For each local file, check the remote file's hash, and transfer if they differ.
         If a file/folder exists on the remote filesystem that doesn't exist in the local
-        folder, then delete it.
+        folder, then delete it (unless it's in ``keep``).
 
         Parameters
         ----------
         folder: str, Path
             Directory of files to sync to the root of the board's filesystem.
+        dst: str
+            Destination directory on device. Defaults to unpacking ``folder`` to root.
         minify: bool
             Minify python files prior to syncing.
             Defaults to ``True``.
@@ -462,6 +465,10 @@ class Device:
         """
         folder = Path(folder).resolve()
 
+        dst = str(dst)
+        if not dst.startswith("/"):
+            raise ValueError('dst must start with "/"')
+
         if not folder.exists():
             raise ValueError(f'"{folder}" does not exist.')
         if not folder.is_dir():
@@ -475,21 +482,24 @@ class Device:
 
         # Remove the keep files from the on-device ``all_files`` set
         # so they don't get deleted.
-        if keep is None:
+        if keep is None and dst == "/":
             keep = ["boot.py", "webrepl_cfg.py"]
         elif isinstance(keep, str):
             keep = [keep]
-        keep = [x if x[0] == "/" else "/" + x for x in keep]
+        else:
+            keep = []
+        keep = [str(dst / Path(x)) for x in keep]
 
         # Sort so that folder creation comes before file sending.
         src_objects = sorted(folder.rglob("*"))
         src_files, src_dirs = [], []
+
         for src_object in src_objects:
             if src_object.is_dir():
                 src_dirs.append(src_object)
             else:
                 src_files.append(src_object)
-        dst_files = ["/" / src.relative_to(folder) for src in src_files]
+        dst_files = [dst / src.relative_to(folder) for src in src_files]
         if mpy_cross_binary:
             dst_files = [
                 dst_file.with_suffix(".mpy") if dst_file.suffix == ".py" else dst_file
@@ -498,7 +508,13 @@ class Device:
         dst_files = [str(dst_file) for dst_file in dst_files]
 
         dst_dirs = [f"/{src.relative_to(folder)}" for src in src_dirs]
+        # Add all directories leading up to ``dst``.
+        dst_prefix_tokens = dst.split("/")
+        for i in range(2, len(dst_prefix_tokens) + (dst[-1] != "/")):
+            dst_dirs.append("/".join(dst_prefix_tokens[:i]))
         dst_dirs.sort()
+
+        # prevent keep duplicates in the concat'd file list
         keep = [x for x in keep if x not in dst_files]
         if dst_files + keep:
             self(f"for x in {repr(dst_files + keep)}:\n all_files.discard(x)")

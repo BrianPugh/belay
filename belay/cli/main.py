@@ -36,6 +36,7 @@ def sync(
         help="Port (like /dev/ttyUSB0) or WebSocket (like ws://192.168.1.100) of device."
     ),
     folder: Path = Arg(help="Path to folder to sync."),
+    dst: str = Opt("/", help="Destination directory to sync folder contents to."),
     password: str = Opt(
         "",
         help="Password for communication methods (like WebREPL) that require authentication.",
@@ -53,9 +54,10 @@ def sync(
 
         device.sync(
             folder,
-            progress_update=progress_update,
+            dst=dst,
             keep=keep,
             mpy_cross_binary=mpy_cross_binary,
+            progress_update=progress_update,
         )
 
         progress_update(description="Sync complete.")
