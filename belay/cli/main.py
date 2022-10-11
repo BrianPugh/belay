@@ -1,6 +1,7 @@
 from functools import partial
 from pathlib import Path
 from time import sleep
+from typing import List, Optional
 
 import typer
 from rich.console import Console
@@ -39,6 +40,8 @@ def sync(
         "",
         help="Password for communication methods (like WebREPL) that require authentication.",
     ),
+    keep: Optional[List[str]] = Opt(None, help="Files to keep."),
+    mpy_cross_binary: Path = Opt("", help="Compile py files with this executable."),
 ):
     """Synchronize a folder to device."""
     with Progress() as progress:
@@ -48,7 +51,12 @@ def sync(
         device = belay.Device(port, password=password)
         progress_update(description=f"Connected to {port}.")
 
-        device.sync(folder, progress_update=progress_update)
+        device.sync(
+            folder,
+            progress_update=progress_update,
+            keep=keep,
+            mpy_cross_binary=mpy_cross_binary,
+        )
 
         progress_update(description="Sync complete.")
 

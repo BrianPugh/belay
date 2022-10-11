@@ -3,6 +3,7 @@ import importlib.resources as pkg_resources
 import linecache
 import secrets
 import string
+import subprocess  # nosec
 import sys
 import tempfile
 from abc import ABC, abstractmethod
@@ -433,6 +434,7 @@ class Device:
         folder: Union[str, Path],
         minify: bool = True,
         keep: Union[None, list, str] = None,
+        mpy_cross_binary: Union[str, Path] = "",
         progress_update=None,
     ) -> None:
         """Sync a local directory to the root of remote filesystem.
@@ -451,7 +453,11 @@ class Device:
         keep: str or list
             Do NOT delete these file(s) on-device if not present in ``folder``.
             Defaults to ``["boot.py", "webrepl_cfg.py"]``.
-        progress:
+        mpy_cross_binary: Union[str, Path]
+            Path to mpy-cross binary. If provided, ``.py`` will automatically
+            be compiled.
+            Takes precedence over minifying.
+        progress_update:
             Partial for ``rich.progress.Progress.update(task_id,...)`` to update with sync status.
         """
         folder = Path(folder).resolve()
@@ -483,7 +489,14 @@ class Device:
                 src_dirs.append(src_object)
             else:
                 src_files.append(src_object)
-        dst_files = [f"/{src.relative_to(folder)}" for src in src_files]
+        dst_files = ["/" / src.relative_to(folder) for src in src_files]
+        if mpy_cross_binary:
+            dst_files = [
+                dst_file.with_suffix(".mpy") if dst_file.suffix == ".py" else dst_file
+                for dst_file in dst_files
+            ]
+        dst_files = [str(dst_file) for dst_file in dst_files]
+
         dst_dirs = [f"/{src.relative_to(folder)}" for src in src_dirs]
         dst_dirs.sort()
         keep = [x for x in keep if x not in dst_files]
@@ -513,10 +526,17 @@ class Device:
             with tempfile.TemporaryDirectory() as tmp_dir:
                 tmp_dir = Path(tmp_dir)
 
-                if minify and src.suffix == ".py":
-                    minified = minify_code(src.read_text())
-                    src = tmp_dir / src.name
-                    src.write_text(minified)
+                if src.suffix == ".py":
+                    if mpy_cross_binary:
+                        mpy_file = (tmp_dir / src.name).with_suffix(".mpy")
+                        subprocess.check_output(  # nosec
+                            [mpy_cross_binary, "-o", mpy_file, src]
+                        )
+                        src = mpy_file
+                    elif minify:
+                        minified = minify_code(src.read_text())
+                        src = tmp_dir / src.name
+                        src.write_text(minified)
 
                 # All other files, just sync over.
                 src_hash = _local_hash_file(src)
