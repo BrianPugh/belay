@@ -268,6 +268,40 @@ class _ThreadExecuter(_Executer):
         return multi_executer
 
 
+def _discover_files_dirs(
+    remote_dir: str,
+    local_file_or_folder: Path,
+    ignore: Optional[list] = None,
+):
+    src_objects = []
+    if local_file_or_folder.is_dir():
+        if ignore is None:
+            ignore = []
+        ignore_spec = PathSpec.from_lines("gitwildmatch", ignore)
+        for src_object in local_file_or_folder.rglob("*"):
+            if ignore_spec.match_file(str(src_object)):
+                continue
+            src_objects.append(src_object)
+        # Sort so that folder creation comes before file sending.
+        src_objects.sort()
+
+        src_files, src_dirs = [], []
+        for src_object in src_objects:
+            if src_object.is_dir():
+                src_dirs.append(src_object)
+            else:
+                src_files.append(src_object)
+        dst_files = [
+            remote_dir / src.relative_to(local_file_or_folder) for src in src_files
+        ]
+    else:
+        src_files = [local_file_or_folder]
+        src_dirs = []
+        dst_files = [Path(remote_dir) / local_file_or_folder.name]
+
+    return src_files, src_dirs, dst_files
+
+
 @dataclass
 class Implementation:
     """Implementation dataclass detailing the device.
@@ -473,6 +507,8 @@ class Device:
         dst = str(dst)
         if not dst.startswith("/"):
             raise ValueError('dst must start with "/"')
+        elif len(dst) > 1:
+            dst = dst.rstrip("/")
 
         if not folder.exists():
             raise ValueError(f'"{folder}" does not exist.')
@@ -508,23 +544,9 @@ class Device:
             pass
         else:
             raise ValueError
-        ignore_spec = PathSpec.from_lines("gitwildmatch", ignore)
 
-        src_objects = []
-        for src_object in folder.rglob("*"):
-            if ignore_spec.match_file(str(src_object)):
-                continue
-            src_objects.append(src_object)
-        # Sort so that folder creation comes before file sending.
-        src_objects.sort()
+        src_files, src_dirs, dst_files = _discover_files_dirs(dst, folder, ignore)
 
-        src_files, src_dirs = [], []
-        for src_object in src_objects:
-            if src_object.is_dir():
-                src_dirs.append(src_object)
-            else:
-                src_files.append(src_object)
-        dst_files = [dst / src.relative_to(folder) for src in src_files]
         if mpy_cross_binary:
             dst_files = [
                 dst_file.with_suffix(".mpy") if dst_file.suffix == ".py" else dst_file

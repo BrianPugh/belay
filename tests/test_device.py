@@ -1,8 +1,10 @@
+from pathlib import PosixPath
 from unittest.mock import call
 
 import pytest
 
 import belay
+import belay.device
 
 
 @pytest.fixture
@@ -200,3 +202,59 @@ def test_device_sync_partial_remote(mocker, mock_device, sync_path):
             ),
         ]
     )
+
+
+def test_discover_files_dirs_typical(tmp_path):
+    (tmp_path / "file1.ext").touch()
+    (tmp_path / "file2.ext").touch()
+    (tmp_path / "folder1").mkdir()
+    (tmp_path / "folder1" / "file3.ext").touch()
+
+    remote_dir = "/foo/bar"
+    src_files, src_dirs, dst_files = belay.device._discover_files_dirs(
+        remote_dir=remote_dir,
+        local_file_or_folder=tmp_path,
+    )
+
+    src_files = [x.relative_to(tmp_path) for x in src_files]
+    src_dirs = [x.relative_to(tmp_path) for x in src_dirs]
+    assert src_files == [
+        PosixPath("file1.ext"),
+        PosixPath("file2.ext"),
+        PosixPath("folder1/file3.ext"),
+    ]
+    assert src_dirs == [PosixPath("folder1")]
+    assert dst_files == [
+        PosixPath("/foo/bar/file1.ext"),
+        PosixPath("/foo/bar/file2.ext"),
+        PosixPath("/foo/bar/folder1/file3.ext"),
+    ]
+
+
+def test_discover_files_dirs_empty(tmp_path):
+    remote_dir = "/foo/bar"
+    src_files, src_dirs, dst_files = belay.device._discover_files_dirs(
+        remote_dir=remote_dir,
+        local_file_or_folder=tmp_path,
+    )
+
+    assert src_files == []
+    assert src_dirs == []
+    assert dst_files == []
+
+
+def test_discover_files_dirs_single_file(tmp_path):
+    single_file = tmp_path / "file1.ext"
+    single_file.touch()
+
+    remote_dir = "/foo/bar"
+    src_files, src_dirs, dst_files = belay.device._discover_files_dirs(
+        remote_dir=remote_dir,
+        local_file_or_folder=single_file,
+    )
+
+    src_files = [x.relative_to(tmp_path) for x in src_files]
+    src_dirs = [x.relative_to(tmp_path) for x in src_dirs]
+    assert src_files == [PosixPath("file1.ext")]
+    assert src_dirs == []
+    assert dst_files == [PosixPath("/foo/bar/file1.ext")]
