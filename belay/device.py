@@ -433,8 +433,9 @@ class Device:
         self,
         folder: Union[str, Path],
         dst: str = "/",
-        minify: bool = True,
         keep: Union[None, list, str] = None,
+        ignore: Union[None, list, str] = None,
+        minify: bool = True,
         mpy_cross_binary: Union[str, Path] = "",
         progress_update=None,
     ) -> None:
@@ -450,12 +451,15 @@ class Device:
             Directory of files to sync to the root of the board's filesystem.
         dst: str
             Destination directory on device. Defaults to unpacking ``folder`` to root.
+        keep: None | str | list
+            Do NOT delete these file(s) on-device if not present in ``folder``.
+            If ``dst is None``, defaults to ``["boot.py", "webrepl_cfg.py"]``.
+        ignore: None | str | list
+            Glob-style patterns to NOT sync to the device.
+            Defaults to ``["*.pyc", "__pycache__", ".DS_Store"]``.
         minify: bool
             Minify python files prior to syncing.
             Defaults to ``True``.
-        keep: str or list
-            Do NOT delete these file(s) on-device if not present in ``folder``.
-            Defaults to ``["boot.py", "webrepl_cfg.py"]``.
         mpy_cross_binary: Union[str, Path]
             Path to mpy-cross binary. If provided, ``.py`` will automatically
             be compiled.
@@ -482,16 +486,38 @@ class Device:
 
         # Remove the keep files from the on-device ``all_files`` set
         # so they don't get deleted.
-        if keep is None and dst == "/":
-            keep = ["boot.py", "webrepl_cfg.py"]
+        if keep is None:
+            if dst == "/":
+                keep = ["boot.py", "webrepl_cfg.py"]
+            else:
+                keep = []
         elif isinstance(keep, str):
             keep = [keep]
+        elif isinstance(keep, (list, tuple)):
+            pass
         else:
-            keep = []
+            raise ValueError
         keep = [str(dst / Path(x)) for x in keep]
 
+        if ignore is None:
+            ignore = ["*.pyc", "__pycache__", ".DS_Store"]
+        elif isinstance(ignore, str):
+            ignore = [ignore]
+        elif isinstance(keep, (list, tuple)):
+            pass
+        else:
+            raise ValueError
+
+        src_objects = []
+        for src_object in folder.rglob("*"):
+            for ignore_pattern in ignore:
+                if src_object.match(ignore_pattern):
+                    break
+            else:
+                src_objects.append(src_object)
         # Sort so that folder creation comes before file sending.
-        src_objects = sorted(folder.rglob("*"))
+        src_objects.sort()
+
         src_files, src_dirs = [], []
 
         for src_object in src_objects:

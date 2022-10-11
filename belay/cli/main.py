@@ -42,6 +42,7 @@ def sync(
         help="Password for communication methods (like WebREPL) that require authentication.",
     ),
     keep: Optional[List[str]] = Opt(None, help="Files to keep."),
+    ignore: Optional[List[str]] = Opt(None, help="Files to ignore."),
     mpy_cross_binary: Path = Opt("", help="Compile py files with this executable."),
 ):
     """Synchronize a folder to device."""
@@ -56,6 +57,7 @@ def sync(
             folder,
             dst=dst,
             keep=keep,
+            ignore=ignore,
             mpy_cross_binary=mpy_cross_binary,
             progress_update=progress_update,
         )
