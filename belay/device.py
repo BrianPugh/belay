@@ -13,6 +13,7 @@ from inspect import isgeneratorfunction, signature
 from pathlib import Path
 from typing import Callable, Dict, Generator, List, Optional, Set, TextIO, Tuple, Union
 
+from pathspec import PathSpec
 from serial import SerialException
 
 from . import snippets
@@ -455,8 +456,8 @@ class Device:
             Do NOT delete these file(s) on-device if not present in ``folder``.
             If ``dst is None``, defaults to ``["boot.py", "webrepl_cfg.py"]``.
         ignore: None | str | list
-            Glob-style patterns to NOT sync to the device.
-            Defaults to ``["*.pyc", "__pycache__", ".DS_Store"]``.
+            Git's wildmatch patterns to NOT sync to the device.
+            Defaults to ``["*.pyc", "__pycache__", ".DS_Store", ".pytest_cache"]``.
         minify: bool
             Minify python files prior to syncing.
             Defaults to ``True``.
@@ -500,26 +501,24 @@ class Device:
         keep = [str(dst / Path(x)) for x in keep]
 
         if ignore is None:
-            ignore = ["*.pyc", "__pycache__", ".DS_Store"]
+            ignore = ["*.pyc", "__pycache__", ".DS_Store", ".pytest_cache"]
         elif isinstance(ignore, str):
             ignore = [ignore]
         elif isinstance(keep, (list, tuple)):
             pass
         else:
             raise ValueError
+        ignore_spec = PathSpec.from_lines("gitwildmatch", ignore)
 
         src_objects = []
         for src_object in folder.rglob("*"):
-            for ignore_pattern in ignore:
-                if src_object.match(ignore_pattern):
-                    break
-            else:
-                src_objects.append(src_object)
+            if ignore_spec.match_file(str(src_object)):
+                continue
+            src_objects.append(src_object)
         # Sort so that folder creation comes before file sending.
         src_objects.sort()
 
         src_files, src_dirs = [], []
-
         for src_object in src_objects:
             if src_object.is_dir():
                 src_dirs.append(src_object)
@@ -533,7 +532,7 @@ class Device:
             ]
         dst_files = [str(dst_file) for dst_file in dst_files]
 
-        dst_dirs = [f"/{src.relative_to(folder)}" for src in src_dirs]
+        dst_dirs = [str(dst / src.relative_to(folder)) for src in src_dirs]
         # Add all directories leading up to ``dst``.
         dst_prefix_tokens = dst.split("/")
         for i in range(2, len(dst_prefix_tokens) + (dst[-1] != "/")):

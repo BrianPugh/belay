@@ -26,6 +26,7 @@ belay = "belay.cli.main:app"
 python = "^3.8"
 pyserial = "^3.1"
 typer = {extras = ["all"], version = "^0.6"}
+pathspec = "*"
 
 [tool.poetry.group.docs.dependencies]
 sphinx = "~4.5.0"
