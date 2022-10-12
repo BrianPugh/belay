@@ -468,7 +468,7 @@ class Device:
         self,
         folder: Union[str, Path],
         dst: str = "/",
-        keep: Union[None, list, str] = None,
+        keep: Union[None, list, str, bool] = None,
         ignore: Union[None, list, str] = None,
         minify: bool = True,
         mpy_cross_binary: Union[str, Path] = "",
