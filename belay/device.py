@@ -485,7 +485,8 @@ class Device:
         folder: str, Path
             Directory of files to sync to the root of the board's filesystem.
         dst: str
-            Destination directory on device. Defaults to unpacking ``folder`` to root.
+            Destination **directory** on device.
+            Defaults to unpacking ``folder`` to root.
         keep: None | str | list | bool
             Do NOT delete these file(s) on-device if not present in ``folder``.
             If ``true``, don't delete any files on device.
