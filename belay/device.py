@@ -514,8 +514,6 @@ class Device:
 
         if not folder.exists():
             raise ValueError(f'"{folder}" does not exist.')
-        if not folder.is_dir():
-            raise ValueError(f'"{folder}" is not a directory.')
 
         # Create a list of all files and dirs (on-device).
         # This is so we know what to clean up after done syncing.
@@ -540,11 +538,14 @@ class Device:
                 keep_all = True
             keep = []
 
-        if keep_all or folder.is_file():
+        if keep_all:
             # Don't build up the device of files, we won't be deleting anything
             self("del __belay_fs")
         else:
-            self("__belay_fs(); all_dirs.sort(); del __belay_fs")
+            if dst == "/":
+                self("__belay_fs(); all_dirs.sort(); del __belay_fs")
+            else:
+                self(f"__belay_fs({repr(dst)}); all_dirs.sort(); del __belay_fs")
             keep = [str(dst / Path(x)) for x in keep]
 
         if ignore is None:

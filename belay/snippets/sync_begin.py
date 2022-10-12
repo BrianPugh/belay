@@ -27,11 +27,8 @@ all_files, all_dirs = set(), []
 def __belay_fs(path=""):
     for elem in os.listdir(path):
         full_name = path + "/" + elem
-        try:
-            if os.stat(elem)[0] & 0x4000:  # is_dir
-                all_dirs.append(full_name)
-                __belay_fs(full_name)
-            else:
-                all_files.add(full_name)
-        except OSError:
-            pass
+        if os.stat(full_name)[0] & 0x4000:  # is_dir
+            all_dirs.append(full_name)
+            __belay_fs(full_name)
+        else:
+            all_files.add(full_name)
