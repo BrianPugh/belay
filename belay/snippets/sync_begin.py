@@ -35,6 +35,3 @@ def __belay_fs(path=""):
                 all_files.add(full_name)
         except OSError:
             pass
-__belay_fs()
-all_dirs.sort()
-del __belay_fs

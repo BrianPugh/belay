@@ -486,8 +486,10 @@ class Device:
             Directory of files to sync to the root of the board's filesystem.
         dst: str
             Destination directory on device. Defaults to unpacking ``folder`` to root.
-        keep: None | str | list
+        keep: None | str | list | bool
             Do NOT delete these file(s) on-device if not present in ``folder``.
+            If ``true``, don't delete any files on device.
+            If ``false``, delete all unsynced files (same as passing ``[]``).
             If ``dst is None``, defaults to ``["boot.py", "webrepl_cfg.py"]``.
         ignore: None | str | list
             Git's wildmatch patterns to NOT sync to the device.
@@ -523,6 +525,7 @@ class Device:
 
         # Remove the keep files from the on-device ``all_files`` set
         # so they don't get deleted.
+        keep_all = folder.is_file()
         if keep is None:
             if dst == "/":
                 keep = ["boot.py", "webrepl_cfg.py"]
@@ -533,14 +536,22 @@ class Device:
         elif isinstance(keep, (list, tuple)):
             pass
         else:
-            raise ValueError
-        keep = [str(dst / Path(x)) for x in keep]
+            if keep:
+                keep_all = True
+            keep = []
+
+        if keep_all or folder.is_file():
+            # Don't build up the device of files, we won't be deleting anything
+            self("del __belay_fs")
+        else:
+            self("__belay_fs(); all_dirs.sort(); del __belay_fs")
+            keep = [str(dst / Path(x)) for x in keep]
 
         if ignore is None:
             ignore = ["*.pyc", "__pycache__", ".DS_Store", ".pytest_cache"]
         elif isinstance(ignore, str):
             ignore = [ignore]
-        elif isinstance(keep, (list, tuple)):
+        elif isinstance(ignore, (list, tuple)):
             pass
         else:
             raise ValueError
@@ -561,10 +572,11 @@ class Device:
             dst_dirs.append("/".join(dst_prefix_tokens[:i]))
         dst_dirs.sort()
 
-        # prevent keep duplicates in the concat'd file list
-        keep = [x for x in keep if x not in dst_files]
-        if dst_files + keep:
-            self(f"for x in {repr(dst_files + keep)}:\n all_files.discard(x)")
+        if not keep_all:
+            # prevent keep duplicates in the concat'd file list
+            keep = [x for x in keep if x not in dst_files]
+            if dst_files + keep:
+                self(f"for x in {repr(dst_files + keep)}:\n all_files.discard(x)")
 
         # Try and make all remote dirs
         if dst_dirs:
