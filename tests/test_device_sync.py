@@ -38,6 +38,29 @@ def sync_path(tmp_path):
     return tmp_path
 
 
+@pytest.fixture
+def sync_begin():
+    _globals, _locals = {}, {}
+    exec(belay.device._read_snippet("sync_begin"), _globals, _locals)
+    return _locals
+
+
+def test_sync_device_belay_hf(sync_begin):
+    pass
+
+
+def test_sync_device_belay_hfs(sync_begin):
+    pass
+
+
+def test_sync_device_belay_mkdirs(sync_begin):
+    pass
+
+
+def test_sync_device_belay_fs(sync_begin):
+    pass
+
+
 def test_device_sync_empty_remote(mocker, mock_device, sync_path):
     payload = ("_BELAYR" + repr([b""] * 5) + "\r\n").encode("utf-8")
     mock_device._board.exec = mocker.MagicMock(return_value=payload)
