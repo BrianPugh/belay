@@ -1,3 +1,4 @@
+import ast
 from pathlib import PosixPath
 from unittest.mock import call
 
@@ -40,17 +41,34 @@ def sync_path(tmp_path):
 
 @pytest.fixture
 def sync_begin():
-    _globals, _locals = {}, {}
-    exec(belay.device._read_snippet("sync_begin"), _globals, _locals)
-    return _locals
+    exec(belay.device._read_snippet("sync_begin"), globals())
 
 
-def test_sync_device_belay_hf(sync_begin):
-    pass
+def test_sync_device_belay_hf(sync_begin, tmp_path):
+    """Test on-device FNV-1a hash implementation.
+
+    Test vector from: http://www.isthe.com/chongo/src/fnv/test_fnv.c
+    """
+    f = tmp_path / "test_file"
+    f.write_text("foobar")
+    actual = __belay_hf(str(f))  # noqa: F821
+    assert actual == 0x85944171F73967E8
 
 
-def test_sync_device_belay_hfs(sync_begin):
-    pass
+def test_sync_device_belay_hfs(sync_begin, capsys, tmp_path):
+    fooba_file = tmp_path / "fooba_file"
+    fooba_file.write_text("fooba")
+
+    foobar_file = tmp_path / "foobar_file"
+    foobar_file.write_text("foobar")
+
+    return_value = __belay_hfs([str(fooba_file), str(foobar_file)])  # noqa: F821
+    assert return_value is None
+    captured = capsys.readouterr()
+    # Test Hashes:
+    #     0xcac165afa2fef40a,  # fooba
+    #     0x85944171f73967e8,  # foobar
+    assert captured.out == "_BELAYR[14610070471194899466, 9625390261332436968]\n"
 
 
 def test_sync_device_belay_mkdirs(sync_begin):
