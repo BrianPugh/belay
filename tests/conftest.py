@@ -1,7 +1,43 @@
 from distutils import dir_util
+from functools import partial
 from pathlib import Path
 
 import pytest
+from typer.testing import CliRunner
+
+from belay.cli import app
+
+
+class MockDevice:
+    def __init__(self, mocker):
+        self.mocker = mocker
+        self.inst = mocker.MagicMock()
+        self.cls = None
+
+    def patch(self, target: str):
+        self.cls = self.mocker.patch(target, return_value=self.inst)
+
+    def cls_assert_common(self):
+        self.cls.assert_called_once_with("/dev/ttyUSB0", password="password")
+
+
+@pytest.fixture
+def mock_device(mocker):
+    return MockDevice(mocker)
+
+
+@pytest.fixture
+def cli_runner(mock_device):
+    cli_runner = CliRunner()
+
+    def run(cmd, *args):
+        result = cli_runner.invoke(
+            app, [cmd, "/dev/ttyUSB0", *args, "--password", "password"]
+        )
+        mock_device.cls_assert_common()
+        return result
+
+    return run
 
 
 @pytest.fixture
