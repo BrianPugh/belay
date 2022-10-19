@@ -1,6 +1,3 @@
-from pathlib import PosixPath
-
-
 def test_run_basic(mocker, mock_device, cli_runner, tmp_path):
     mock_device.patch("belay.cli.main.Device")
     py_file = tmp_path / "foo.py"
