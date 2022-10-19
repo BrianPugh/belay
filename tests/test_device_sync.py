@@ -71,8 +71,21 @@ def test_sync_device_belay_hfs(sync_begin, capsys, tmp_path):
     assert captured.out == "_BELAYR[14610070471194899466, 9625390261332436968]\n"
 
 
-def test_sync_device_belay_mkdirs(sync_begin):
-    pass
+def test_sync_device_belay_mkdirs(sync_begin, tmp_path):
+    paths = [
+        tmp_path,
+        tmp_path / "foo1",
+        tmp_path / "foo1" / "foo2",
+        tmp_path / "bar1",
+        tmp_path / "bar1" / "bar2",
+    ]
+    paths = [str(x) for x in paths]
+    __belay_mkdirs(paths)  # noqa: F821
+    assert (tmp_path).is_dir()
+    assert (tmp_path / "foo1").is_dir()
+    assert (tmp_path / "foo1" / "foo2").is_dir()
+    assert (tmp_path / "bar1").is_dir()
+    assert (tmp_path / "bar1" / "bar2").is_dir()
 
 
 def test_sync_device_belay_fs(sync_begin):
