@@ -471,7 +471,7 @@ class Device:
         keep: Union[None, list, str, bool] = None,
         ignore: Union[None, list, str] = None,
         minify: bool = True,
-        mpy_cross_binary: Union[str, Path] = "",
+        mpy_cross_binary: Union[str, Path, None] = None,
         progress_update=None,
     ) -> None:
         """Sync a local directory to the remote filesystem.
@@ -498,7 +498,7 @@ class Device:
         minify: bool
             Minify python files prior to syncing.
             Defaults to ``True``.
-        mpy_cross_binary: Union[str, Path]
+        mpy_cross_binary: Union[str, Path, None]
             Path to mpy-cross binary. If provided, ``.py`` will automatically
             be compiled.
             Takes precedence over minifying.

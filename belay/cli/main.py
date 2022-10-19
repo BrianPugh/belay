@@ -8,7 +8,7 @@ from rich.console import Console
 from rich.progress import Progress
 from typer import Argument, Option
 
-import belay
+from belay import Device
 
 Arg = partial(Argument, ..., show_default=False)
 Opt = partial(Option)
@@ -45,14 +45,16 @@ def sync(
     password: str = Opt("", help=_help_password),
     keep: Optional[List[str]] = Opt(None, help="Files to keep."),
     ignore: Optional[List[str]] = Opt(None, help="Files to ignore."),
-    mpy_cross_binary: Path = Opt("", help="Compile py files with this executable."),
+    mpy_cross_binary: Optional[Path] = Opt(
+        None, help="Compile py files with this executable."
+    ),
 ):
     """Synchronize a folder to device."""
     with Progress() as progress:
         task_id = progress.add_task("")
         progress_update = partial(progress.update, task_id)
         progress_update(description=f"Connecting to {port}")
-        device = belay.Device(port, password=password)
+        device = Device(port, password=password)
         progress_update(description=f"Connected to {port}.")
 
         device.sync(
@@ -74,7 +76,7 @@ def run(
     password: str = Opt("", help=_help_password),
 ):
     """Run file on-device."""
-    device = belay.Device(port, password=password)
+    device = Device(port, password=password)
     content = file.read_text()
     device(content)
 
@@ -86,7 +88,7 @@ def exec(
     password: str = Opt("", help=_help_password),
 ):
     """Execute python statement on-device."""
-    device = belay.Device(port, password=password)
+    device = Device(port, password=password)
     device(statement)
 
 
@@ -96,7 +98,7 @@ def info(
     password: str = Opt("", help=_help_password),
 ):
     """Display device firmware information."""
-    device = belay.Device(port, password=password)
+    device = Device(port, password=password)
     version_str = "v" + ".".join(str(x) for x in device.implementation.version)
     print(
         f"{device.implementation.name} {version_str} - {device.implementation.platform}"
