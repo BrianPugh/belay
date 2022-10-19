@@ -24,13 +24,11 @@ def __belay_mkdirs(fns):
         except OSError:
             pass
 all_files, all_dirs = set(), []
-def __belay_fs(path=""):
-    try:
-        os.stat(path)
-    except OSError:
-        return
+def __belay_fs(path="/"):
+    if not path.endswith("/"):
+        path += "/"
     for elem in os.listdir(path):
-        full_name = path + "/" + elem
+        full_name = path + elem
         if os.stat(full_name)[0] & 0x4000:  # is_dir
             all_dirs.append(full_name)
             __belay_fs(full_name)

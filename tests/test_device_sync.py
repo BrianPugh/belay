@@ -1,5 +1,5 @@
 import ast
-from pathlib import PosixPath
+from pathlib import Path, PosixPath
 from unittest.mock import call
 
 import pytest
@@ -88,8 +88,27 @@ def test_sync_device_belay_mkdirs(sync_begin, tmp_path):
     assert (tmp_path / "bar1" / "bar2").is_dir()
 
 
-def test_sync_device_belay_fs(sync_begin):
-    pass
+def test_sync_device_belay_fs_basic(sync_begin, tmp_path):
+    expected_files = {
+        tmp_path / "foo1" / "foo2" / "foo_file.py",
+        tmp_path / "bar1" / "bar2" / "bar_file.py",
+    }
+    expected_dirs = {
+        tmp_path / "foo1",
+        tmp_path / "foo1" / "foo2",
+        tmp_path / "bar1",
+        tmp_path / "bar1" / "bar2",
+    }
+    for f in expected_files:
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.touch()
+
+    __belay_fs(str(tmp_path))  # noqa: F821
+    _all_files = {Path(x) for x in all_files}  # noqa: F821
+    _all_dirs = {Path(x) for x in all_dirs}  # noqa: F821
+
+    assert _all_files == expected_files
+    assert _all_dirs == expected_dirs
 
 
 def test_device_sync_empty_remote(mocker, mock_device, sync_path):
