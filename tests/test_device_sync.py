@@ -44,11 +44,19 @@ def sync_begin():
     exec(belay.device._read_snippet("sync_begin"), globals())
 
 
-def test_sync_device_belay_hf(sync_begin, tmp_path):
-    """Test on-device FNV-1a hash implementation.
+def test_sync_local_belay_hf(sync_begin, tmp_path):
+    """Test local FNV-1a hash implementation.
 
     Test vector from: http://www.isthe.com/chongo/src/fnv/test_fnv.c
     """
+    f = tmp_path / "test_file"
+    f.write_text("foobar")
+    actual = belay.device._local_hash_file(f)
+    assert actual == 0x85944171F73967E8
+
+
+def test_sync_device_belay_hf(sync_begin, tmp_path):
+    """Test on-device FNV-1a hash implementation."""
     f = tmp_path / "test_file"
     f.write_text("foobar")
     actual = __belay_hf(str(f))  # noqa: F821

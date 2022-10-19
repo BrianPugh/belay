@@ -45,11 +45,12 @@ def _read_snippet(name):
     return pkg_resources.read_text(snippets, f"{name}.py")
 
 
-def _local_hash_file(fn: str) -> int:
+def _local_hash_file(fn: Union[str, Path]) -> int:
     """Compute the FNV-1a 64-bit hash of a file."""
+    fn = Path(fn)
     h = 0xCBF29CE484222325
     size = 1 << 64
-    with open(fn, "rb") as f:  # noqa: PL123
+    with fn.open("rb") as f:
         while True:
             data = f.read(65536)
             if not data:
@@ -405,7 +406,7 @@ class Device:
         minify: bool = True,
         stream_out: TextIO = sys.stdout,
         record=True,
-    ) -> BelayReturn:
+    ):
         """Execute code on-device.
 
         Parameters
