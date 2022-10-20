@@ -253,6 +253,11 @@ def test_preprocess_keep_list():
     assert actual == ["/foo"]
 
 
+def test_preprocess_keep_str():
+    actual = belay.device._preprocess_keep("foo", "/")
+    assert actual == ["/foo"]
+
+
 def test_preprocess_keep_bool_true():
     actual = belay.device._preprocess_keep(True, "/")
     assert actual == []
@@ -263,8 +268,19 @@ def test_preprocess_keep_bool_false():
     assert actual == []
 
 
-def test_preprocess_ignore():
-    pass
+def test_preprocess_ignore_none():
+    actual = belay.device._preprocess_ignore(None)
+    assert actual == ["*.pyc", "__pycache__", ".DS_Store", ".pytest_cache"]
+
+
+def test_preprocess_ignore_list():
+    actual = belay.device._preprocess_ignore(["foo", "bar"])
+    assert actual == ["foo", "bar"]
+
+
+def test_preprocess_ignore_str():
+    actual = belay.device._preprocess_ignore("foo")
+    assert actual == ["foo"]
 
 
 def test_preprocess_src_file():
