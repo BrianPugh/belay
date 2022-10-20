@@ -29,6 +29,10 @@ def __belay_fs(path="/"):
         path = "/"
     elif not path.endswith("/"):
         path += "/"
+    try:
+        os.stat(path)
+    except OSError:
+        return
     for elem in os.listdir(path):
         full_name = path + elem
         if os.stat(full_name)[0] & 0x4000:  # is_dir

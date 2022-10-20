@@ -119,6 +119,13 @@ def test_sync_device_belay_fs_basic(sync_begin, tmp_path):
     assert _all_dirs == expected_dirs
 
 
+def test_sync_device_belay_fs_does_not_exist(sync_begin, tmp_path):
+    non_existing_dir = tmp_path / "does_not_exist"
+    __belay_fs(str(non_existing_dir))  # noqa: F821
+    assert all_files == set()  # noqa: F821
+    assert all_dirs == []  # noqa: F821
+
+
 def test_device_sync_empty_remote(mocker, mock_device, sync_path):
     payload = ("_BELAYR" + repr([b""] * 5) + "\r\n").encode("utf-8")
     mock_device._board.exec = mocker.MagicMock(return_value=payload)
