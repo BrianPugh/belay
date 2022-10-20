@@ -354,6 +354,23 @@ def _preprocess_ignore(ignore: Union[None, str, list, tuple]) -> list:
     return ignore
 
 
+def _preprocess_src_file(tmp_dir: Union[str, Path], src_file, minify, mpy_cross_binary):
+    tmp_dir = Path(tmp_dir)
+
+    if src_file.suffix == ".py":
+        if mpy_cross_binary:
+            mpy_file = (tmp_dir / src_file.name).with_suffix(".mpy")
+            subprocess.check_output(  # nosec
+                [mpy_cross_binary, "-o", mpy_file, src_file]
+            )
+            src_file = mpy_file
+        elif minify:
+            minified = minify_code(src_file.read_text())
+            src_file = tmp_dir / src_file.name
+            src_file.write_text(minified)
+    return src_file
+
+
 @dataclass
 class Implementation:
     """Implementation dataclass detailing the device.
@@ -621,21 +638,9 @@ class Device:
                 progress_update(description=f"Syncing: {dst_file[1:]}")
 
             with tempfile.TemporaryDirectory() as tmp_dir:
-                tmp_dir = Path(tmp_dir)
-
-                if src_file.suffix == ".py":
-                    if mpy_cross_binary:
-                        mpy_file = (tmp_dir / src_file.name).with_suffix(".mpy")
-                        subprocess.check_output(  # nosec
-                            [mpy_cross_binary, "-o", mpy_file, src_file]
-                        )
-                        src_file = mpy_file
-                    elif minify:
-                        minified = minify_code(src_file.read_text())
-                        src_file = tmp_dir / src_file.name
-                        src_file.write_text(minified)
-
-                # All other files, just sync over.
+                src_file = _preprocess_src_file(
+                    tmp_dir, src_file, minify, mpy_cross_binary
+                )
                 src_hash = _local_hash_file(src_file)
                 if src_hash != dst_hash:
                     self._board.fs_put(src_file, dst_file)
