@@ -323,7 +323,10 @@ def _discover_files_dirs(
     return src_files, src_dirs, dst_files
 
 
-def _preprocess_keep(keep, dst) -> list:
+def _preprocess_keep(
+    keep: Union[None, list, str, bool],
+    dst: str,
+) -> list:
     if keep is None:
         if dst == "/":
             keep = ["boot.py", "webrepl_cfg.py"]
@@ -332,10 +335,23 @@ def _preprocess_keep(keep, dst) -> list:
     elif isinstance(keep, str):
         keep = [keep]
     elif isinstance(keep, (list, tuple)):
-        keep = list(keep)
+        pass
     else:
         keep = []
+    keep = [str(dst / Path(x)) for x in keep]
     return keep
+
+
+def _preprocess_ignore(ignore: Union[None, str, list, tuple]) -> list:
+    if ignore is None:
+        ignore = ["*.pyc", "__pycache__", ".DS_Store", ".pytest_cache"]
+    elif isinstance(ignore, str):
+        ignore = [ignore]
+    elif isinstance(ignore, (list, tuple)):
+        ignore = list(ignore)
+    else:
+        raise ValueError
+    return ignore
 
 
 @dataclass
@@ -554,25 +570,13 @@ class Device:
         # so they don't get deleted.
         keep_all = folder.is_file() or keep is True
         keep = _preprocess_keep(keep, dst)
+        ignore = _preprocess_ignore(ignore)
 
         if keep_all:
             # Don't build up the device of files, we won't be deleting anything
             self("del __belay_fs")
         else:
-            if dst == "/":
-                self("__belay_fs(); all_dirs.sort(); del __belay_fs")
-            else:
-                self(f"__belay_fs({repr(dst)}); all_dirs.sort(); del __belay_fs")
-            keep = [str(dst / Path(x)) for x in keep]
-
-        if ignore is None:
-            ignore = ["*.pyc", "__pycache__", ".DS_Store", ".pytest_cache"]
-        elif isinstance(ignore, str):
-            ignore = [ignore]
-        elif isinstance(ignore, (list, tuple)):
-            pass
-        else:
-            raise ValueError
+            self(f"__belay_fs({repr(dst)}); all_dirs.sort(); del __belay_fs")
 
         src_files, src_dirs, dst_files = _discover_files_dirs(dst, folder, ignore)
 

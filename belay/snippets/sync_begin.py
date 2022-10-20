@@ -25,7 +25,9 @@ def __belay_mkdirs(fns):
             pass
 all_files, all_dirs = set(), []
 def __belay_fs(path="/"):
-    if not path.endswith("/"):
+    if not path:
+        path = "/"
+    elif not path.endswith("/"):
         path += "/"
     for elem in os.listdir(path):
         full_name = path + elem
