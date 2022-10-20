@@ -8,8 +8,8 @@ def test_sync_basic(mocker, mock_device, cli_runner):
     mock_device.inst.sync.assert_called_once_with(
         PosixPath("foo"),
         dst="/",
-        keep=[],
-        ignore=[],
+        keep=None,
+        ignore=None,
         mpy_cross_binary=None,
         progress_update=mocker.ANY,
     )

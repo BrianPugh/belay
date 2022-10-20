@@ -644,7 +644,7 @@ class Device:
             raise Exception
 
         if progress_update:
-            progress_update(total=len(src_files))
+            progress_update(total=len(src_files), description="Pushing files...")
         for src_file, dst_file, dst_hash in zip(src_files, dst_files, dst_hashes):
             with tempfile.TemporaryDirectory() as tmp_dir:
                 src_file = _preprocess_src_file(

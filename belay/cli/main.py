@@ -50,6 +50,10 @@ def sync(
     ),
 ):
     """Synchronize a folder to device."""
+    # Typer issues: https://github.com/tiangolo/typer/issues/410
+    keep = keep if keep else None
+    ignore = ignore if ignore else None
+
     with Progress() as progress:
         task_id = progress.add_task("")
         progress_update = partial(progress.update, task_id)
