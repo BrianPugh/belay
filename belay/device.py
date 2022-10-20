@@ -13,6 +13,7 @@ from inspect import isgeneratorfunction, signature
 from pathlib import Path
 from typing import Callable, Dict, Generator, List, Optional, Set, TextIO, Tuple, Union
 
+import lox
 from pathspec import PathSpec
 from serial import SerialException
 
@@ -356,6 +357,7 @@ def _preprocess_ignore(ignore: Union[None, str, list, tuple]) -> list:
     return ignore
 
 
+@lox.thread(8)
 def _preprocess_src_file(
     tmp_dir: Union[str, Path],
     src_file: Union[str, Path],
@@ -642,23 +644,26 @@ class Device:
                 progress_update(description="Creating remote directories...")
             self(f"__belay_mkdirs({repr(dst_dirs)})")
 
-        # Get all remote hashes
-        if progress_update:
-            progress_update(description="Fetching remote hashes...")
-        dst_hashes = self(f"__belay_hfs({repr(dst_files)})")
-
-        if len(dst_hashes) != len(dst_files):
-            raise Exception
-
-        if progress_update:
-            progress_update(total=len(src_files), description="Pushing files...")
-        puts = []
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_dir = Path(tmp_dir)
-            for src_file, dst_file, dst_hash in zip(src_files, dst_files, dst_hashes):
-                src_file = _preprocess_src_file(
+            for src_file in src_files:
+                # Pre-process files in another thread while we get remote hashes
+                _preprocess_src_file.scatter(
                     tmp_dir, src_file, minify, mpy_cross_binary
                 )
+
+            # Get all remote hashes
+            if progress_update:
+                progress_update(description="Fetching remote hashes...")
+            dst_hashes = self(f"__belay_hfs({repr(dst_files)})")
+
+            src_files = _preprocess_src_file.gather()
+
+            if len(dst_hashes) != len(dst_files):
+                raise Exception
+
+            puts = []
+            for src_file, dst_file, dst_hash in zip(src_files, dst_files, dst_hashes):
                 src_hash = _local_hash_file(src_file)
                 if src_hash != dst_hash:
                     puts.append((src_file, dst_file))

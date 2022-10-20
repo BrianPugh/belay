@@ -27,6 +27,7 @@ python = "^3.8"
 pyserial = "^3.1"
 typer = {extras = ["all"], version = "^0.6"}
 pathspec = "*"
+lox = "^0.11.0"
 
 [tool.poetry.group.docs.dependencies]
 sphinx = "~4.5.0"
