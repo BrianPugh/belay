@@ -675,6 +675,9 @@ class Device:
                 if src_hash != dst_hash:
                     puts.append((src_file, dst_file))
 
+            if progress_update:
+                progress_update(total=len(puts))
+
             for src_file, dst_file in puts:
                 if progress_update:
                     progress_update(description=f"Pushing: {dst_file[1:]}")
