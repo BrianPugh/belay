@@ -371,6 +371,16 @@ def _preprocess_src_file(tmp_dir: Union[str, Path], src_file, minify, mpy_cross_
     return src_file
 
 
+def _generate_dst_dirs(dst, src, src_dirs) -> list:
+    dst_dirs = [str(dst / x.relative_to(src)) for x in src_dirs]
+    # Add all directories leading up to ``dst``.
+    dst_prefix_tokens = dst.split("/")
+    for i in range(2, len(dst_prefix_tokens) + (dst[-1] != "/")):
+        dst_dirs.append("/".join(dst_prefix_tokens[:i]))
+    dst_dirs.sort()
+    return dst_dirs
+
+
 @dataclass
 class Implementation:
     """Implementation dataclass detailing the device.
@@ -603,13 +613,7 @@ class Device:
                 for dst_file in dst_files
             ]
         dst_files = [str(dst_file) for dst_file in dst_files]
-
-        dst_dirs = [str(dst / src.relative_to(folder)) for src in src_dirs]
-        # Add all directories leading up to ``dst``.
-        dst_prefix_tokens = dst.split("/")
-        for i in range(2, len(dst_prefix_tokens) + (dst[-1] != "/")):
-            dst_dirs.append("/".join(dst_prefix_tokens[:i]))
-        dst_dirs.sort()
+        dst_dirs = _generate_dst_dirs(dst, folder, src_dirs)
 
         if not keep_all:
             # prevent keep duplicates in the concat'd file list
