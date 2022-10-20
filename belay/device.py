@@ -357,7 +357,6 @@ def _preprocess_ignore(ignore: Union[None, str, list, tuple]) -> list:
     return ignore
 
 
-@lox.thread(8)
 def _preprocess_src_file(
     tmp_dir: Union[str, Path],
     src_file: Union[str, Path],
@@ -386,6 +385,13 @@ def _preprocess_src_file(
             return transformed
 
     return src_file
+
+
+@lox.thread(8)
+def _preprocess_src_file_hash(*args, **kwargs):
+    src_file = _preprocess_src_file(*args, **kwargs)
+    src_hash = _local_hash_file(src_file)
+    return src_file, src_hash
 
 
 def _generate_dst_dirs(dst, src, src_dirs) -> list:
@@ -648,7 +654,7 @@ class Device:
             tmp_dir = Path(tmp_dir)
             for src_file in src_files:
                 # Pre-process files in another thread while we get remote hashes
-                _preprocess_src_file.scatter(
+                _preprocess_src_file_hash.scatter(
                     tmp_dir, src_file, minify, mpy_cross_binary
                 )
 
@@ -657,14 +663,15 @@ class Device:
                 progress_update(description="Fetching remote hashes...")
             dst_hashes = self(f"__belay_hfs({repr(dst_files)})")
 
-            src_files = _preprocess_src_file.gather()
+            src_files_and_hashes = _preprocess_src_file_hash.gather()
 
             if len(dst_hashes) != len(dst_files):
                 raise Exception
 
             puts = []
-            for src_file, dst_file, dst_hash in zip(src_files, dst_files, dst_hashes):
-                src_hash = _local_hash_file(src_file)
+            for (src_file, src_hash), dst_file, dst_hash in zip(
+                src_files_and_hashes, dst_files, dst_hashes
+            ):
                 if src_hash != dst_hash:
                     puts.append((src_file, dst_file))
 
