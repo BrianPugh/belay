@@ -8,6 +8,11 @@ import belay
 import belay.device
 
 
+def uint(x):
+    """For patching micropython.viper code for testing."""
+    return x % (1 << 32)
+
+
 @pytest.fixture
 def mock_pyboard(mocker):
     def mock_init(self, *args, **kwargs):
@@ -41,7 +46,12 @@ def sync_path(tmp_path):
 
 @pytest.fixture
 def sync_begin():
-    exec(belay.device._read_snippet("sync_begin"), globals())
+    snippet = belay.device._read_snippet("sync_begin")
+    # Patch out micropython stuff
+    lines = snippet.split("\n")
+    lines = [x for x in lines if "micropython" not in x]
+    snippet = "\n".join(lines)
+    exec(snippet, globals())
 
 
 def test_sync_local_belay_hf(sync_begin, tmp_path):
@@ -52,15 +62,16 @@ def test_sync_local_belay_hf(sync_begin, tmp_path):
     f = tmp_path / "test_file"
     f.write_text("foobar")
     actual = belay.device._local_hash_file(f)
-    assert actual == 0x85944171F73967E8
+    assert actual == 0xBF9CF968
 
 
 def test_sync_device_belay_hf(sync_begin, tmp_path):
     """Test on-device FNV-1a hash implementation."""
     f = tmp_path / "test_file"
     f.write_text("foobar")
-    actual = __belay_hf(str(f))  # noqa: F821
-    assert actual == 0x85944171F73967E8
+    buf = memoryview(bytearray(4096))
+    actual = __belay_hf(str(f), buf)  # noqa: F821
+    assert actual == 0xBF9CF968
 
 
 def test_sync_device_belay_hfs(sync_begin, capsys, tmp_path):
@@ -73,10 +84,7 @@ def test_sync_device_belay_hfs(sync_begin, capsys, tmp_path):
     return_value = __belay_hfs([str(fooba_file), str(foobar_file)])  # noqa: F821
     assert return_value is None
     captured = capsys.readouterr()
-    # Test Hashes:
-    #     0xcac165afa2fef40a,  # fooba
-    #     0x85944171f73967e8,  # foobar
-    assert captured.out == "_BELAYR[14610070471194899466, 9625390261332436968]\n"
+    assert captured.out == f"_BELAYR[{0x39aaa18a}, {0xbf9cf968}]\n"
 
 
 def test_sync_device_belay_mkdirs(sync_begin, tmp_path):

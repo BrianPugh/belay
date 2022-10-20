@@ -46,10 +46,10 @@ def _read_snippet(name):
 
 
 def _local_hash_file(fn: Union[str, Path]) -> int:
-    """Compute the FNV-1a 64-bit hash of a file."""
+    """Compute the FNV-1a 32-bit hash of a file."""
     fn = Path(fn)
-    h = 0xCBF29CE484222325
-    size = 1 << 64
+    h = 0x811C9DC5
+    size = 1 << 32
     with fn.open("rb") as f:
         while True:
             data = f.read(65536)
@@ -57,7 +57,7 @@ def _local_hash_file(fn: Union[str, Path]) -> int:
                 break
             for byte in data:
                 h = h ^ byte
-                h = (h * 0x100000001B3) % size
+                h = (h * 0x01000193) % size
     return h
 
 
