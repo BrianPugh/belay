@@ -1,4 +1,5 @@
 import ast
+import os
 from pathlib import Path, PosixPath
 from unittest.mock import call
 
@@ -11,6 +12,12 @@ import belay.device
 def uint(x):
     """For patching micropython.viper code for testing."""
     return x % (1 << 32)
+
+
+def ilistdir(x):
+    for name in os.listdir(x):
+        stat = os.stat(x + "/" + name)  # noqa: PL116
+        yield (name, stat.st_mode, stat.st_ino)
 
 
 @pytest.fixture
@@ -51,6 +58,7 @@ def sync_begin():
     lines = snippet.split("\n")
     lines = [x for x in lines if "micropython" not in x]
     snippet = "\n".join(lines)
+    snippet = snippet.replace("os.ilistdir", "ilistdir")
     exec(snippet, globals())
 
 
