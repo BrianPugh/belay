@@ -323,6 +323,21 @@ def _discover_files_dirs(
     return src_files, src_dirs, dst_files
 
 
+def _preprocess_keep(keep, dst) -> list:
+    if keep is None:
+        if dst == "/":
+            keep = ["boot.py", "webrepl_cfg.py"]
+        else:
+            keep = []
+    elif isinstance(keep, str):
+        keep = [keep]
+    elif isinstance(keep, (list, tuple)):
+        keep = list(keep)
+    else:
+        keep = []
+    return keep
+
+
 @dataclass
 class Implementation:
     """Implementation dataclass detailing the device.
@@ -496,7 +511,7 @@ class Device:
         Parameters
         ----------
         folder: str, Path
-            Directory of files to sync to the root of the board's filesystem.
+            Single file or directory of files to sync to the root of the board's filesystem.
         dst: str
             Destination **directory** on device.
             Defaults to unpacking ``folder`` to root.
@@ -537,20 +552,8 @@ class Device:
 
         # Remove the keep files from the on-device ``all_files`` set
         # so they don't get deleted.
-        keep_all = folder.is_file()
-        if keep is None:
-            if dst == "/":
-                keep = ["boot.py", "webrepl_cfg.py"]
-            else:
-                keep = []
-        elif isinstance(keep, str):
-            keep = [keep]
-        elif isinstance(keep, (list, tuple)):
-            pass
-        else:
-            if keep:
-                keep_all = True
-            keep = []
+        keep_all = folder.is_file() or keep is True
+        keep = _preprocess_keep(keep, dst)
 
         if keep_all:
             # Don't build up the device of files, we won't be deleting anything
@@ -609,29 +612,29 @@ class Device:
 
         if progress_update:
             progress_update(total=len(src_files))
-        for src, dst, dst_hash in zip(src_files, dst_files, dst_hashes):
+        for src_file, dst_file, dst_hash in zip(src_files, dst_files, dst_hashes):
             if progress_update:
-                progress_update(description=f"Syncing: {dst[1:]}")
+                progress_update(description=f"Syncing: {dst_file[1:]}")
 
             with tempfile.TemporaryDirectory() as tmp_dir:
                 tmp_dir = Path(tmp_dir)
 
-                if src.suffix == ".py":
+                if src_file.suffix == ".py":
                     if mpy_cross_binary:
-                        mpy_file = (tmp_dir / src.name).with_suffix(".mpy")
+                        mpy_file = (tmp_dir / src_file.name).with_suffix(".mpy")
                         subprocess.check_output(  # nosec
-                            [mpy_cross_binary, "-o", mpy_file, src]
+                            [mpy_cross_binary, "-o", mpy_file, src_file]
                         )
-                        src = mpy_file
+                        src_file = mpy_file
                     elif minify:
-                        minified = minify_code(src.read_text())
-                        src = tmp_dir / src.name
-                        src.write_text(minified)
+                        minified = minify_code(src_file.read_text())
+                        src_file = tmp_dir / src_file.name
+                        src_file.write_text(minified)
 
                 # All other files, just sync over.
-                src_hash = _local_hash_file(src)
+                src_hash = _local_hash_file(src_file)
                 if src_hash != dst_hash:
-                    self._board.fs_put(src, dst)
+                    self._board.fs_put(src_file, dst_file)
 
             if progress_update:
                 progress_update(advance=1)
