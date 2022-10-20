@@ -365,17 +365,24 @@ def _preprocess_src_file(
     tmp_dir = Path(tmp_dir)
     src_file = Path(src_file)
 
+    if src_file.is_absolute():
+        transformed = tmp_dir / src_file.relative_to(tmp_dir.anchor)
+    else:
+        transformed = tmp_dir / src_file
+    transformed.parent.mkdir(parents=True, exist_ok=True)
+
     if src_file.suffix == ".py":
         if mpy_cross_binary:
-            mpy_file = (tmp_dir / src_file.name).with_suffix(".mpy")
+            mpy_file = transformed.with_suffix(".mpy")
             subprocess.check_output(  # nosec
                 [mpy_cross_binary, "-o", mpy_file, src_file]
             )
-            src_file = mpy_file
+            return transformed
         elif minify:
             minified = minify_code(src_file.read_text())
-            src_file = tmp_dir / src_file.name
-            src_file.write_text(minified)
+            transformed.write_text(minified)
+            return transformed
+
     return src_file
 
 
@@ -645,20 +652,23 @@ class Device:
 
         if progress_update:
             progress_update(total=len(src_files), description="Pushing files...")
-        for src_file, dst_file, dst_hash in zip(src_files, dst_files, dst_hashes):
-            with tempfile.TemporaryDirectory() as tmp_dir:
+        puts = []
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_dir = Path(tmp_dir)
+            for src_file, dst_file, dst_hash in zip(src_files, dst_files, dst_hashes):
                 src_file = _preprocess_src_file(
                     tmp_dir, src_file, minify, mpy_cross_binary
                 )
                 src_hash = _local_hash_file(src_file)
                 if src_hash != dst_hash:
-                    if progress_update:
-                        progress_update(description=f"Pushing: {dst_file[1:]}")
+                    puts.append((src_file, dst_file))
 
-                    self._board.fs_put(src_file, dst_file)
-
-            if progress_update:
-                progress_update(advance=1)
+            for src_file, dst_file in puts:
+                if progress_update:
+                    progress_update(description=f"Pushing: {dst_file[1:]}")
+                self._board.fs_put(src_file, dst_file)
+                if progress_update:
+                    progress_update(advance=1)
 
         # Remove all the files and directories that did not exist in local filesystem.
         if progress_update:
