@@ -283,8 +283,16 @@ def test_preprocess_ignore_str():
     assert actual == ["foo"]
 
 
-def test_preprocess_src_file():
-    pass
+def test_preprocess_src_file_default_py(tmp_path):
+    actual = belay.device._preprocess_src_file(tmp_path, "foo/bar/baz.py", False, None)
+    assert actual == Path("foo/bar/baz.py")
+
+
+def test_preprocess_src_file_default_generic(tmp_path):
+    actual = belay.device._preprocess_src_file(
+        tmp_path, "foo/bar/baz.generic", False, None
+    )
+    assert actual == Path("foo/bar/baz.generic")
 
 
 def test_generate_dst_dirs():

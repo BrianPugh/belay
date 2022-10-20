@@ -356,8 +356,14 @@ def _preprocess_ignore(ignore: Union[None, str, list, tuple]) -> list:
     return ignore
 
 
-def _preprocess_src_file(tmp_dir: Union[str, Path], src_file, minify, mpy_cross_binary):
+def _preprocess_src_file(
+    tmp_dir: Union[str, Path],
+    src_file: Union[str, Path],
+    minify: bool,
+    mpy_cross_binary: Union[str, Path, None],
+) -> Path:
     tmp_dir = Path(tmp_dir)
+    src_file = Path(src_file)
 
     if src_file.suffix == ".py":
         if mpy_cross_binary:
@@ -640,15 +646,15 @@ class Device:
         if progress_update:
             progress_update(total=len(src_files))
         for src_file, dst_file, dst_hash in zip(src_files, dst_files, dst_hashes):
-            if progress_update:
-                progress_update(description=f"Syncing: {dst_file[1:]}")
-
             with tempfile.TemporaryDirectory() as tmp_dir:
                 src_file = _preprocess_src_file(
                     tmp_dir, src_file, minify, mpy_cross_binary
                 )
                 src_hash = _local_hash_file(src_file)
                 if src_hash != dst_hash:
+                    if progress_update:
+                        progress_update(description=f"Pushing: {dst_file[1:]}")
+
                     self._board.fs_put(src_file, dst_file)
 
             if progress_update:
