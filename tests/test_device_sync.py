@@ -236,3 +236,40 @@ def test_discover_files_dirs_single_file(tmp_path):
     assert src_files == [PosixPath("file1.ext")]
     assert src_dirs == []
     assert dst_files == [PosixPath("/foo/bar/file1.ext")]
+
+
+def test_preprocess_keep_none_root():
+    actual = belay.device._preprocess_keep(None, "/")
+    assert actual == ["/boot.py", "/webrepl_cfg.py"]
+
+
+def test_preprocess_keep_none_nonroot():
+    actual = belay.device._preprocess_keep(None, "/foo")
+    assert actual == []
+
+
+def test_preprocess_keep_list():
+    actual = belay.device._preprocess_keep(["foo"], "/")
+    assert actual == ["/foo"]
+
+
+def test_preprocess_keep_bool_true():
+    actual = belay.device._preprocess_keep(True, "/")
+    assert actual == []
+
+
+def test_preprocess_keep_bool_false():
+    actual = belay.device._preprocess_keep(False, "/")
+    assert actual == []
+
+
+def test_preprocess_ignore():
+    pass
+
+
+def test_preprocess_src_file():
+    pass
+
+
+def test_generate_dst_dirs():
+    pass

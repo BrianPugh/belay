@@ -336,8 +336,10 @@ def _preprocess_keep(
         keep = [keep]
     elif isinstance(keep, (list, tuple)):
         pass
-    else:
+    elif isinstance(keep, bool):
         keep = []
+    else:
+        raise ValueError
     keep = [str(dst / Path(x)) for x in keep]
     return keep
 
