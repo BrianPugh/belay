@@ -124,3 +124,23 @@ def test_device_traceback_execute(mocker, mock_device, tmp_path):
     with pytest.raises(belay.PyboardException) as exc_info:
         mock_device._traceback_execute(src_file, src_lineno, name, cmd)
     assert exc_info.value.args[0] == expected_msg
+
+
+def test_parse_belay_response_unknown():
+    with pytest.raises(ValueError):
+        belay.device._parse_belay_response("_BELAYA")
+
+
+def test_parse_belay_response_stop_iteration():
+    with pytest.raises(StopIteration):
+        belay.device._parse_belay_response("_BELAYS")
+
+
+def test_parse_belay_response_r():
+    assert [1, 2, 3] == belay.device._parse_belay_response("_BELAYR[1,2,3]")
+    assert 1 == belay.device._parse_belay_response("_BELAYR1")
+    assert 1.23 == belay.device._parse_belay_response("_BELAYR1.23")
+    assert "a" == belay.device._parse_belay_response("_BELAYR'a'")
+    assert {1} == belay.device._parse_belay_response("_BELAYR{1}")
+    assert b"foo" == belay.device._parse_belay_response("_BELAYRb'foo'")
+    assert belay.device._parse_belay_response("_BELAYRFalse") is False

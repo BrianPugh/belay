@@ -65,6 +65,26 @@ def _random_python_identifier(n=16):
     return "_" + "".join(secrets.choice(_python_identifier_chars) for _ in range(n))
 
 
+class NotBelayResponse(Exception):
+    """Parsed response wasn't for Belay."""
+
+
+def _parse_belay_response(line):
+    if not line.startswith("_BELAY"):
+        raise NotBelayResponse
+    line = line[6:]
+    code, line = line[0], line[1:]
+
+    if code == "R":
+        # Result
+        return ast.literal_eval(line)
+    elif code == "S":
+        # StopIteration
+        raise StopIteration
+    else:
+        raise ValueError(f'Received unknown code: "{code}"')
+
+
 class _Executer(ABC):
     def __init__(self, device):
         # To avoid Executer.__setattr__ raising an error
@@ -448,18 +468,10 @@ class Device:
         lines = res.split("\r\n")
 
         for line in lines[:-1]:
-            if line.startswith("_BELAY"):
-                line = line[6:]
-                code, line = line[0], line[1:]
-
-                if code == "R":
-                    # Result
-                    return ast.literal_eval(line)
-                elif code == "S":
-                    # StopIteration
-                    raise StopIteration
-                else:
-                    raise ValueError(f'Received unknown code: "{code}"')
+            try:
+                return _parse_belay_response(line)
+            except NotBelayResponse:
+                pass
 
             if stream_out:
                 stream_out.write(line)
