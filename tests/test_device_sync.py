@@ -1,4 +1,3 @@
-import ast
 import os
 from pathlib import Path, PosixPath
 from unittest.mock import call
@@ -345,4 +344,24 @@ def test_preprocess_src_file_default_generic(tmp_path):
 
 
 def test_generate_dst_dirs():
-    pass
+    dst = "/foo/bar"
+    src = Path("/bloop/bleep")
+    src_dirs = [
+        src / "dir1",
+        src / "dir1" / "dir1_1",
+        src / "dir1" / "dir1_2",
+        src / "dir2",
+        src / "dir2" / "dir2_1",
+        src / "dir2" / "dir2_2",
+    ]
+    dst_dirs = belay.device._generate_dst_dirs(dst, src, src_dirs)
+    assert dst_dirs == [
+        "/foo",
+        "/foo/bar",
+        "/foo/bar/dir1",
+        "/foo/bar/dir1/dir1_1",
+        "/foo/bar/dir1/dir1_2",
+        "/foo/bar/dir2",
+        "/foo/bar/dir2/dir2_1",
+        "/foo/bar/dir2/dir2_2",
+    ]
