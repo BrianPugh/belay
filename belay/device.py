@@ -1,4 +1,5 @@
 import ast
+import concurrent.futures
 import importlib.resources as pkg_resources
 import linecache
 import secrets
@@ -13,7 +14,6 @@ from inspect import isgeneratorfunction, signature
 from pathlib import Path
 from typing import Callable, Dict, Generator, List, Optional, Set, TextIO, Tuple, Union
 
-import lox
 from pathspec import PathSpec
 from serial import SerialException
 
@@ -387,7 +387,6 @@ def _preprocess_src_file(
     return src_file
 
 
-@lox.thread(8)
 def _preprocess_src_file_hash(*args, **kwargs):
     src_file = _preprocess_src_file(*args, **kwargs)
     src_hash = _local_hash_file(src_file)
@@ -650,20 +649,24 @@ class Device:
                 progress_update(description="Creating remote directories...")
             self(f"__belay_mkdirs({repr(dst_dirs)})")
 
-        with tempfile.TemporaryDirectory() as tmp_dir:
+        with tempfile.TemporaryDirectory() as tmp_dir, concurrent.futures.ThreadPoolExecutor(
+            max_workers=5
+        ) as executor:
             tmp_dir = Path(tmp_dir)
-            for src_file in src_files:
-                # Pre-process files in another thread while we get remote hashes
-                _preprocess_src_file_hash.scatter(
+
+            def _preprocess_src_file_hash_helper(src_file):
+                return _preprocess_src_file_hash(
                     tmp_dir, src_file, minify, mpy_cross_binary
                 )
+
+            src_files_and_hashes = executor.map(
+                _preprocess_src_file_hash_helper, src_files
+            )
 
             # Get all remote hashes
             if progress_update:
                 progress_update(description="Fetching remote hashes...")
             dst_hashes = self(f"__belay_hfs({repr(dst_files)})")
-
-            src_files_and_hashes = _preprocess_src_file_hash.gather()
 
             if len(dst_hashes) != len(dst_files):
                 raise Exception
