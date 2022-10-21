@@ -1,22 +1,30 @@
 # Creates and populates two set[str]: all_files, all_dirs
 import os
-def __belay_hf(fn):
-    h = 0xcbf29ce484222325
-    size = 1 << 64
+import micropython
+@micropython.native
+def __belay_hf(fn, buf):
+    # inherently is inherently modulo 32-bit arithmetic
+    @micropython.viper
+    def xor_mm(data, state: uint, prime: uint) -> uint:
+        for b in data:
+            state = uint((state ^ uint(b)) * prime)
+        return state
+
+    h = 0x811c9dc5
     try:
-        with open(fn, "rb") as f:
-            while True:
-                data = f.read(4096)
-                if not data:
-                    break
-                for byte in data:
-                    h = h ^ byte
-                    h = (h * 0x100000001b3) % size
+        f = open(fn, "rb")
+        while True:
+            n = f.readinto(buf)
+            if n == 0:
+                break
+            h = xor_mm(buf[:n], h, 0x01000193)
+        f.close()
     except OSError:
-        return 0
+        h = 0
     return h
 def __belay_hfs(fns):
-    print("_BELAYR" + repr([__belay_hf(fn) for fn in fns]))
+    buf = memoryview(bytearray(4096))
+    print("_BELAYR" + repr([__belay_hf(fn, buf) for fn in fns]))
 def __belay_mkdirs(fns):
     for fn in fns:
         try:
@@ -24,17 +32,20 @@ def __belay_mkdirs(fns):
         except OSError:
             pass
 all_files, all_dirs = set(), []
-def __belay_fs(path=""):
-    for elem in os.listdir(path):
-        full_name = path + "/" + elem
+def __belay_fs(path="/", check=True):
+    if not path:
+        path = "/"
+    elif not path.endswith("/"):
+        path += "/"
+    if check:
         try:
-            if os.stat(elem)[0] & 0x4000:  # is_dir
-                all_dirs.append(full_name)
-                __belay_fs(full_name)
-            else:
-                all_files.add(full_name)
+            os.stat(path)
         except OSError:
-            pass
-__belay_fs()
-all_dirs.sort()
-del __belay_fs
+            return
+    for elem in os.ilistdir(path):
+        full_name = path + elem[0]
+        if elem[1] & 0x4000:  # is_dir
+            all_dirs.append(full_name)
+            __belay_fs(full_name, check=False)
+        else:
+            all_files.add(full_name)

@@ -1,8 +1,7 @@
-from unittest.mock import call
-
 import pytest
 
 import belay
+import belay.device
 
 
 @pytest.fixture
@@ -25,7 +24,7 @@ def mock_device(mock_pyboard):
 
 
 def test_device_init(mock_device):
-    pass
+    """Just checks if everything in ``__init__`` is called fine."""
 
 
 def test_device_init_no_startup(mock_pyboard):
@@ -127,76 +126,21 @@ def test_device_traceback_execute(mocker, mock_device, tmp_path):
     assert exc_info.value.args[0] == expected_msg
 
 
-@pytest.fixture
-def sync_path(tmp_path):
-    (tmp_path / "alpha.py").write_text("def alpha():\n    pass")
-    (tmp_path / "bar.txt").write_text("bar contents")
-    (tmp_path / "foo.txt").write_text("foo contents")
-    (tmp_path / "folder1" / "folder1_1").mkdir(parents=True)
-    (tmp_path / "folder1" / "file1.txt").write_text("file1 contents")
-    (tmp_path / "folder1" / "folder1_1" / "file1_1.txt").write_text("file1_1 contents")
-
-    return tmp_path
+def test_parse_belay_response_unknown():
+    with pytest.raises(ValueError):
+        belay.device._parse_belay_response("_BELAYA")
 
 
-def test_device_sync_empty_remote(mocker, mock_device, sync_path):
-    payload = ("_BELAYR" + repr([b""] * 5) + "\r\n").encode("utf-8")
-    mock_device._board.exec = mocker.MagicMock(return_value=payload)
-
-    mock_device.sync(sync_path)
-
-    mock_device._board.exec.assert_has_calls(
-        [
-            call(
-                "for x in['/alpha.py','/bar.txt','/folder1/file1.txt','/folder1/folder1_1/file1_1.txt','/foo.txt','/boot.py','/webrepl_cfg.py']:\n all_files.discard(x)"
-            ),
-            call("__belay_mkdirs(['/folder1','/folder1/folder1_1'])"),
-            call(
-                "__belay_hfs(['/alpha.py','/bar.txt','/folder1/file1.txt','/folder1/folder1_1/file1_1.txt','/foo.txt'])"
-            ),
-        ]
-    )
-
-    mock_device._board.fs_put.assert_has_calls(
-        [
-            call(sync_path / "bar.txt", "/bar.txt"),
-            call(sync_path / "folder1/file1.txt", "/folder1/file1.txt"),
-            call(
-                sync_path / "folder1/folder1_1/file1_1.txt",
-                "/folder1/folder1_1/file1_1.txt",
-            ),
-            call(sync_path / "foo.txt", "/foo.txt"),
-        ]
-    )
+def test_parse_belay_response_stop_iteration():
+    with pytest.raises(StopIteration):
+        belay.device._parse_belay_response("_BELAYS")
 
 
-def test_device_sync_partial_remote(mocker, mock_device, sync_path):
-    def __belay_hfs(fns):
-        out = []
-        for fn in fns:
-            local_fn = sync_path / fn[1:]
-            if local_fn.stem.endswith("1"):
-                out.append(b"\x00")
-            else:
-                out.append(belay.device._local_hash_file(local_fn))
-        return out
-
-    def side_effect(cmd):
-        if not cmd.startswith("__belay_hfs"):
-            return b""
-        nonlocal __belay_hfs
-        return ("_BELAYR" + repr(eval(cmd)) + "\r\n").encode("utf-8")
-
-    mock_device._board.exec = mocker.MagicMock(side_effect=side_effect)
-
-    mock_device.sync(sync_path)
-
-    mock_device._board.fs_put.assert_has_calls(
-        [
-            call(sync_path / "folder1/file1.txt", "/folder1/file1.txt"),
-            call(
-                sync_path / "folder1/folder1_1/file1_1.txt",
-                "/folder1/folder1_1/file1_1.txt",
-            ),
-        ]
-    )
+def test_parse_belay_response_r():
+    assert [1, 2, 3] == belay.device._parse_belay_response("_BELAYR[1,2,3]")
+    assert 1 == belay.device._parse_belay_response("_BELAYR1")
+    assert 1.23 == belay.device._parse_belay_response("_BELAYR1.23")
+    assert "a" == belay.device._parse_belay_response("_BELAYR'a'")
+    assert {1} == belay.device._parse_belay_response("_BELAYR{1}")
+    assert b"foo" == belay.device._parse_belay_response("_BELAYRb'foo'")
+    assert belay.device._parse_belay_response("_BELAYRFalse") is False

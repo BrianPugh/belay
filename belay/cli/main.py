@@ -1,13 +1,14 @@
 from functools import partial
 from pathlib import Path
 from time import sleep
+from typing import List, Optional, Union
 
 import typer
 from rich.console import Console
 from rich.progress import Progress
 from typer import Argument, Option
 
-import belay
+from belay import Device
 
 Arg = partial(Argument, ..., show_default=False)
 Opt = partial(Option)
@@ -15,6 +16,13 @@ Opt = partial(Option)
 app = typer.Typer()
 state = {}
 console: Console
+
+_help_port = (
+    "Port (like /dev/ttyUSB0) or WebSocket (like ws://192.168.1.100) of device."
+)
+_help_password = (  # nosec
+    "Password for communication methods (like WebREPL) that require authentication."
+)
 
 
 @app.callback()
@@ -31,40 +39,70 @@ def callback(silent: bool = False):
 
 @app.command()
 def sync(
-    port: str = Arg(
-        help="Port (like /dev/ttyUSB0) or WebSocket (like ws://192.168.1.100) of device."
-    ),
-    folder: Path = Arg(help="Path to folder to sync."),
-    password: str = Opt(
-        "",
-        help="Password for communication methods (like WebREPL) that require authentication.",
+    port: str = Arg(help=_help_port),
+    folder: Path = Arg(help="Path of local file or folder to sync."),
+    dst: str = Opt("/", help="Destination directory to unpack folder contents to."),
+    password: str = Opt("", help=_help_password),
+    keep: Optional[List[str]] = Opt(None, help="Files to keep."),
+    ignore: Optional[List[str]] = Opt(None, help="Files to ignore."),
+    mpy_cross_binary: Optional[Path] = Opt(
+        None, help="Compile py files with this executable."
     ),
 ):
     """Synchronize a folder to device."""
+    # Typer issues: https://github.com/tiangolo/typer/issues/410
+    keep = keep if keep else None
+    ignore = ignore if ignore else None
+
     with Progress() as progress:
         task_id = progress.add_task("")
         progress_update = partial(progress.update, task_id)
         progress_update(description=f"Connecting to {port}")
-        device = belay.Device(port, password=password)
+        device = Device(port, password=password)
         progress_update(description=f"Connected to {port}.")
 
-        device.sync(folder, progress_update=progress_update)
+        device.sync(
+            folder,
+            dst=dst,
+            keep=keep,
+            ignore=ignore,
+            mpy_cross_binary=mpy_cross_binary,
+            progress_update=progress_update,
+        )
 
         progress_update(description="Sync complete.")
 
 
 @app.command()
+def run(
+    port: str = Arg(help=_help_port),
+    file: Path = Arg(help="File to run on-device."),
+    password: str = Opt("", help=_help_password),
+):
+    """Run file on-device."""
+    device = Device(port, password=password)
+    content = file.read_text()
+    device(content)
+
+
+@app.command()
+def exec(
+    port: str = Arg(help=_help_port),
+    statement: str = Arg(help="Statement to execute on-device."),
+    password: str = Opt("", help=_help_password),
+):
+    """Execute python statement on-device."""
+    device = Device(port, password=password)
+    device(statement)
+
+
+@app.command()
 def info(
-    port: str = Arg(
-        help="Port (like /dev/ttyUSB0) or WebSocket (like ws://192.168.1.100) of device."
-    ),
-    password: str = Opt(
-        "",
-        help="Password for communication methods (like WebREPL) that require authentication.",
-    ),
+    port: str = Arg(help=_help_port),
+    password: str = Opt("", help=_help_password),
 ):
     """Display device firmware information."""
-    device = belay.Device(port, password=password)
+    device = Device(port, password=password)
     version_str = "v" + ".".join(str(x) for x in device.implementation.version)
     print(
         f"{device.implementation.name} {version_str} - {device.implementation.platform}"
@@ -74,14 +112,9 @@ def info(
 
 @app.command()
 def identify(
-    port: str = Arg(
-        help="Port (like /dev/ttyUSB0) or WebSocket (like ws://192.168.1.100) of device."
-    ),
+    port: str = Arg(help=_help_port),
     pin: int = Arg(help="GPIO pin to flash LED on."),
-    password: str = Opt(
-        "",
-        help="Password for communication methods (like WebREPL) that require authentication.",
-    ),
+    password: str = Opt("", help=_help_password),
     neopixel: bool = Option(False, help="Indicator is a neopixel."),
 ):
     """Display device firmware information and blink an LED."""

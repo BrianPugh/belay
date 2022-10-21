@@ -26,6 +26,8 @@ belay = "belay.cli.main:app"
 python = "^3.8"
 pyserial = "^3.1"
 typer = {extras = ["all"], version = "^0.6"}
+pathspec = "*"
+lox = "^0.11.0"
 
 [tool.poetry.group.docs.dependencies]
 sphinx = "~4.5.0"
@@ -40,6 +42,7 @@ pre_commit = "^2.16.0"
 pytest = "^7.1.2"
 pytest-cov = "^3.0.0"
 pytest-mock = "^3.7.0"
+line_profiler = "^3.5.1"
 
 [tool.coverage.run]
 branch = true

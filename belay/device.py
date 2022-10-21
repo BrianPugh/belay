@@ -3,6 +3,7 @@ import importlib.resources as pkg_resources
 import linecache
 import secrets
 import string
+import subprocess  # nosec
 import sys
 import tempfile
 from abc import ABC, abstractmethod
@@ -12,6 +13,8 @@ from inspect import isgeneratorfunction, signature
 from pathlib import Path
 from typing import Callable, Dict, Generator, List, Optional, Set, TextIO, Tuple, Union
 
+import lox
+from pathspec import PathSpec
 from serial import SerialException
 
 from . import snippets
@@ -43,23 +46,44 @@ def _read_snippet(name):
     return pkg_resources.read_text(snippets, f"{name}.py")
 
 
-def _local_hash_file(fn: str) -> int:
-    """Compute the FNV-1a 64-bit hash of a file."""
-    h = 0xCBF29CE484222325
-    size = 1 << 64
-    with open(fn, "rb") as f:  # noqa: PL123
+def _local_hash_file(fn: Union[str, Path]) -> int:
+    """Compute the FNV-1a 32-bit hash of a file."""
+    fn = Path(fn)
+    h = 0x811C9DC5
+    size = 1 << 32
+    with fn.open("rb") as f:
         while True:
             data = f.read(65536)
             if not data:
                 break
             for byte in data:
                 h = h ^ byte
-                h = (h * 0x100000001B3) % size
+                h = (h * 0x01000193) % size
     return h
 
 
 def _random_python_identifier(n=16):
     return "_" + "".join(secrets.choice(_python_identifier_chars) for _ in range(n))
+
+
+class NotBelayResponse(Exception):
+    """Parsed response wasn't for Belay."""
+
+
+def _parse_belay_response(line):
+    if not line.startswith("_BELAY"):
+        raise NotBelayResponse
+    line = line[6:]
+    code, line = line[0], line[1:]
+
+    if code == "R":
+        # Result
+        return ast.literal_eval(line)
+    elif code == "S":
+        # StopIteration
+        raise StopIteration
+    else:
+        raise ValueError(f'Received unknown code: "{code}"')
 
 
 class _Executer(ABC):
@@ -266,6 +290,120 @@ class _ThreadExecuter(_Executer):
         return multi_executer
 
 
+def _discover_files_dirs(
+    remote_dir: str,
+    local_file_or_folder: Path,
+    ignore: Optional[list] = None,
+):
+    src_objects = []
+    if local_file_or_folder.is_dir():
+        if ignore is None:
+            ignore = []
+        ignore_spec = PathSpec.from_lines("gitwildmatch", ignore)
+        for src_object in local_file_or_folder.rglob("*"):
+            if ignore_spec.match_file(str(src_object)):
+                continue
+            src_objects.append(src_object)
+        # Sort so that folder creation comes before file sending.
+        src_objects.sort()
+
+        src_files, src_dirs = [], []
+        for src_object in src_objects:
+            if src_object.is_dir():
+                src_dirs.append(src_object)
+            else:
+                src_files.append(src_object)
+        dst_files = [
+            remote_dir / src.relative_to(local_file_or_folder) for src in src_files
+        ]
+    else:
+        src_files = [local_file_or_folder]
+        src_dirs = []
+        dst_files = [Path(remote_dir) / local_file_or_folder.name]
+
+    return src_files, src_dirs, dst_files
+
+
+def _preprocess_keep(
+    keep: Union[None, list, str, bool],
+    dst: str,
+) -> list:
+    if keep is None:
+        if dst == "/":
+            keep = ["boot.py", "webrepl_cfg.py"]
+        else:
+            keep = []
+    elif isinstance(keep, str):
+        keep = [keep]
+    elif isinstance(keep, (list, tuple)):
+        pass
+    elif isinstance(keep, bool):
+        keep = []
+    else:
+        raise ValueError
+    keep = [str(dst / Path(x)) for x in keep]
+    return keep
+
+
+def _preprocess_ignore(ignore: Union[None, str, list, tuple]) -> list:
+    if ignore is None:
+        ignore = ["*.pyc", "__pycache__", ".DS_Store", ".pytest_cache"]
+    elif isinstance(ignore, str):
+        ignore = [ignore]
+    elif isinstance(ignore, (list, tuple)):
+        ignore = list(ignore)
+    else:
+        raise ValueError
+    return ignore
+
+
+def _preprocess_src_file(
+    tmp_dir: Union[str, Path],
+    src_file: Union[str, Path],
+    minify: bool,
+    mpy_cross_binary: Union[str, Path, None],
+) -> Path:
+    tmp_dir = Path(tmp_dir)
+    src_file = Path(src_file)
+
+    if src_file.is_absolute():
+        transformed = tmp_dir / src_file.relative_to(tmp_dir.anchor)
+    else:
+        transformed = tmp_dir / src_file
+    transformed.parent.mkdir(parents=True, exist_ok=True)
+
+    if src_file.suffix == ".py":
+        if mpy_cross_binary:
+            mpy_file = transformed.with_suffix(".mpy")
+            subprocess.check_output(  # nosec
+                [mpy_cross_binary, "-o", mpy_file, src_file]
+            )
+            return transformed
+        elif minify:
+            minified = minify_code(src_file.read_text())
+            transformed.write_text(minified)
+            return transformed
+
+    return src_file
+
+
+@lox.thread(8)
+def _preprocess_src_file_hash(*args, **kwargs):
+    src_file = _preprocess_src_file(*args, **kwargs)
+    src_hash = _local_hash_file(src_file)
+    return src_file, src_hash
+
+
+def _generate_dst_dirs(dst, src, src_dirs) -> list:
+    dst_dirs = [str(dst / x.relative_to(src)) for x in src_dirs]
+    # Add all directories leading up to ``dst``.
+    dst_prefix_tokens = dst.split("/")
+    for i in range(2, len(dst_prefix_tokens) + (dst[-1] != "/")):
+        dst_dirs.append("/".join(dst_prefix_tokens[:i]))
+    dst_dirs.sort()
+    return dst_dirs
+
+
 @dataclass
 class Implementation:
     """Implementation dataclass detailing the device.
@@ -369,7 +507,7 @@ class Device:
         minify: bool = True,
         stream_out: TextIO = sys.stdout,
         record=True,
-    ) -> BelayReturn:
+    ):
         """Execute code on-device.
 
         Parameters
@@ -411,18 +549,10 @@ class Device:
         lines = res.split("\r\n")
 
         for line in lines[:-1]:
-            if line.startswith("_BELAY"):
-                line = line[6:]
-                code, line = line[0], line[1:]
-
-                if code == "R":
-                    # Result
-                    return ast.literal_eval(line)
-                elif code == "S":
-                    # StopIteration
-                    raise StopIteration
-                else:
-                    raise ValueError(f'Received unknown code: "{code}"')
+            try:
+                return _parse_belay_response(line)
+            except NotBelayResponse:
+                pass
 
             if stream_out:
                 stream_out.write(line)
@@ -431,35 +561,54 @@ class Device:
     def sync(
         self,
         folder: Union[str, Path],
+        dst: str = "/",
+        keep: Union[None, list, str, bool] = None,
+        ignore: Union[None, list, str] = None,
         minify: bool = True,
-        keep: Union[None, list, str] = None,
+        mpy_cross_binary: Union[str, Path, None] = None,
         progress_update=None,
     ) -> None:
-        """Sync a local directory to the root of remote filesystem.
+        """Sync a local directory to the remote filesystem.
 
         For each local file, check the remote file's hash, and transfer if they differ.
         If a file/folder exists on the remote filesystem that doesn't exist in the local
-        folder, then delete it.
+        folder, then delete it (unless it's in ``keep``).
 
         Parameters
         ----------
         folder: str, Path
-            Directory of files to sync to the root of the board's filesystem.
+            Single file or directory of files to sync to the root of the board's filesystem.
+        dst: str
+            Destination **directory** on device.
+            Defaults to unpacking ``folder`` to root.
+        keep: None | str | list | bool
+            Do NOT delete these file(s) on-device if not present in ``folder``.
+            If ``true``, don't delete any files on device.
+            If ``false``, delete all unsynced files (same as passing ``[]``).
+            If ``dst is None``, defaults to ``["boot.py", "webrepl_cfg.py"]``.
+        ignore: None | str | list
+            Git's wildmatch patterns to NOT sync to the device.
+            Defaults to ``["*.pyc", "__pycache__", ".DS_Store", ".pytest_cache"]``.
         minify: bool
             Minify python files prior to syncing.
             Defaults to ``True``.
-        keep: str or list
-            Do NOT delete these file(s) on-device if not present in ``folder``.
-            Defaults to ``["boot.py", "webrepl_cfg.py"]``.
-        progress:
+        mpy_cross_binary: Union[str, Path, None]
+            Path to mpy-cross binary. If provided, ``.py`` will automatically
+            be compiled.
+            Takes precedence over minifying.
+        progress_update:
             Partial for ``rich.progress.Progress.update(task_id,...)`` to update with sync status.
         """
         folder = Path(folder).resolve()
 
+        dst = str(dst)
+        if not dst.startswith("/"):
+            raise ValueError('dst must start with "/"')
+        elif len(dst) > 1:
+            dst = dst.rstrip("/")
+
         if not folder.exists():
             raise ValueError(f'"{folder}" does not exist.')
-        if not folder.is_dir():
-            raise ValueError(f'"{folder}" is not a directory.')
 
         # Create a list of all files and dirs (on-device).
         # This is so we know what to clean up after done syncing.
@@ -469,26 +618,31 @@ class Device:
 
         # Remove the keep files from the on-device ``all_files`` set
         # so they don't get deleted.
-        if keep is None:
-            keep = ["boot.py", "webrepl_cfg.py"]
-        elif isinstance(keep, str):
-            keep = [keep]
-        keep = [x if x[0] == "/" else "/" + x for x in keep]
+        keep_all = folder.is_file() or keep is True
+        keep = _preprocess_keep(keep, dst)
+        ignore = _preprocess_ignore(ignore)
 
-        # Sort so that folder creation comes before file sending.
-        src_objects = sorted(folder.rglob("*"))
-        src_files, src_dirs = [], []
-        for src_object in src_objects:
-            if src_object.is_dir():
-                src_dirs.append(src_object)
-            else:
-                src_files.append(src_object)
-        dst_files = [f"/{src.relative_to(folder)}" for src in src_files]
-        dst_dirs = [f"/{src.relative_to(folder)}" for src in src_dirs]
-        dst_dirs.sort()
-        keep = [x for x in keep if x not in dst_files]
-        if dst_files + keep:
-            self(f"for x in {repr(dst_files + keep)}:\n all_files.discard(x)")
+        if keep_all:
+            # Don't build up the device of files, we won't be deleting anything
+            self("del __belay_fs")
+        else:
+            self(f"__belay_fs({repr(dst)}); all_dirs.sort(); del __belay_fs")
+
+        src_files, src_dirs, dst_files = _discover_files_dirs(dst, folder, ignore)
+
+        if mpy_cross_binary:
+            dst_files = [
+                dst_file.with_suffix(".mpy") if dst_file.suffix == ".py" else dst_file
+                for dst_file in dst_files
+            ]
+        dst_files = [str(dst_file) for dst_file in dst_files]
+        dst_dirs = _generate_dst_dirs(dst, folder, src_dirs)
+
+        if not keep_all:
+            # prevent keep duplicates in the concat'd file list
+            keep = [x for x in keep if x not in dst_files]
+            if dst_files + keep:
+                self(f"for x in {repr(dst_files + keep)}:\n all_files.discard(x)")
 
         # Try and make all remote dirs
         if dst_dirs:
@@ -496,35 +650,40 @@ class Device:
                 progress_update(description="Creating remote directories...")
             self(f"__belay_mkdirs({repr(dst_dirs)})")
 
-        # Get all remote hashes
-        if progress_update:
-            progress_update(description="Fetching remote hashes...")
-        dst_hashes = self(f"__belay_hfs({repr(dst_files)})")
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_dir = Path(tmp_dir)
+            for src_file in src_files:
+                # Pre-process files in another thread while we get remote hashes
+                _preprocess_src_file_hash.scatter(
+                    tmp_dir, src_file, minify, mpy_cross_binary
+                )
 
-        if len(dst_hashes) != len(dst_files):
-            raise Exception
-
-        if progress_update:
-            progress_update(total=len(src_files))
-        for src, dst, dst_hash in zip(src_files, dst_files, dst_hashes):
+            # Get all remote hashes
             if progress_update:
-                progress_update(description=f"Syncing: {dst[1:]}")
+                progress_update(description="Fetching remote hashes...")
+            dst_hashes = self(f"__belay_hfs({repr(dst_files)})")
 
-            with tempfile.TemporaryDirectory() as tmp_dir:
-                tmp_dir = Path(tmp_dir)
+            src_files_and_hashes = _preprocess_src_file_hash.gather()
 
-                if minify and src.suffix == ".py":
-                    minified = minify_code(src.read_text())
-                    src = tmp_dir / src.name
-                    src.write_text(minified)
+            if len(dst_hashes) != len(dst_files):
+                raise Exception
 
-                # All other files, just sync over.
-                src_hash = _local_hash_file(src)
+            puts = []
+            for (src_file, src_hash), dst_file, dst_hash in zip(
+                src_files_and_hashes, dst_files, dst_hashes
+            ):
                 if src_hash != dst_hash:
-                    self._board.fs_put(src, dst)
+                    puts.append((src_file, dst_file))
 
             if progress_update:
-                progress_update(advance=1)
+                progress_update(total=len(puts))
+
+            for src_file, dst_file in puts:
+                if progress_update:
+                    progress_update(description=f"Pushing: {dst_file[1:]}")
+                self._board.fs_put(src_file, dst_file)
+                if progress_update:
+                    progress_update(advance=1)
 
         # Remove all the files and directories that did not exist in local filesystem.
         if progress_update:
