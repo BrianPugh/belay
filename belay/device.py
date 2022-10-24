@@ -2,6 +2,7 @@ import ast
 import concurrent.futures
 import importlib.resources as pkg_resources
 import linecache
+import re
 import secrets
 import string
 import subprocess  # nosec
@@ -417,11 +418,14 @@ class Implementation:
     platform: str
         Board identifier. May not be consistent from MicroPython to CircuitPython.
         e.g. The Pi Pico is "rp2" in MicroPython, but "RP2040"  in CircuitPython.
+    emitters: tuple[str]
+        Tuple of available emitters on-device ``{"native", "viper"}``.
     """
 
     name: str
     version: Tuple[int, int, int]
     platform: str
+    emitters: tuple[str]
 
 
 class Device:
@@ -470,7 +474,8 @@ class Device:
                 '+ repr(sys.implementation.version) + ","'
                 '+ repr(sys.platform) + ","'
                 '+")")'
-            )
+            ),
+            emitters=self._emitter_check(),
         )
 
         if startup is None:
@@ -480,6 +485,33 @@ class Device:
                 self._exec_snippet("convenience_imports_micropython")
         elif startup:
             self(startup)
+
+    def _emitter_check(self):
+        # Detect which emitters are available
+        emitters = []
+        with pkg_resources.path(snippets, "emitter_check.py") as p:
+            try:
+                self("os.stat('__belay_emitter_check.py')")
+            except PyboardException:
+                self._board.fs_put(p, "__belay_emitter_check.py")
+            try:
+                self("import __belay_emitter_check")
+                emitters.append("native")
+                emitters.append("viper")
+            except PyboardException as e:
+                if "invalid micropython decorator" not in str(e):
+                    raise e
+                # Get line of exception
+                line_e = int(re.findall(r"line (\d+)", str(e))[-1])
+                if line_e == 1:
+                    # No emitters available
+                    pass
+                elif line_e == 3:
+                    # viper is not available
+                    emitters.append("native")
+                else:
+                    raise Exception(f"Unknown emitter line {line_e}.")
+        return tuple(emitters)
 
     def _connect_to_board(self, **kwargs):
         self._board = Pyboard(**kwargs)
