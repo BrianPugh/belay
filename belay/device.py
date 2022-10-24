@@ -374,9 +374,9 @@ def _preprocess_src_file(
 
     if src_file.suffix == ".py":
         if mpy_cross_binary:
-            mpy_file = transformed.with_suffix(".mpy")
+            transformed = transformed.with_suffix(".mpy")
             subprocess.check_output(  # nosec
-                [mpy_cross_binary, "-o", mpy_file, src_file]
+                [mpy_cross_binary, "-o", transformed, src_file]
             )
             return transformed
         elif minify:
@@ -649,9 +649,7 @@ class Device:
                 progress_update(description="Creating remote directories...")
             self(f"__belay_mkdirs({repr(dst_dirs)})")
 
-        with tempfile.TemporaryDirectory() as tmp_dir, concurrent.futures.ThreadPoolExecutor(
-            max_workers=5
-        ) as executor:
+        with tempfile.TemporaryDirectory() as tmp_dir, concurrent.futures.ThreadPoolExecutor() as executor:
             tmp_dir = Path(tmp_dir)
 
             def _preprocess_src_file_hash_helper(src_file):
