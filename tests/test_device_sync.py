@@ -13,7 +13,7 @@ def uint(x):
     return x % (1 << 32)
 
 
-def ilistdir(x):
+def __belay_ilistdir(x):
     for name in os.listdir(x):
         stat = os.stat(x + "/" + name)  # noqa: PL116
         yield (name, stat.st_mode, stat.st_ino)

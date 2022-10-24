@@ -643,14 +643,23 @@ class Device:
 
         # Create a list of all files and dirs (on-device).
         # This is so we know what to clean up after done syncing.
+        snippets_to_execute = []
+
         if progress_update:
             progress_update(description="Bootstrapping sync...")
         if "viper" in self.implementation.emitters:
-            self._exec_snippet("hf_viper", "sync_begin")
+            snippets_to_execute.append("hf_viper")
         elif "native" in self.implementation.emitters:
-            self._exec_snippet("hf_native", "sync_begin")
+            snippets_to_execute.append("hf_native")
         else:
-            self._exec_snippet("hf", "sync_begin")
+            snippets_to_execute.append("hf")
+
+        if self.implementation.name == "circuitpython":
+            snippets_to_execute.append("ilistdir_circuitpython")
+        else:
+            snippets_to_execute.append("ilistdir_micropython")
+        snippets_to_execute.append("sync_begin")
+        self._exec_snippet(*snippets_to_execute)
 
         # Remove the keep files from the on-device ``all_files`` set
         # so they don't get deleted.
