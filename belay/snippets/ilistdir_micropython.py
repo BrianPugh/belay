@@ -1,1 +1,1 @@
-__belay_ilistdir = os.listdir
+__belay_ilistdir = os.ilistdir
