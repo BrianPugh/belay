@@ -645,7 +645,12 @@ class Device:
         # This is so we know what to clean up after done syncing.
         if progress_update:
             progress_update(description="Bootstrapping sync...")
-        self._exec_snippet("sync_begin")
+        if "viper" in self.implementation.emitters:
+            self._exec_snippet("hf_viper", "sync_begin")
+        elif "native" in self.implementation.emitters:
+            self._exec_snippet("hf_native", "sync_begin")
+        else:
+            self._exec_snippet("hf", "sync_begin")
 
         # Remove the keep files from the on-device ``all_files`` set
         # so they don't get deleted.
