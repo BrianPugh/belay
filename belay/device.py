@@ -489,28 +489,28 @@ class Device:
     def _emitter_check(self):
         # Detect which emitters are available
         emitters = []
-        with pkg_resources.path(snippets, "emitter_check.py") as p:
-            try:
-                self("os.stat('__belay_emitter_check.py')")
-            except PyboardException:
-                self._board.fs_put(p, "__belay_emitter_check.py")
-            try:
-                self("import __belay_emitter_check")
+        try:
+            self._exec_snippet("emitter_check")
+        except PyboardException as e:
+            if "invalid micropython decorator" not in str(e):
+                raise e
+            # Get line of exception
+            line_e = int(re.findall(r"line (\d+)", str(e))[-1])
+            if line_e == 1:
+                # No emitters available
+                pass
+            else:
                 emitters.append("native")
-                emitters.append("viper")
-            except PyboardException as e:
-                if "invalid micropython decorator" not in str(e):
-                    raise e
-                # Get line of exception
-                line_e = int(re.findall(r"line (\d+)", str(e))[-1])
-                if line_e == 1:
-                    # No emitters available
-                    pass
-                elif line_e == 3:
+                if line_e == 3:
                     # viper is not available
-                    emitters.append("native")
+                    pass
                 else:
                     raise Exception(f"Unknown emitter line {line_e}.")
+        else:
+            emitters.append("native")
+            emitters.append("viper")
+            self("del __belay_emitter_test")
+
         return tuple(emitters)
 
     def _connect_to_board(self, **kwargs):
