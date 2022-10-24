@@ -13,7 +13,7 @@ def uint(x):
     return x % (1 << 32)
 
 
-def ilistdir(x):
+def __belay_ilistdir(x):
     for name in os.listdir(x):
         stat = os.stat(x + "/" + name)  # noqa: PL116
         yield (name, stat.st_mode, stat.st_ino)
@@ -50,18 +50,44 @@ def sync_path(tmp_path):
     return tmp_path
 
 
-@pytest.fixture
-def sync_begin():
-    snippet = belay.device._read_snippet("sync_begin")
+def _patch_micropython_code(snippet):
     # Patch out micropython stuff
     lines = snippet.split("\n")
     lines = [x for x in lines if "micropython" not in x]
     snippet = "\n".join(lines)
     snippet = snippet.replace("os.ilistdir", "ilistdir")
+    return snippet
+
+
+@pytest.fixture
+def sync_begin():
+    snippet = belay.device._read_snippet("sync_begin")
+    snippet = _patch_micropython_code(snippet)
     exec(snippet, globals())
 
 
-def test_sync_local_belay_hf(sync_begin, tmp_path):
+@pytest.fixture
+def hf():
+    snippet = belay.device._read_snippet("hf")
+    snippet = _patch_micropython_code(snippet)
+    exec(snippet, globals())
+
+
+@pytest.fixture
+def hf_native():
+    snippet = belay.device._read_snippet("hf_native")
+    snippet = _patch_micropython_code(snippet)
+    exec(snippet, globals())
+
+
+@pytest.fixture
+def hf_viper():
+    snippet = belay.device._read_snippet("hf_viper")
+    snippet = _patch_micropython_code(snippet)
+    exec(snippet, globals())
+
+
+def test_sync_local_belay_hf(tmp_path):
     """Test local FNV-1a hash implementation.
 
     Test vector from: http://www.isthe.com/chongo/src/fnv/test_fnv.c
@@ -72,8 +98,26 @@ def test_sync_local_belay_hf(sync_begin, tmp_path):
     assert actual == 0xBF9CF968
 
 
-def test_sync_device_belay_hf(sync_begin, tmp_path):
+def test_sync_device_belay_hf(hf, tmp_path):
     """Test on-device FNV-1a hash implementation."""
+    f = tmp_path / "test_file"
+    f.write_text("foobar")
+    buf = memoryview(bytearray(4096))
+    actual = __belay_hf(str(f), buf)  # noqa: F821
+    assert actual == 0xBF9CF968
+
+
+def test_sync_device_belay_hf_native(hf_native, tmp_path):
+    """Test on-device FNV-1a native hash implementation."""
+    f = tmp_path / "test_file"
+    f.write_text("foobar")
+    buf = memoryview(bytearray(4096))
+    actual = __belay_hf(str(f), buf)  # noqa: F821
+    assert actual == 0xBF9CF968
+
+
+def test_sync_device_belay_hf_viper(hf_viper, tmp_path):
+    """Test on-device FNV-1a viper hash implementation."""
     f = tmp_path / "test_file"
     f.write_text("foobar")
     buf = memoryview(bytearray(4096))

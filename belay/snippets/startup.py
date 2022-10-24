@@ -1,4 +1,4 @@
-import sys
+import os, sys
 def __belay(name):
     def inner(f):
         def func_wrapper(*args, **kwargs):

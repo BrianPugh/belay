@@ -2,6 +2,7 @@ import ast
 import concurrent.futures
 import importlib.resources as pkg_resources
 import linecache
+import re
 import secrets
 import string
 import subprocess  # nosec
@@ -417,11 +418,14 @@ class Implementation:
     platform: str
         Board identifier. May not be consistent from MicroPython to CircuitPython.
         e.g. The Pi Pico is "rp2" in MicroPython, but "RP2040"  in CircuitPython.
+    emitters: tuple[str]
+        Tuple of available emitters on-device ``{"native", "viper"}``.
     """
 
     name: str
     version: Tuple[int, int, int]
     platform: str
+    emitters: Tuple[str]
 
 
 class Device:
@@ -470,7 +474,8 @@ class Device:
                 '+ repr(sys.implementation.version) + ","'
                 '+ repr(sys.platform) + ","'
                 '+")")'
-            )
+            ),
+            emitters=self._emitter_check(),
         )
 
         if startup is None:
@@ -480,6 +485,33 @@ class Device:
                 self._exec_snippet("convenience_imports_micropython")
         elif startup:
             self(startup)
+
+    def _emitter_check(self):
+        # Detect which emitters are available
+        emitters = []
+        try:
+            self._exec_snippet("emitter_check")
+        except PyboardException as e:
+            if "invalid micropython decorator" not in str(e):
+                raise e
+            # Get line of exception
+            line_e = int(re.findall(r"line (\d+)", str(e))[-1])
+            if line_e == 1:
+                # No emitters available
+                pass
+            else:
+                emitters.append("native")
+                if line_e == 3:
+                    # viper is not available
+                    pass
+                else:
+                    raise Exception(f"Unknown emitter line {line_e}.")
+        else:
+            emitters.append("native")
+            emitters.append("viper")
+            self("del __belay_emitter_test")
+
+        return tuple(emitters)
 
     def _connect_to_board(self, **kwargs):
         self._board = Pyboard(**kwargs)
@@ -611,9 +643,23 @@ class Device:
 
         # Create a list of all files and dirs (on-device).
         # This is so we know what to clean up after done syncing.
+        snippets_to_execute = []
+
         if progress_update:
             progress_update(description="Bootstrapping sync...")
-        self._exec_snippet("sync_begin")
+        if "viper" in self.implementation.emitters:
+            snippets_to_execute.append("hf_viper")
+        elif "native" in self.implementation.emitters:
+            snippets_to_execute.append("hf_native")
+        else:
+            snippets_to_execute.append("hf")
+
+        if self.implementation.name == "circuitpython":
+            snippets_to_execute.append("ilistdir_circuitpython")
+        else:
+            snippets_to_execute.append("ilistdir_micropython")
+        snippets_to_execute.append("sync_begin")
+        self._exec_snippet(*snippets_to_execute)
 
         # Remove the keep files from the on-device ``all_files`` set
         # so they don't get deleted.
