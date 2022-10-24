@@ -425,7 +425,7 @@ class Implementation:
     name: str
     version: Tuple[int, int, int]
     platform: str
-    emitters: tuple[str]
+    emitters: Tuple[str]
 
 
 class Device:
