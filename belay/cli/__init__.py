@@ -1,1 +1,1 @@
-from .main import app, exec, identify, info, run, sync
+from .main import app
