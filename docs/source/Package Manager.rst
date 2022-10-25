@@ -27,6 +27,11 @@ Belay aims to address the following issues:
 4. Improve development cycles with simpler pytest integration.
 
 
+What limitations does Belay's package manager have?
+---------------------------------------------------
+* Currently, only single-file dependencies are allowed.
+  Luckily, this appears to be most micropython packages.
+
 TOML
 ^^^^
 
