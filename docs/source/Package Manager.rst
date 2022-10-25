@@ -46,7 +46,7 @@ TOML
    [tool.belay.dependencies]
    some_dependency = "https://github.com/BrianPugh/some-dependency/blob/main/some_dependency.py"
 
-   [pytest.ini_options]
+   [tool.pytest.ini_options]
    pythonpath = ".belay-lib"
 
 
