@@ -12,6 +12,7 @@ Welcome to Belay's documentation!
    Quick Start
    CircuitPython
    Connections
+   Package Manager
    How Belay Works
    api
 

@@ -1,6 +1,6 @@
 import ast
 from pathlib import Path
-from typing import Optional, Union
+from typing import Dict, Optional, Union
 from urllib.parse import urlparse
 
 import httpx
@@ -55,11 +55,30 @@ def _get_text(url: str):
 
 
 def _download_dependencies(
-    dependencies: dict,
+    dependencies: Dict[str, Union[str, Dict]],
+    package: Optional[str] = None,
     local_dir: Union[str, Path] = ".belay-lib",
 ):
+    """Download dependencies.
+
+    Parameters
+    ----------
+    dependencies: dict
+        Dependencies to install (probably parsed from TOML file).
+    package: Optional[str]
+        Only download this package.
+    local_dir: Union[str, Path]
+        Download dependencies to this directory.
+        Will create directories as necessary.
+    """
     local_dir = Path(local_dir)
-    for pkg_name, dep in dependencies.items():
+    if package:
+        pkgs = [package]
+    else:
+        pkgs = dependencies.keys()
+
+    for pkg_name in pkgs:
+        dep = dependencies[pkg_name]
         if isinstance(dep, str):
             dep = {"path": dep}
         elif not isinstance(dep, dict):
@@ -103,4 +122,4 @@ def update(package: Optional[str] = Option(None)):
     except KeyError:
         return
 
-    _download_dependencies(dependencies)
+    _download_dependencies(dependencies, package=package)

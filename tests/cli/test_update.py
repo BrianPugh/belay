@@ -35,21 +35,67 @@ def test_process_url():
     )
 
 
-def test_download_dependencies(mocker, tmp_path):
+@pytest.fixture
+def spy_ast(mocker):
+    return mocker.spy(belay.cli.update, "ast")
+
+
+def test_download_dependencies_all(mocker, tmp_path, spy_ast):
     _get_text = mocker.patch(
-        "belay.cli.update._get_text", return_value="def foo(): return 0"
+        "belay.cli.update._get_text",
+        side_effect=[
+            "def foo(): return 0",
+            "def bar(): return 1",
+        ],
     )
-    spy_ast = mocker.spy(belay.cli.update, "ast")
 
     belay.cli.update._download_dependencies(
         {
             "foo": "foo.py",
+            "bar": "bar.py",
         },
         local_dir=tmp_path,
     )
 
-    _get_text.assert_called_once_with("foo.py")
-    spy_ast.parse.assert_called_once_with("def foo(): return 0")
+    assert _get_text.mock_calls == [
+        mocker.call("foo.py"),
+        mocker.call("bar.py"),
+    ]
+    assert spy_ast.parse.mock_calls == [
+        mocker.call("def foo(): return 0"),
+        mocker.call("def bar(): return 1"),
+    ]
 
     actual_content = (tmp_path / "foo.py").read_text()
     assert actual_content == "def foo(): return 0"
+
+    actual_content = (tmp_path / "bar.py").read_text()
+    assert actual_content == "def bar(): return 1"
+
+
+def test_download_dependencies_specific(mocker, tmp_path, spy_ast):
+    _get_text = mocker.patch(
+        "belay.cli.update._get_text",
+        side_effect=[
+            "def bar(): return 1",
+        ],
+    )
+
+    belay.cli.update._download_dependencies(
+        {
+            "foo": "foo.py",
+            "bar": "bar.py",
+        },
+        package="bar",
+        local_dir=tmp_path,
+    )
+
+    assert _get_text.mock_calls == [
+        mocker.call("bar.py"),
+    ]
+    assert spy_ast.parse.mock_calls == [
+        mocker.call("def bar(): return 1"),
+    ]
+
+    actual_content = (tmp_path / "bar.py").read_text()
+    assert actual_content == "def bar(): return 1"
