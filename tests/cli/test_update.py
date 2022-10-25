@@ -25,7 +25,11 @@ def test_process_url_github(http, www, body):
     )
 
 
-def test_toml_read(data_path, monkeypatch):
-    monkeypatch.chdir(data_path / "test_toml_read")
-    result = cli_runner.invoke(app, ["update"])
-    assert result.exit_code == 0
+def test_process_url():
+    actual = belay.cli.update._process_url(
+        "http://github.com/BrianPugh/belay/blob/main/belay/__init__.py"
+    )
+    assert (
+        actual
+        == "https://raw.githubusercontent.com/BrianPugh/belay/main/belay/__init__.py"
+    )
