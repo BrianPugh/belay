@@ -30,6 +30,7 @@ def _process_url_github(url: str):
     elif netloc == "raw.githubusercontent.com":
         return f"https://raw.githubusercontent.com{parsed.path}"
     else:
+        # TODO: Try and be a little helpful if url contains github.com
         raise NonMatchingURL
 
 
@@ -60,22 +61,24 @@ def _download_dependencies(
     local_dir = Path(local_dir)
     for pkg_name, dep in dependencies.items():
         if isinstance(dep, str):
-            url = _process_url(dep)
-            ext = Path(url).suffix
-            if ext == ".py":
-                # Single file
-                target = local_dir / (pkg_name + ext)
-                target.parent.mkdir(parents=True, exist_ok=True)
+            dep = {"path": dep}
+        elif not isinstance(dep, dict):
+            raise ValueError(f"Invalid value for key {pkg_name}.")
 
-                code = _get_text(url)
-                ast.parse(code)  # Check for valid python code
+        url = _process_url(dep["path"])
+        ext = Path(url).suffix
+        if ext == ".py":
+            # Single file
+            dst = local_dir / (pkg_name + ext)
+            dst.parent.mkdir(parents=True, exist_ok=True)
 
-                with target.open("w") as f:
-                    f.write(code)
-            else:
-                raise NotImplementedError
+            code = _get_text(url)
+            ast.parse(code)  # Check for valid python code
+
+            with dst.open("w") as f:
+                f.write(code)
         else:
-            raise NotImplementedError
+            raise NotImplementedError(f"Don't know how to process {url}.")
 
 
 def _load_toml(path: Union[str, Path]):
