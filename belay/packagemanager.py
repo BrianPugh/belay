@@ -1,10 +1,12 @@
 import ast
+from contextlib import nullcontext
 from pathlib import Path
 from typing import Dict, Optional, Union
 from urllib.parse import urlparse
 
 import httpx
 import tomli
+from rich.console import Console
 from typer import Option
 
 
@@ -58,6 +60,7 @@ def download_dependencies(
     dependencies: Dict[str, Union[str, Dict]],
     package: Optional[str] = None,
     local_dir: Union[str, Path] = ".belay-lib",
+    console: Optional[Console] = None,
 ):
     """Download dependencies.
 
@@ -70,6 +73,8 @@ def download_dependencies(
     local_dir: Union[str, Path]
         Download dependencies to this directory.
         Will create directories as necessary.
+    console: Optional[Console]
+        Print progress out to console.
     """
     local_dir = Path(local_dir)
     if package:
@@ -77,24 +82,47 @@ def download_dependencies(
     else:
         pkgs = dependencies.keys()
 
-    for pkg_name in pkgs:
-        dep = dependencies[pkg_name]
-        if isinstance(dep, str):
-            dep = {"path": dep}
-        elif not isinstance(dep, dict):
-            raise ValueError(f"Invalid value for key {pkg_name}.")
+    if console:
+        cm = console.status("[bold green]Updating Dependencies")
+    else:
+        cm = nullcontext()
 
-        url = _process_url(dep["path"])
-        ext = Path(url).suffix
-        if ext == ".py":
-            # Single file
-            dst = local_dir / (pkg_name + ext)
-            dst.parent.mkdir(parents=True, exist_ok=True)
+    def log(*args, **kwargs):
+        if console:
+            console.log(*args, **kwargs)
 
-            code = _get_text(url)
-            ast.parse(code)  # Check for valid python code
+    with cm:
+        from time import sleep
 
-            with dst.open("w") as f:
-                f.write(code)
-        else:
-            raise NotImplementedError(f"Don't know how to process {url}.")
+        for pkg_name in pkgs:
+            dep = dependencies[pkg_name]
+            if isinstance(dep, str):
+                dep = {"path": dep}
+            elif not isinstance(dep, dict):
+                raise ValueError(f"Invalid value for key {pkg_name}.")
+
+            log(f"{pkg_name}: Updating...")
+
+            sleep(1)
+            url = _process_url(dep["path"])
+            ext = Path(url).suffix
+            if ext == ".py":
+                # Single file
+                dst = local_dir / (pkg_name + ext)
+                dst.parent.mkdir(parents=True, exist_ok=True)
+
+                new_code = _get_text(url)
+                ast.parse(new_code)  # Check for valid python code
+
+                try:
+                    old_code = dst.read_text()
+                except FileNotFoundError:
+                    old_code = ""
+
+                if new_code == old_code:
+                    log(f"{pkg_name}: No changes detected.")
+                else:
+                    log(f"{pkg_name}: Updated.")
+                    dst.write_text(new_code)
+            else:
+                raise NotImplementedError(f"Don't know how to process {url}.")

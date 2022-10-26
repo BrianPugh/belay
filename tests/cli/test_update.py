@@ -18,4 +18,6 @@ def test_update(mocker):
     res = cli_runner.invoke(app, ["update"])
     assert res.exit_code == 0
     mock_load_toml.assert_called_once_with("pyproject.toml")
-    mock_download_dependencies.assert_called_once_with({"foo": "foo.py"}, package=None)
+    mock_download_dependencies.assert_called_once_with(
+        {"foo": "foo.py"}, package=None, console=mocker.ANY
+    )

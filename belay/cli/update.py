@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Optional, Union
 
 import tomli
+from rich.console import Console
 from typer import Option
 
 from belay.packagemanager import download_dependencies
@@ -22,6 +23,8 @@ def _load_toml(path: Union[str, Path]):
 
 
 def update(package: Optional[str] = Option(None)):
+    console = Console()
+
     toml = _load_toml("pyproject.toml")
 
     try:
@@ -29,4 +32,4 @@ def update(package: Optional[str] = Option(None)):
     except KeyError:
         return
 
-    download_dependencies(dependencies, package=package)
+    download_dependencies(dependencies, package=package, console=console)
