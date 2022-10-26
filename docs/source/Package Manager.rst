@@ -39,9 +39,6 @@ TOML
 
    [tool.belay]
    name = "my_project_name"
-   packages = [
-      {include = "my_project_name"}
-   ]
 
    [tool.belay.dependencies]
    some_dependency = "https://github.com/BrianPugh/some-dependency/blob/main/some_dependency.py"

@@ -14,4 +14,4 @@ def info(
     print(
         f"{device.implementation.name} {version_str} - {device.implementation.platform}"
     )
-    return device
+    device.close()
