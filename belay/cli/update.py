@@ -1,16 +1,15 @@
-from typing import Optional
+from typing import List
 
 from rich.console import Console
-from typer import Option
+from typer import Argument
 
 from belay.packagemanager import download_dependencies
 
 from .common import load_toml
 
 
-def update(package: Optional[str] = Option(None)):
+def update(packages: List[str] = Argument(None, help="Specific package(s) to update.")):
     console = Console()
-
     toml = load_toml()
 
     try:
@@ -18,4 +17,4 @@ def update(package: Optional[str] = Option(None)):
     except KeyError:
         return
 
-    download_dependencies(dependencies, package=package, console=console)
+    download_dependencies(dependencies, packages=packages, console=console)

@@ -24,7 +24,7 @@ def install(
 
     sync(
         port=port,
-        folder=".belay-lib",
+        folder=Path(".belay-lib"),
         dst="/lib",
         password=password,
         keep=None,
@@ -33,7 +33,7 @@ def install(
     )
     sync(
         port=port,
-        folder=pkg_name,
+        folder=Path(pkg_name),
         dst=f"/{pkg_name}",
         password=password,
         keep=None,

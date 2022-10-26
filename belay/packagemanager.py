@@ -1,7 +1,7 @@
 import ast
 from contextlib import nullcontext
 from pathlib import Path
-from typing import Dict, Optional, Union
+from typing import Dict, List, Optional, Union
 from urllib.parse import urlparse
 
 import httpx
@@ -58,7 +58,7 @@ def _get_text(url: str):
 
 def download_dependencies(
     dependencies: Dict[str, Union[str, Dict]],
-    package: Optional[str] = None,
+    packages: Optional[List[str]] = None,
     local_dir: Union[str, Path] = ".belay-lib",
     console: Optional[Console] = None,
 ):
@@ -68,7 +68,7 @@ def download_dependencies(
     ----------
     dependencies: dict
         Dependencies to install (probably parsed from TOML file).
-    package: Optional[str]
+    packages: Optional[List[str]]
         Only download this package.
     local_dir: Union[str, Path]
         Download dependencies to this directory.
@@ -77,10 +77,9 @@ def download_dependencies(
         Print progress out to console.
     """
     local_dir = Path(local_dir)
-    if package:
-        pkgs = [package]
-    else:
-        pkgs = dependencies.keys()
+    if not packages:
+        # Update all packages
+        packages = list(dependencies.keys())
 
     if console:
         cm = console.status("[bold green]Updating Dependencies")
@@ -94,7 +93,7 @@ def download_dependencies(
     with cm:
         from time import sleep
 
-        for pkg_name in pkgs:
+        for pkg_name in packages:
             dep = dependencies[pkg_name]
             if isinstance(dep, str):
                 dep = {"path": dep}

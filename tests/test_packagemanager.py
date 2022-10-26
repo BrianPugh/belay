@@ -83,7 +83,7 @@ def test_download_dependencies_specific(mocker, tmp_path, spy_ast):
             "foo": "foo.py",
             "bar": "bar.py",
         },
-        package="bar",
+        packages=["bar"],
         local_dir=tmp_path,
     )
 
