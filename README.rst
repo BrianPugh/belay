@@ -3,9 +3,6 @@
 |Python compat| |PyPi| |GHA tests| |readthedocs|
 
 
-Belay
-=====
-
 .. inclusion-marker-do-not-remove
 
 
