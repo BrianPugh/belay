@@ -105,23 +105,23 @@ def download_dependencies(
 
             url = _process_url(dep["path"])
             ext = Path(url).suffix
-            if ext == ".py":
-                # Single file
-                dst = local_dir / (pkg_name + ext)
-                dst.parent.mkdir(parents=True, exist_ok=True)
 
-                new_code = _get_text(url)
+            # Single file
+            dst = local_dir / (pkg_name + ext)
+            dst.parent.mkdir(parents=True, exist_ok=True)
+
+            new_code = _get_text(url)
+
+            if ext == ".py":
                 ast.parse(new_code)  # Check for valid python code
 
-                try:
-                    old_code = dst.read_text()
-                except FileNotFoundError:
-                    old_code = ""
+            try:
+                old_code = dst.read_text()
+            except FileNotFoundError:
+                old_code = ""
 
-                if new_code == old_code:
-                    log(f"{pkg_name}: No changes detected.")
-                else:
-                    log(f"{pkg_name}: Updated.")
-                    dst.write_text(new_code)
+            if new_code == old_code:
+                log(f"{pkg_name}: No changes detected.")
             else:
-                raise NotImplementedError(f"Don't know how to process {url}.")
+                log(f"[bold green]{pkg_name}: Updated.")
+                dst.write_text(new_code)
