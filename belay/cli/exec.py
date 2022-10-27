@@ -14,3 +14,4 @@ def exec(
     """Execute python statement on-device."""
     device = Device(port, password=password)
     device(statement)
+    device.close()

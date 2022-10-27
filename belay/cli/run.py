@@ -15,3 +15,4 @@ def run(
     device = Device(port, password=password)
     content = file.read_text()
     device(content)
+    device.close()

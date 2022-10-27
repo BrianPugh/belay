@@ -42,3 +42,4 @@ def sync(
         )
 
         progress_update(description="Sync complete.")
+        device.close()

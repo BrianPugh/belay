@@ -15,7 +15,11 @@ def identify(
     neopixel: bool = Option(False, help="Indicator is a neopixel."),
 ):
     """Display device firmware information and blink an LED."""
-    device = info(port=port, password=password)
+    device = Device(port, password=password)
+    version_str = "v" + ".".join(str(x) for x in device.implementation.version)
+    print(
+        f"{device.implementation.name} {version_str} - {device.implementation.platform}"
+    )
 
     if device.implementation.name == "circuitpython":
         device(f"led = digitalio.DigitalInOut(board.GP{pin})")
@@ -54,8 +58,11 @@ def identify(
             def set_led(state):
                 led.value(state)  # noqa: F821
 
-    while True:
-        set_led(True)
-        sleep(0.5)
-        set_led(False)
-        sleep(0.5)
+    try:
+        while True:
+            set_led(True)
+            sleep(0.5)
+            set_led(False)
+            sleep(0.5)
+    finally:
+        device.close()
