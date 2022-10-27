@@ -8,15 +8,21 @@ Belay
 
 .. inclusion-marker-do-not-remove
 
-Belay is a library that enables the rapid development of projects that interact with hardware via a MicroPython or CircuitPython compatible board.
 
-Belay works by interacting with the REPL interface of a MicroPython board from Python code running on PC.
+Belay is:
+
+* A python library that enables the rapid development of projects that interact with hardware via a MicroPython or CircuitPython compatible board.
+
+* A command-line tool for developing standalone MicroPython projects.
+
+* A MicroPython package manager.
 
 Belay supports wired serial connections (USB) and wireless connections via WebREPL over WiFi.
 
 `Quick Video of Belay in 22 seconds.`_
 
 See `the documentation`_ for usage and other details.
+
 
 Who is Belay For?
 =================
@@ -30,8 +36,8 @@ Examples include:
 
 * Read a potentiometer to control system volume.
 
-If you have no need to run Python code on PC, then Belay is not for you.
-
+The Belay Package Manager is for people that want to use public libraries, and get them on-device in
+an easy, repeatable, dependable manner.
 
 What Problems Does Belay Solve?
 ===============================
@@ -44,10 +50,11 @@ Typically, having a python script interact with hardware involves 3 major challe
 
 3. Computer-to-device communication protocol. How are commands and results transferred? How does the device execute those commands?
 
-
 This is lot of work if you just want your computer to do something simple like turn on an LED.
 Belay simplifies all of this by merging steps 1 and 2 into the same codebase, and manages step 3 for you.
 Code is automatically synced at the beginning of script execution.
+
+The Belay Package Manager makes it easy to cache, update, and deploy third party libraries with your project.
 
 Installation
 ============
