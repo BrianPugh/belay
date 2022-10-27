@@ -5,9 +5,7 @@ from typing import Dict, List, Optional, Union
 from urllib.parse import urlparse
 
 import httpx
-import tomli
 from rich.console import Console
-from typer import Option
 
 
 class NonMatchingURL(Exception):
@@ -50,10 +48,15 @@ def _process_url(url: str):
     return url
 
 
-def _get_text(url: str):
-    res = httpx.get(url)
-    res.raise_for_status()
-    return res.text
+def _get_text(url: Union[str, Path]):
+    url = str(url)
+    if url.startswith(("https://", "http://")):
+        res = httpx.get(url)
+        res.raise_for_status()
+        return res.text
+    else:
+        # Assume local file
+        return Path(url).read_text()
 
 
 def download_dependencies(
@@ -91,8 +94,6 @@ def download_dependencies(
             console.log(*args, **kwargs)
 
     with cm:
-        from time import sleep
-
         for pkg_name in packages:
             dep = dependencies[pkg_name]
             if isinstance(dep, str):
@@ -102,7 +103,6 @@ def download_dependencies(
 
             log(f"{pkg_name}: Updating...")
 
-            sleep(1)
             url = _process_url(dep["path"])
             ext = Path(url).suffix
             if ext == ".py":

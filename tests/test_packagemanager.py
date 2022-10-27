@@ -22,19 +22,50 @@ def test_process_url_github(http, www, body):
     )
 
 
-def test_process_url():
-    actual = belay.packagemanager._process_url(
-        "http://github.com/BrianPugh/belay/blob/main/belay/__init__.py"
-    )
-    assert (
-        actual
-        == "https://raw.githubusercontent.com/BrianPugh/belay/main/belay/__init__.py"
-    )
+@pytest.mark.parametrize(
+    "url, formatted",
+    [
+        (
+            "http://github.com/BrianPugh/belay/blob/main/belay/__init__.py",
+            "https://raw.githubusercontent.com/BrianPugh/belay/main/belay/__init__.py",
+        ),
+        ("path/to/local/file.py", "path/to/local/file.py"),
+    ],
+)
+def test_process_url(url, formatted):
+    actual = belay.packagemanager._process_url(url)
+    assert actual == formatted
 
 
 @pytest.fixture
 def spy_ast(mocker):
     return mocker.spy(belay.packagemanager, "ast")
+
+
+@pytest.fixture
+def mock_httpx(mocker):
+    mock_httpx = mocker.patch("belay.packagemanager.httpx")
+    mock_httpx.get.return_value = mocker.MagicMock()
+    return mock_httpx
+
+
+@pytest.mark.parametrize("url", ["https://foo.com", "http://foo.com"])
+def test_get_text_url(mock_httpx, url):
+    res = belay.packagemanager._get_text(url)
+    mock_httpx.get.assert_called_once_with(url)
+    mock_httpx.get.return_value.raise_for_status.assert_called_once()
+    assert res == mock_httpx.get.return_value.text
+
+
+def test_get_text_local(tmp_path):
+    fn = tmp_path / "foo.py"
+    fn.write_text("bar")
+
+    res = belay.packagemanager._get_text(fn)
+    assert res == "bar"
+
+    res = belay.packagemanager._get_text(str(fn))
+    assert res == "bar"
 
 
 def test_download_dependencies_all(mocker, tmp_path, spy_ast):
