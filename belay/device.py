@@ -737,6 +737,12 @@ class Device:
             progress_update(description="Cleaning up...")
         self._exec_snippet("sync_end")
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_tb):
+        self.close()
+
     def close(self) -> None:
         """Close the connection to device."""
         return self._board.close()

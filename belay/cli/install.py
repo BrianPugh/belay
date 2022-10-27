@@ -48,9 +48,8 @@ def install(
         mpy_cross_binary=mpy_cross_binary,
     )
     if main:
-        device = Device(port, password=password)
-        device.sync(main, keep=True, mpy_cross_binary=mpy_cross_binary)
-        device.close()
+        with Device(port, password=password) as device:
+            device.sync(main, keep=True, mpy_cross_binary=mpy_cross_binary)
 
     if run:
         run_cmd(port=port, file=run, password=password)
