@@ -17,8 +17,15 @@ def install(
         None, help="Compile py files with this executable."
     ),
     run: Optional[Path] = Option(None, help="Run script on-device after installing."),
+    main: Optional[Path] = Option(
+        None, help="Sync script to /main.py after installing."
+    ),
 ):
     """Sync dependencies and project itself."""
+    if run and run.suffix != ".py":
+        raise ValueError("Run script MUST be a python file.")
+    if main and main.suffix != ".py":
+        raise ValueError("Main script MUST be a python file.")
     toml = load_toml()
     pkg_name = toml["name"]
 
@@ -40,5 +47,10 @@ def install(
         ignore=None,
         mpy_cross_binary=mpy_cross_binary,
     )
+    if main:
+        device = Device(port, password=password)
+        device.sync(main, keep=True, mpy_cross_binary=mpy_cross_binary)
+        device.close()
+
     if run:
         run_cmd(port=port, file=run, password=password)
