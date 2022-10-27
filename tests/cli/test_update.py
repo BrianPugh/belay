@@ -17,5 +17,5 @@ def test_update(mocker):
     assert res.exit_code == 0
     mock_load_toml.assert_called_once_with()
     mock_download_dependencies.assert_called_once_with(
-        {"foo": "foo.py"}, package=None, console=mocker.ANY
+        {"foo": "foo.py"}, packages=[], console=mocker.ANY
     )
