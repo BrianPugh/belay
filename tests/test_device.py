@@ -6,14 +6,19 @@ import belay.device
 
 @pytest.fixture
 def mock_pyboard(mocker):
+    exec_side_effect = [b'_BELAYR("micropython", (1, 19, 1), "rp2")\r\n'] * 100
+
     def mock_init(self, *args, **kwargs):
         self.serial = None
 
-    exec_side_effect = [b'_BELAYR("micropython", (1, 19, 1), "rp2")\r\n'] * 100
+    def mock_exec(cmd, data_consumer=None):
+        data = exec_side_effect.pop()
+        if data_consumer:
+            data_consumer(data)
 
     mocker.patch.object(belay.device.Pyboard, "__init__", mock_init)
+    mocker.patch.object(belay.device.Pyboard, "exec", side_effect=mock_exec)
     mocker.patch("belay.device.Pyboard.enter_raw_repl", return_value=None)
-    mocker.patch("belay.device.Pyboard.exec", side_effect=exec_side_effect)
     mocker.patch("belay.device.Pyboard.fs_put")
 
 
@@ -38,7 +43,9 @@ def test_device_task(mocker, mock_device):
     def foo(a, b):
         c = a + b  # noqa: F841
 
-    mock_device._board.exec.assert_any_call("@__belay('foo')\ndef foo(a,b):\n c=a+b\n")
+    mock_device._board.exec.assert_any_call(
+        "@__belay('foo')\ndef foo(a,b):\n c=a+b\n", data_consumer=mocker.ANY
+    )
 
     foo(1, 2)
     assert (
@@ -78,7 +85,9 @@ def test_device_thread(mocker, mock_device):
     def foo(a, b):
         c = a + b  # noqa: F841
 
-    mock_device._board.exec.assert_any_call("def foo(a,b):\n c=a+b\n")
+    mock_device._board.exec.assert_any_call(
+        "def foo(a,b):\n c=a+b\n", data_consumer=mocker.ANY
+    )
 
     foo(1, 2)
     assert (
