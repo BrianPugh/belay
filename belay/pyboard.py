@@ -348,9 +348,7 @@ class Pyboard:
                 new_data = self.serial.read(1)
                 if data_consumer:
                     data_consumer(new_data)
-                    data = new_data
-                else:
-                    data = data + new_data
+                data = data + new_data
                 timeout_count = 0
             else:
                 timeout_count += 1

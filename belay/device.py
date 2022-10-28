@@ -567,27 +567,36 @@ class Device:
         ):
             self._cmd_history.append(cmd)
 
+        out = None
+        data_consumer_buffer = []
+
+        def data_consumer(data):
+            """Handle input data stream immediately."""
+            nonlocal out
+            if data == b"\x04":
+                return
+            data_consumer_buffer.append(data.decode())
+            if b"\n" in data:
+                line = "".join(data_consumer_buffer)
+                data_consumer_buffer.clear()
+
+                try:
+                    out = _parse_belay_response(line)
+                except NotBelayResponse:
+                    if stream_out:
+                        stream_out.write(line)
+
         try:
-            res = self._board.exec(cmd).decode()
+            self._board.exec(cmd, data_consumer=data_consumer)
         except (SerialException, ConnectionResetError):
             # Board probably disconnected.
             if self.attempts:
                 self.reconnect()
-                res = self._board.exec(cmd).decode()
+                self._board.exec(cmd, data_consumer=data_consumer_buffer)
             else:
                 raise ConnectionLost
 
-        lines = res.split("\r\n")
-
-        for line in lines[:-1]:
-            try:
-                return _parse_belay_response(line)
-            except NotBelayResponse:
-                pass
-
-            if stream_out:
-                stream_out.write(line)
-                stream_out.write("\n")
+        return out
 
     def sync(
         self,
