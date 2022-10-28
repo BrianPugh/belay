@@ -26,9 +26,14 @@ def mock_pyboard(mocker):
 
     exec_side_effect = [b'_BELAYR("micropython", (1, 19, 1), "rp2")\r\n'] * 100
 
+    def mock_exec(cmd, data_consumer=None):
+        data = exec_side_effect.pop()
+        if data_consumer:
+            data_consumer(data)
+
     mocker.patch.object(belay.device.Pyboard, "__init__", mock_init)
+    mocker.patch.object(belay.device.Pyboard, "exec", side_effect=mock_exec)
     mocker.patch("belay.device.Pyboard.enter_raw_repl", return_value=None)
-    mocker.patch("belay.device.Pyboard.exec", side_effect=exec_side_effect)
     mocker.patch("belay.device.Pyboard.fs_put")
 
 
@@ -186,19 +191,28 @@ def test_sync_device_belay_fs_does_not_exist(sync_begin, tmp_path):
 
 
 def test_device_sync_empty_remote(mocker, mock_device, sync_path):
-    payload = ("_BELAYR" + repr([b""] * 5) + "\r\n").encode("utf-8")
-    mock_device._board.exec = mocker.MagicMock(return_value=payload)
+    exec_side_effect = ("_BELAYR" + repr([b""] * 5) + "\r\n").encode("utf-8")
+
+    def mock_exec(cmd, data_consumer=None):
+        data_consumer(exec_side_effect)
+
+    mocker.patch.object(belay.device.Pyboard, "exec", side_effect=mock_exec)
 
     mock_device.sync(sync_path)
 
     mock_device._board.exec.assert_has_calls(
         [
             call(
-                "for x in['/alpha.py','/bar.txt','/folder1/file1.txt','/folder1/folder1_1/file1_1.txt','/foo.txt','/boot.py','/webrepl_cfg.py']:\n all_files.discard(x)"
+                "for x in['/alpha.py','/bar.txt','/folder1/file1.txt','/folder1/folder1_1/file1_1.txt','/foo.txt','/boot.py','/webrepl_cfg.py']:\n all_files.discard(x)",
+                data_consumer=mocker.ANY,
             ),
-            call("__belay_mkdirs(['/folder1','/folder1/folder1_1'])"),
             call(
-                "__belay_hfs(['/alpha.py','/bar.txt','/folder1/file1.txt','/folder1/folder1_1/file1_1.txt','/foo.txt'])"
+                "__belay_mkdirs(['/folder1','/folder1/folder1_1'])",
+                data_consumer=mocker.ANY,
+            ),
+            call(
+                "__belay_hfs(['/alpha.py','/bar.txt','/folder1/file1.txt','/folder1/folder1_1/file1_1.txt','/foo.txt'])",
+                data_consumer=mocker.ANY,
             ),
         ]
     )
@@ -227,13 +241,17 @@ def test_device_sync_partial_remote(mocker, mock_device, sync_path):
                 out.append(belay.device._local_hash_file(local_fn))
         return out
 
-    def side_effect(cmd):
-        if not cmd.startswith("__belay_hfs"):
-            return b""
-        nonlocal __belay_hfs
-        return ("_BELAYR" + repr(eval(cmd)) + "\r\n").encode("utf-8")
+    def mock_exec(cmd, data_consumer=None):
+        if cmd.startswith("__belay_hfs"):
+            nonlocal __belay_hfs
+            out = ("_BELAYR" + repr(eval(cmd)) + "\r\n").encode("utf-8")
+        else:
+            out = b""
+        if data_consumer is not None:
+            data_consumer(out)
+        return out
 
-    mock_device._board.exec = mocker.MagicMock(side_effect=side_effect)
+    mock_device._board.exec = mocker.MagicMock(side_effect=mock_exec)
 
     mock_device.sync(sync_path)
 
