@@ -87,27 +87,24 @@ Q&A
 
 How does Belay's package manager compare to ``mip``?
 ----------------------------------------------------
-Mip requires either:
+Mip and Belay have different design goals and associated restrictions.
+Mip is designed to be ran on micropython, and is thusly restricted by available libraries.
+Belay is designed to be ran on full desktop python (e.g. cpython) to provide support to a micropython environment.
+The closest tool to Belay's Package Manager would actually be ``mpremote mip``.
+With this tool you can specify remote files via a json configuration file.
 
-1. An internet connection on the target board. Files are directly fetched on-device.
+Belay aims to provide a more robust, friendly experience by the following:
 
-2. ``mpremote`` to install from a remote url. Files are downloaded and then transferred over USB.
+1. Use the standard ``pyproject.toml`` file for configurations and dependency specifications.
 
-With ``mip``, a project could easily break due to upstream changes.
-Files are transferred as-is, which discourages comments and docstrings.
-
-Belay aims to address the following issues:
-
-1. Options to minify or compile code prior to sending it to device.
-   This encourages more comments and docstrings.
-
-2. Make project robust to third-party changes by caching dependencies.
+2. Make project robust to third-party changes by caching dependencies in-project.
    Your project won't become non-functional due to a remote dependency gone missing.
    Your project won't unexpectedly break due to a dependency change
    unless ``belay update`` is ran to update dependencies.
    Changes can be easily revertted due to git versioning.
 
-3. Use the standard ``pyproject.toml`` for configuration instead of a json file.
+3. Options to minify or compile code prior to sending it to device.
+   This encourages more comments and docstrings.
 
 What limitations does Belay's package manager have?
 ---------------------------------------------------
