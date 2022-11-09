@@ -1,5 +1,3 @@
-from rich.console import Console
-
 from belay.packagemanager import clean_local
 
 from .common import load_toml
