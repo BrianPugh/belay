@@ -69,6 +69,7 @@ If a dependency itself has dependencies, you must add it to your ``pyproject.tom
 
 By default, all dependencies are updated.
 To update only specific dependencies, specify their name(s) as additional argument(s).
+Dependencies that are no longer referenced in ``tool.belay.dependencies`` are deleted.
 See ``belay update --help`` for more information.
 
 Install
@@ -81,6 +82,12 @@ During development, it is convenient to specify a script to run without actually
 For this, specify the script using the ``--run`` option.
 
 See ``belay install --help`` for more information.
+
+Clean
+-----
+``belay clean`` will remove any downloaded dependencies if they are no longer specified in ``tool.belay.dependecies``.
+``clean`` is automatically invoked at the end of ``belay update``, so you will usually not need to explicitly use this
+command.
 
 Q&A
 ^^^

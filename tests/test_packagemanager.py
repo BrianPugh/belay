@@ -127,3 +127,14 @@ def test_download_dependencies_specific(mocker, tmp_path, spy_ast):
 
     actual_content = (tmp_path / "bar.py").read_text()
     assert actual_content == "def bar(): return 1"
+
+
+def test_clean_local(tmp_path):
+    dependencies = ["foo", "bar"]
+    (tmp_path / "foo.py").touch()
+    (tmp_path / "baz.py").touch()
+
+    belay.packagemanager.clean_local(dependencies=dependencies, local_dir=tmp_path)
+
+    assert (tmp_path / "foo.py").exists()
+    assert not (tmp_path / "baz.py").exists()

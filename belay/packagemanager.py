@@ -1,7 +1,7 @@
 import ast
 from contextlib import nullcontext
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Set, Union
 from urllib.parse import urlparse
 
 import httpx
@@ -125,3 +125,19 @@ def download_dependencies(
             else:
                 log(f"[bold green]{pkg_name}: Updated.")
                 dst.write_text(new_code)
+
+
+def clean_local(
+    dependencies: Union[Set[str], List[str]],
+    local_dir: Union[str, Path] = ".belay-lib",
+):
+    """Delete downloaded dependencies if they are no longer referenced."""
+    local_dir = Path(local_dir)
+    dependencies = set(dependencies)
+    existing_deps = []
+    existing_deps.extend(local_dir.glob("*.py"))
+
+    for existing_dep in existing_deps:
+        if existing_dep.stem in dependencies:
+            continue
+        existing_dep.unlink()
