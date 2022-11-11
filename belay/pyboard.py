@@ -334,6 +334,13 @@ class Pyboard:
         self.serial.close()
 
     def read_until(self, min_num_bytes, ending, timeout=10, data_consumer=None):
+        """
+        Parameters
+        ----------
+        timeout: Union[None, float]
+            Timeout in seconds.
+            If None, no timeout.
+        """
         # if data_consumer is used then data is not accumulated and the ending must be 1 byte long
         assert data_consumer is None or len(ending) == 1
 
@@ -489,7 +496,7 @@ class Pyboard:
         if data != b"OK":
             raise PyboardError("could not exec command (response: %r)" % data)
 
-    def exec_raw(self, command, timeout=10, data_consumer=None):
+    def exec_raw(self, command, timeout=None, data_consumer=None):
         self.exec_raw_no_follow(command)
         return self.follow(timeout, data_consumer)
 
