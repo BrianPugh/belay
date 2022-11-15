@@ -6,13 +6,19 @@ def __belay(name):
             print("_BELAYR" + repr(res))
             return res
         def gen_wrapper(*args, **kwargs):
-            for res in f(*args, **kwargs):
-                print("_BELAYR" + repr(res))
-                yield res
+            send_val = None
+            gen = f(*args, **kwargs)
+            try:
+                while True:
+                    res = gen.send(send_val)
+                    print("_BELAYR" + repr(res))
+                    send_val = yield res
+            except StopIteration:
+                pass
         globals()["_belay_" + name] = gen_wrapper if isinstance(f, type(lambda: (yield))) else func_wrapper
     return inner
-def __belay_gen_next(x):
+def __belay_gen_next(x, val):
     try:
-        next(x)
+        x.send(val)
     except StopIteration:
         print("_BELAYS")

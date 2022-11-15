@@ -184,12 +184,13 @@ class _TaskExecuter(_Executer):
                 src_file, src_lineno, name, cmd, record=False
             )
             # Step 2: Create the host generator that invokes ``next()`` on-device.
-            cmd = f"__belay_gen_next({gen_identifier})"
 
             def gen_inner():
+                send_val = None
                 try:
                     while True:
-                        yield self._belay_device._traceback_execute(
+                        cmd = f"__belay_gen_next({gen_identifier}, {repr(send_val)})"
+                        send_val = yield self._belay_device._traceback_execute(
                             src_file, src_lineno, name, cmd, record=False
                         )
                 except StopIteration:

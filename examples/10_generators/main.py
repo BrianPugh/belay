@@ -21,6 +21,20 @@ def count():
         i += 1
 
 
+@device.task
+def communicate(x):
+    new_val = yield "Device: " + str(x)
+    print(new_val)
+    new_val = yield "Device: " + str(new_val)
+    new_val = yield "Device: " + str(new_val)
+
+
 for index in count():
     time.sleep(0.5)
     print(index)
+
+# Demonstrate the generator send command
+generator = communicate("foo")
+print(generator.send(None))
+print(generator.send("bar"))
+print(generator.send("baz"))
