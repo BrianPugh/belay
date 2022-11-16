@@ -360,42 +360,29 @@ class Pyboard:
             else:
                 timeout_count += 1
                 if timeout is not None and timeout_count >= 100 * timeout:
-                    break
+                    raise PyboardError(
+                        "Timed out reading until {repr(ending)}\n    Received: {repr(data)}"
+                    )
                 time.sleep(0.01)
         return data
 
     def enter_raw_repl(self, soft_reset=True):
         self.serial.write(b"\r\x03\x03")  # ctrl-C twice: interrupt any running program
-
         # flush input (without relying on serial.flushInput())
         n = self.serial.inWaiting()
         while n > 0:
             self.serial.read(n)
             n = self.serial.inWaiting()
-
         self.serial.write(b"\r\x01")  # ctrl-A: enter raw REPL
-
         if soft_reset:
-            data = self.read_until(1, b"raw REPL; CTRL-B to exit\r\n>")
-            if not data.endswith(b"raw REPL; CTRL-B to exit\r\n>"):
-                print(data)
-                raise PyboardError("could not enter raw repl")
-
+            self.read_until(1, b"raw REPL; CTRL-B to exit\r\n>")
             self.serial.write(b"\x04")  # ctrl-D: soft reset
 
             # Waiting for "soft reboot" independently to "raw REPL" (done below)
             # allows boot.py to print, which will show up after "soft reboot"
             # and before "raw REPL".
-            data = self.read_until(1, b"soft reboot\r\n")
-            if not data.endswith(b"soft reboot\r\n"):
-                print(data)
-                raise PyboardError("could not enter raw repl")
-
-        data = self.read_until(1, b"raw REPL; CTRL-B to exit\r\n")
-        if not data.endswith(b"raw REPL; CTRL-B to exit\r\n"):
-            print(data)
-            raise PyboardError("could not enter raw repl")
-
+            self.read_until(1, b"soft reboot\r\n")
+        self.read_until(1, b"raw REPL; CTRL-B to exit\r\n")
         self.in_raw_repl = True
 
     def exit_raw_repl(self):
@@ -403,16 +390,12 @@ class Pyboard:
         self.in_raw_repl = False
 
     def follow(self, timeout, data_consumer=None):
-        # wait for normal output
+        # wait for normal output (first EOF reception)
         data = self.read_until(1, b"\x04", timeout=timeout, data_consumer=data_consumer)
-        if not data.endswith(b"\x04"):
-            raise PyboardError("timeout waiting for first EOF reception")
         data = data[:-1]
 
         # wait for error output
         data_err = self.read_until(1, b"\x04", timeout=timeout)
-        if not data_err.endswith(b"\x04"):
-            raise PyboardError("timeout waiting for second EOF reception")
         data_err = data_err[:-1]
 
         # return normal and error output
@@ -451,9 +434,7 @@ class Pyboard:
         self.serial.write(b"\x04")
 
         # Wait for device to acknowledge end of data.
-        data = self.read_until(1, b"\x04")
-        if not data.endswith(b"\x04"):
-            raise PyboardError("could not complete raw paste: {}".format(data))
+        self.read_until(1, b"\x04")
 
     def exec_raw_no_follow(self, command):
         if isinstance(command, bytes):
@@ -462,9 +443,7 @@ class Pyboard:
             command_bytes = bytes(command, encoding="utf8")
 
         # check we have a prompt
-        data = self.read_until(1, b">")
-        if not data.endswith(b">"):
-            raise PyboardError("could not enter raw repl")
+        self.read_until(1, b">")
 
         if self.use_raw_paste:
             # Try to enter raw-paste mode.
@@ -478,10 +457,7 @@ class Pyboard:
                 return self.raw_paste_write(command_bytes)
             else:
                 # Device doesn't support raw-paste, fall back to normal raw REPL.
-                data = self.read_until(1, b"w REPL; CTRL-B to exit\r\n>")
-                if not data.endswith(b"w REPL; CTRL-B to exit\r\n>"):
-                    print(data)
-                    raise PyboardError("could not enter raw repl")
+                self.read_until(1, b"w REPL; CTRL-B to exit\r\n>")
             # Don't try to use raw-paste mode again for this connection.
             self.use_raw_paste = False
 
