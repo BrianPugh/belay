@@ -337,13 +337,13 @@ class Pyboard:
         """
         Parameters
         ----------
+        data_consumer: Callable
+            Function is called with data as soon as it becomes available.
+            Does NOT wait for a newline.
         timeout: Union[None, float]
             Timeout in seconds.
             If None, no timeout.
         """
-        # if data_consumer is used then data is not accumulated and the ending must be 1 byte long
-        assert data_consumer is None or len(ending) == 1
-
         data = self.serial.read(min_num_bytes)
         if data_consumer:
             data_consumer(data)
@@ -367,12 +367,14 @@ class Pyboard:
         return data
 
     def enter_raw_repl(self, soft_reset=True):
-        self.serial.write(b"\r\x03\x03")  # ctrl-C twice: interrupt any running program
         # flush input (without relying on serial.flushInput())
         n = self.serial.inWaiting()
         while n > 0:
             self.serial.read(n)
             n = self.serial.inWaiting()
+        self.serial.write(b"\r\x03\x03")  # ctrl-C twice: interrupt any running program
+        self.exit_raw_repl()  # if device is already in raw_repl, b'>>>' won't be printed.
+        self.read_until(1, b">>>")
         self.serial.write(b"\r\x01")  # ctrl-A: enter raw REPL
         if soft_reset:
             self.read_until(1, b"raw REPL; CTRL-B to exit\r\n>")
