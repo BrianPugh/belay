@@ -44,6 +44,10 @@ more robust code and improve development iteration speed.
 Commands
 ^^^^^^^^
 
+New
+---
+``belay new belay-micropython-demo`` creates a new micropython project structure.
+
 Update
 ------
 ``belay update`` iterates over and downloads the dependencies defined

@@ -1,0 +1,7 @@
+[tool.belay]
+name = "packagename"
+
+[tool.belay.dependencies]
+
+[tool.pytest.ini_options]
+pythonpath = ".belay-lib"
