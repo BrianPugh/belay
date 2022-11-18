@@ -12,7 +12,7 @@ help_password = (  # nosec
 def load_toml(path: Union[str, Path] = "pyproject.toml"):
     """Load a TOML file.
 
-    If the specified toml file is not found, perent directories
+    If the specified toml file is not found, parent directories
     are iteratively searched until a toml file is found.
     """
     path = Path(path).absolute()
