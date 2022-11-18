@@ -10,10 +10,23 @@ help_password = (  # nosec
 
 
 def load_toml(path: Union[str, Path] = "pyproject.toml"):
-    path = Path(path)
+    """Load a TOML file.
 
-    with path.open("rb") as f:
-        toml = tomli.load(f)
+    If the specified toml file is not found, perent directories
+    are iteratively searched until a toml file is found.
+    """
+    path = Path(path).absolute()
+
+    for parent in path.parents:
+        candidate = parent / path.name
+        try:
+            with candidate.open("rb") as f:
+                toml = tomli.load(f)
+            break
+        except FileNotFoundError:
+            pass
+    else:
+        raise FileNotFoundError
 
     try:
         toml = toml["tool"]["belay"]
