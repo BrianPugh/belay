@@ -119,6 +119,7 @@ class _TaskExecuter(_Executer):
         /,
         minify: bool = True,
         register: bool = True,
+        record: bool = False,
     ) -> BelayCallable:
         """Decorator that send code to device that executes when decorated function is called on-host.
 
@@ -132,6 +133,10 @@ class _TaskExecuter(_Executer):
         register: bool
             Assign an attribute to ``self`` with same name as ``f``.
             Defaults to ``True``.
+        record: bool
+            Record task execution calls for state-reconstruction if device is accidentally reset.
+            Only recommended for tasks that are called a low amount of times to setup device state.
+            Defaults to ``False``.
 
         Returns
         -------
@@ -156,7 +161,7 @@ class _TaskExecuter(_Executer):
             cmd = f"_belay_{name}(*{repr(args)}, **{repr(kwargs)})"
 
             return self._belay_device._traceback_execute(
-                src_file, src_lineno, name, cmd, record=False
+                src_file, src_lineno, name, cmd, record=record
             )
 
         @wraps(f)
@@ -177,6 +182,10 @@ class _TaskExecuter(_Executer):
 
         @wraps(f)
         def gen_executer(*args, **kwargs):
+            if record:
+                raise NotImplementedError(
+                    "Recording of generator tasks is currently not supported."
+                )
             # Step 1: Create the on-device generator
             gen_identifier = _random_python_identifier()
             cmd = f"{gen_identifier} = _belay_{name}(*{repr(args)}, **{repr(kwargs)})"
@@ -232,6 +241,7 @@ class _ThreadExecuter(_Executer):
         /,
         minify: bool = True,
         register: bool = True,
+        record: bool = True,
     ) -> Callable[..., None]:
         """Decorator that send code to device that spawns a thread when executed.
 
@@ -244,6 +254,9 @@ class _ThreadExecuter(_Executer):
             Defaults to ``True``.
         register: bool
             Assign an attribute to ``self`` with same name as ``f``.
+            Defaults to ``True``.
+        record: bool
+            Record thread execution calls for state-reconstruction if device is accidentally reset.
             Defaults to ``True``.
 
         Returns
@@ -267,7 +280,7 @@ class _ThreadExecuter(_Executer):
         def executer(*args, **kwargs):
             cmd = f"import _thread; _thread.start_new_thread({name}, {repr(args)}, {repr(kwargs)})"
             self._belay_device._traceback_execute(
-                src_file, src_lineno, name, cmd, record=False
+                src_file, src_lineno, name, cmd, record=record
             )
 
         @wraps(f)
