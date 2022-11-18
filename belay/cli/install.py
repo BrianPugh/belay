@@ -27,7 +27,7 @@ def install(
     if main and main.suffix != ".py":
         raise ValueError("Main script MUST be a python file.")
     toml = load_toml()
-    pkg_name = toml["name"]
+    pkg_name = toml.get("name", None)
 
     sync(
         port=port,
@@ -38,15 +38,16 @@ def install(
         ignore=None,
         mpy_cross_binary=mpy_cross_binary,
     )
-    sync(
-        port=port,
-        folder=Path(pkg_name),
-        dst=f"/{pkg_name}",
-        password=password,
-        keep=None,
-        ignore=None,
-        mpy_cross_binary=mpy_cross_binary,
-    )
+    if pkg_name:
+        sync(
+            port=port,
+            folder=Path(pkg_name),
+            dst=f"/{pkg_name}",
+            password=password,
+            keep=None,
+            ignore=None,
+            mpy_cross_binary=mpy_cross_binary,
+        )
     if main:
         with Device(port, password=password) as device:
             device.sync(main, keep=True, mpy_cross_binary=mpy_cross_binary)
