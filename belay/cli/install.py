@@ -27,7 +27,7 @@ def install(
     if main and main.suffix != ".py":
         raise ValueError("Main script MUST be a python file.")
     toml = load_toml()
-    pkg_name = toml.get("name", None)
+    pkg_name = toml.get("name")
 
     sync(
         port=port,
