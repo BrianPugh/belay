@@ -8,8 +8,7 @@ def __belay_mkdirs(fns):
             os.mkdir(fn)
         except OSError:
             pass
-all_files, all_dirs = set(), []
-def __belay_fs(path="/", check=True):
+def __belay_del_fs(path="/", keep=(), check=True):
     if not path:
         path = "/"
     elif not path.endswith("/"):
@@ -19,10 +18,15 @@ def __belay_fs(path="/", check=True):
             os.stat(path)
         except OSError:
             return
-    for elem in __belay_ilistdir(path):
-        full_name = path + elem[0]
-        if elem[1] & 0x4000:  # is_dir
-            all_dirs.append(full_name)
-            __belay_fs(full_name, check=False)
+    for name, mode, *_ in __belay_ilistdir(path):
+        full_name = path + name
+        if full_name in keep:
+            continue
+        if mode & 0x4000:  # is_dir
+            __belay_del_fs(full_name, keep, check=False)
+            try:
+                os.rmdir(full_name)
+            except OSError:
+                pass
         else:
-            all_files.add(full_name)
+            os.remove(full_name)
