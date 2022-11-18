@@ -332,7 +332,7 @@ def _preprocess_keep(
 ) -> list:
     if keep is None:
         if dst == "/":
-            keep = ["boot.py", "webrepl_cfg.py"]
+            keep = ["boot.py", "webrepl_cfg.py", "lib"]
         else:
             keep = []
     elif isinstance(keep, str):
@@ -626,7 +626,7 @@ class Device:
             Do NOT delete these file(s) on-device if not present in ``folder``.
             If ``true``, don't delete any files on device.
             If ``false``, delete all unsynced files (same as passing ``[]``).
-            If ``dst is None``, defaults to ``["boot.py", "webrepl_cfg.py"]``.
+            If ``dst is None``, defaults to ``["boot.py", "webrepl_cfg.py", "lib"]``.
         ignore: None | str | list
             Git's wildmatch patterns to NOT sync to the device.
             Defaults to ``["*.pyc", "__pycache__", ".DS_Store", ".pytest_cache"]``.
@@ -677,12 +677,6 @@ class Device:
         keep = _preprocess_keep(keep, dst)
         ignore = _preprocess_ignore(ignore)
 
-        if keep_all:
-            # Don't build up the device of files, we won't be deleting anything
-            self("del __belay_fs")
-        else:
-            self(f"__belay_fs({repr(dst)}); all_dirs.sort(); del __belay_fs")
-
         src_files, src_dirs, dst_files = _discover_files_dirs(dst, folder, ignore)
 
         if mpy_cross_binary:
@@ -693,11 +687,12 @@ class Device:
         dst_files = [str(dst_file) for dst_file in dst_files]
         dst_dirs = _generate_dst_dirs(dst, folder, src_dirs)
 
-        if not keep_all:
-            # prevent keep duplicates in the concat'd file list
-            keep = [x for x in keep if x not in dst_files]
-            if dst_files + keep:
-                self(f"for x in {repr(dst_files + keep)}:\n all_files.discard(x)")
+        if keep_all:
+            self("del __belay_del_fs")
+        else:
+            self(
+                f"__belay_del_fs({repr(dst)}, {repr(set(keep + dst_files))}); del __belay_del_fs"
+            )
 
         # Try and make all remote dirs
         if dst_dirs:
@@ -745,7 +740,6 @@ class Device:
         # Remove all the files and directories that did not exist in local filesystem.
         if progress_update:
             progress_update(description="Cleaning up...")
-        self._exec_snippet("sync_end")
 
     def __enter__(self):
         return self

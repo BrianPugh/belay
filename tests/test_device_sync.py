@@ -160,34 +160,10 @@ def test_sync_device_belay_mkdirs(sync_begin, tmp_path):
     assert (tmp_path / "bar1" / "bar2").is_dir()
 
 
-def test_sync_device_belay_fs_basic(sync_begin, tmp_path):
-    expected_files = {
-        tmp_path / "foo1" / "foo2" / "foo_file.py",
-        tmp_path / "bar1" / "bar2" / "bar_file.py",
-    }
-    expected_dirs = {
-        tmp_path / "foo1",
-        tmp_path / "foo1" / "foo2",
-        tmp_path / "bar1",
-        tmp_path / "bar1" / "bar2",
-    }
-    for f in expected_files:
-        f.parent.mkdir(parents=True, exist_ok=True)
-        f.touch()
-
-    __belay_fs(str(tmp_path))  # noqa: F821
-    _all_files = {Path(x) for x in all_files}  # noqa: F821
-    _all_dirs = {Path(x) for x in all_dirs}  # noqa: F821
-
-    assert _all_files == expected_files
-    assert _all_dirs == expected_dirs
-
-
 def test_sync_device_belay_fs_does_not_exist(sync_begin, tmp_path):
     non_existing_dir = tmp_path / "does_not_exist"
-    __belay_fs(str(non_existing_dir))  # noqa: F821
-    assert all_files == set()  # noqa: F821
-    assert all_dirs == []  # noqa: F821
+    # Should not raise an exception.
+    __belay_del_fs(str(non_existing_dir))  # noqa: F821
 
 
 def test_device_sync_empty_remote(mocker, mock_device, sync_path):
@@ -202,10 +178,6 @@ def test_device_sync_empty_remote(mocker, mock_device, sync_path):
 
     mock_device._board.exec.assert_has_calls(
         [
-            call(
-                "for x in['/alpha.py','/bar.txt','/folder1/file1.txt','/folder1/folder1_1/file1_1.txt','/foo.txt','/boot.py','/webrepl_cfg.py']:\n all_files.discard(x)",
-                data_consumer=mocker.ANY,
-            ),
             call(
                 "__belay_mkdirs(['/folder1','/folder1/folder1_1'])",
                 data_consumer=mocker.ANY,
@@ -350,7 +322,7 @@ def test_discover_files_dirs_single_file(tmp_path):
 
 def test_preprocess_keep_none_root():
     actual = belay.device._preprocess_keep(None, "/")
-    assert actual == ["/boot.py", "/webrepl_cfg.py"]
+    assert actual == ["/boot.py", "/webrepl_cfg.py", "/lib"]
 
 
 def test_preprocess_keep_none_nonroot():
