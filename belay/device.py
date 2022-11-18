@@ -27,6 +27,7 @@ from .exceptions import (
     SpecialFunctionNameError,
 )
 from .inspect import getsource
+from .packagemanager import PackageManagerMixin
 from .pyboard import Pyboard, PyboardError, PyboardException
 from .webrepl import WebreplToSerial
 
@@ -429,7 +430,7 @@ class Implementation:
     emitters: Tuple[str]
 
 
-class Device:
+class Device(PackageManagerMixin):
     """Belay interface into a micropython device.
 
     Attributes
