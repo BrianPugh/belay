@@ -40,6 +40,7 @@ def getsource(f) -> Tuple[str, int, str]:
     lines = lines[offset:]
 
     # Trim leading whitespace
+    # TODO: This breaks multiline things
     n_leading_whitespace = len(lines[0]) - len(lines[0].lstrip())
     lines = [line[n_leading_whitespace:] for line in lines]
 

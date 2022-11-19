@@ -84,3 +84,41 @@ def test_getsource_decorated_6(foo):
     assert code == "def foo_decorated_6(arg1, arg2):\n    return arg1 + arg2\n"
     assert lineno == 51
     assert file == foo.__file__
+
+
+def test_getsource_decorated_7(foo):
+    """Double decorated."""
+    code, lineno, file = belay.inspect.getsource(foo.foo_decorated_7)
+    assert (
+        code
+        == 'def foo_decorated_7(arg1, arg2):\n    return """This\n    is\na\n  multiline\n             string.\n"""\n'
+    )
+    assert lineno == 56
+    assert file == foo.__file__
+
+
+def test_getsource_nested():
+    def foo():
+        bar = 5
+        return 7
+
+    code, lineno, file = belay.inspect.getsource(foo)
+    assert code == "def foo():\n    bar = 5\n    return 7\n"
+    assert file == __file__
+
+
+def test_getsource_nested_multiline_string():
+    def foo(arg1, arg2):
+        return """This
+    is
+a
+  multiline
+             string.
+"""
+
+    code, lineno, file = belay.inspect.getsource(foo)
+    assert (
+        code
+        == 'def foo(arg1, arg2):\n    return """This\n    is\na\n  multiline\n             string.\n"""\n'
+    )
+    assert file == __file__
