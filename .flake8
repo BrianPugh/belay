@@ -21,6 +21,7 @@ exclude =
     .venv
     examples/
     belay/snippets/
+    tests/test_inspect.py
 
 extend-immutable-calls =
     Argument

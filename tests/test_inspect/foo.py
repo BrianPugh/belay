@@ -50,3 +50,13 @@ if True:
 @decorator
 def foo_decorated_6(arg1, arg2):
     return arg1 + arg2
+
+
+@decorator
+def foo_decorated_7(arg1, arg2):
+    return """This
+    is
+a
+  multiline
+             string.
+"""
