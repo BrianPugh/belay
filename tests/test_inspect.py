@@ -131,3 +131,25 @@ a
         == 'def foo (arg1 ,arg2 ):\n    return """This\n    is\na\n  multiline\n             string.\n"""\n'
     )
     assert file == __file__
+
+
+def test_getsource_nested_multiline_string():
+    # fmt: off
+    def bar(a, b):
+        return a * b
+
+    for _ in range(1):
+
+        def foo(arg1, arg2):
+            return bar(
+arg1,
+    arg2
+)
+
+    # fmt: on
+    code, lineno, file = belay.inspect.getsource(foo)
+    assert (
+        code
+        == "def foo (arg1 ,arg2 ):\n    return bar (\n    arg1 ,\n    arg2 \n    )\n"
+    )
+    assert file == __file__
