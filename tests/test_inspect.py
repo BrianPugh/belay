@@ -1,3 +1,10 @@
+"""Tests extensions to the builtin inspect module.
+
+Note: ``untokenize`` doesn't properly preserve inter-token spacing, so this test vector
+may need to change while still remaining valid.
+"""
+
+
 from importlib.machinery import SourceFileLoader
 
 import pytest
@@ -73,7 +80,7 @@ def test_getsource_decorated_4(foo):
 def test_getsource_decorated_5(foo):
     """Removes leading indent."""
     code, lineno, file = belay.inspect.getsource(foo.foo_decorated_5)
-    assert code == "def foo_decorated_5(arg1, arg2):\n    return arg1 + arg2\n"
+    assert code == "def foo_decorated_5 (arg1 ,arg2 ):\n    return arg1 +arg2 \n"
     assert lineno == 45
     assert file == foo.__file__
 
@@ -103,13 +110,15 @@ def test_getsource_nested():
         return 7
 
     code, lineno, file = belay.inspect.getsource(foo)
-    assert code == "def foo():\n    bar = 5\n    return 7\n"
+    assert code == "def foo ():\n    bar =5 \n    return 7 \n"
     assert file == __file__
 
 
 def test_getsource_nested_multiline_string():
-    def foo(arg1, arg2):
-        return """This
+    for _ in range(1):
+
+        def foo(arg1, arg2):
+            return """This
     is
 a
   multiline
@@ -119,6 +128,6 @@ a
     code, lineno, file = belay.inspect.getsource(foo)
     assert (
         code
-        == 'def foo(arg1, arg2):\n    return """This\n    is\na\n  multiline\n             string.\n"""\n'
+        == 'def foo (arg1 ,arg2 ):\n    return """This\n    is\na\n  multiline\n             string.\n"""\n'
     )
     assert file == __file__
