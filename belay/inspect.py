@@ -31,7 +31,6 @@ def _dedent_tokenizer(code):
         (end_line, end_col),  # noqa: B007
         _,
     ) in generate_tokens(StringIO(code).readline):
-        print(f"{token_type=} {string=} {start_line=} {end_line=}")
         if start_line == 1 and start_col == 0:
             # First Token
             if token_type != INDENT:
