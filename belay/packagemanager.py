@@ -141,3 +141,13 @@ def clean_local(
         if existing_dep.stem in dependencies:
             continue
         existing_dep.unlink()
+
+
+class PackageManagerMixin:
+    def update(self):
+        """Download new versions of dependencies."""
+        raise NotImplementedError("Reserved until a suitable API is determined.")
+
+    def install(self):
+        """Sync dependencies and project itself."""
+        raise NotImplementedError("Reserved until a suitable API is determined.")
