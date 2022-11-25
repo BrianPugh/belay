@@ -820,24 +820,24 @@ class Device:
             self(cmd, record=False)
 
     @staticmethod
-    def task(f=None, **kwargs):
+    def task(f=None, **kwargs) -> staticmethod:
         """For decorating methods when subclassing ``Device``.
 
         Gets overwritten in ``__init__`` for object-specific executer.
         """
         if f is None:
-            return _wraps_partial(Device.task, **kwargs)
+            return _wraps_partial(Device.task, **kwargs)  # type: ignore[reportGeneralTypeIssues]
         f.__belay__ = MethodMetadata(executer=_TaskExecuter, kwargs=kwargs)
         return f
 
     @staticmethod
-    def thread(f=None, **kwargs):
+    def thread(f=None, **kwargs) -> staticmethod:
         """For decorating methods when subclassing ``Device``.
 
         Gets overwritten in ``__init__`` for object-specific executer.
         """
         if f is None:
-            return _wraps_partial(Device.task, **kwargs)
+            return _wraps_partial(Device.task, **kwargs)  # type: ignore[reportGeneralTypeIssues]
         f.__belay__ = MethodMetadata(executer=_ThreadExecuter, kwargs=kwargs)
         return f
 
