@@ -16,20 +16,36 @@ On connection, the device is reset into REPL mode, and a few common imports are 
 
 .. code-block:: python
 
-   import binascii, errno, hashlib, machine, os, time
-   from machine import ADC, I2C, Pin, PWM, SPI, Timer
+   import os, time, machine
    from time import sleep
    from micropython import const
+   from machine import ADC, I2C, Pin, PWM, SPI, Timer
 
-The ``device`` object has 4 important methods for projects: directly calling, ``task``, ``thread``, and ``sync``.
+The ``device`` object has 4 important methods for projects: ``__call__``, ``task``, ``thread``, and ``sync``.
 These are described in the subsequent subsections.
 
 Call
 ^^^^
 
-Directly calling the ``Device`` instance invokes a command string on-device.
-For example, ``device("foo = 1 + 2")`` would execute the code ``foo = 1 + 2`` on-device.
-This is typically used in Belay projects to import modules and declare global variables.
+Directly calling the ``Device`` instance invokes a statement or expression on-device.
+For example:
+
+.. code-block:: python
+
+   ret = device("foo = 1 + 2")
+
+would execute the code ``foo = 1 + 2`` on-device.
+``ret`` is ``None`` since ``foo = 1 + 2`` is a statement.
+Subsequently invoking a pythoon expression like:
+
+.. code-block:: python
+
+   res = device("foo")
+
+results in ``res == 3``.
+
+Direct invocations like this are common to import modules and declare global variables.
+Alternative methods are described in the `task`_ section.
 
 task
 ^^^^
