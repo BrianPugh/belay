@@ -153,3 +153,20 @@ arg1,
         == "def foo (arg1 ,arg2 ):\n    return bar (\n    arg1 ,\n    arg2 \n    )\n"
     )
     assert file == __file__
+
+
+def test_isexpression_basic():
+    assert belay.inspect.isexpression("") == False
+
+    # Basic expressions (True)
+    assert belay.inspect.isexpression("1") == True
+    assert belay.inspect.isexpression("1 + 2") == True
+    assert belay.inspect.isexpression("foo") == True
+
+    # Statements (False)
+    assert belay.inspect.isexpression("foo = 1 + 2") == False
+    assert belay.inspect.isexpression("if True:\n 1 + 2") == False
+
+    # Invalid syntax (False)
+    assert belay.inspect.isexpression("1foo") == False
+    assert belay.inspect.isexpression("1+") == False
