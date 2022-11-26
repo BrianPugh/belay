@@ -26,7 +26,7 @@ from .exceptions import (
     MaxHistoryLengthError,
     SpecialFunctionNameError,
 )
-from .inspect import getsource
+from .inspect import getsource, isexpression
 from .pyboard import Pyboard, PyboardError, PyboardException
 from .webrepl import WebreplToSerial
 
@@ -449,11 +449,7 @@ class Device:
 
         self.implementation = Implementation(
             *self(
-                'print("_BELAYR("'
-                '+ repr(sys.implementation.name) + ","'
-                '+ repr(sys.implementation.version) + ","'
-                '+ repr(sys.platform) + ","'
-                '+")")'
+                "(sys.implementation.name, sys.implementation.version, sys.platform)"
             ),
             emitters=self._emitter_check(),
         )
@@ -537,7 +533,7 @@ class Device:
         Parameters
         ----------
         cmd: str
-            Python code to execute.
+            Python code to execute. May be a statement or expression.
         minify: bool
             Minify ``cmd`` code prior to sending.
             Reduces the number of characters that need to be transmitted.
@@ -548,10 +544,13 @@ class Device:
 
         Returns
         -------
-            Return value from executing code on-device.
+            Correctly interpreted return value from executing code on-device.
         """
         if minify:
             cmd = minify_code(cmd)
+
+        if isexpression(cmd):
+            cmd = f"print('_BELAYR' + repr({cmd}))"
 
         if (
             record
@@ -791,7 +790,7 @@ class Device:
         name: str,
         cmd: str,
         record: bool = True,
-    ) -> BelayReturn:
+    ):
         """Invoke ``cmd``, and reinterprets raised stacktrace in ``PyboardException``.
 
         Parameters
@@ -807,6 +806,10 @@ class Device:
         record: bool
             Record the call for state-reconstruction if device is accidentally reset.
             Defaults to ``True``.
+
+        Returns
+        -------
+            Correctly interpreted return value from executing code on-device.
         """
         src_file = str(src_file)
 
