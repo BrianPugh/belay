@@ -170,22 +170,6 @@ class _TaskExecuter(_Executer):
             )
 
         @wraps(f)
-        def multi_func_executer(*args, **kwargs):
-            res = func_executer(*args, **kwargs)
-            if hasattr(f, "_belay_level"):
-                # Call next device's wrapper.
-                if f._belay_level == 1:
-                    res = [f(*args, **kwargs), res]
-                else:
-                    res = [*f(*args, **kwargs), res]
-
-            return res
-
-        multi_func_executer._belay_level = 1
-        if hasattr(f, "_belay_level"):
-            multi_func_executer._belay_level += f._belay_level
-
-        @wraps(f)
         def gen_executer(*args, **kwargs):
             if record:
                 raise NotImplementedError(
@@ -214,24 +198,7 @@ class _TaskExecuter(_Executer):
 
             return gen_inner()
 
-        @wraps(f)
-        def multi_gen_executer(*args, **kwargs):
-            raise NotImplementedError
-
-        multi_gen_executer._belay_level = 1
-        if hasattr(f, "_belay_level"):
-            multi_gen_executer._belay_level += f._belay_level
-
-        if isgeneratorfunction(f):
-            executer = gen_executer
-
-            # TODO: define multi_gen_executer
-            if multi_gen_executer._belay_level > 1:
-                raise NotImplementedError(
-                    "Multi-device generator task decorating not yet implemented."
-                )
-        else:
-            executer = multi_func_executer
+        executer = gen_executer if isgeneratorfunction(f) else func_executer
 
         if register:
             setattr(self, name, executer)
@@ -288,26 +255,10 @@ class _ThreadExecuter(_Executer):
                 src_file, src_lineno, name, cmd, record=record
             )
 
-        @wraps(f)
-        def multi_executer(*args, **kwargs):
-            res = executer(*args, **kwargs)
-            if hasattr(f, "_belay_level"):
-                # Call next device's wrapper.
-                if f._belay_level == 1:
-                    res = [f(*args, **kwargs), res]
-                else:
-                    res = [*f(*args, **kwargs), res]
-
-            return res
-
-        multi_executer._belay_level = 1
-        if hasattr(f, "_belay_level"):
-            multi_executer._belay_level += f._belay_level
-
         if register:
             setattr(self, name, executer)
 
-        return multi_executer
+        return executer
 
 
 def _discover_files_dirs(
