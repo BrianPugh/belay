@@ -29,6 +29,7 @@ typer = {extras = ["all"], version = "^0.6"}
 pathspec = "*"
 tomli = "^2.0.1"
 httpx = "^0.23.0"
+autoregistry = "^0.8.2"
 
 [tool.poetry.group.docs.dependencies]
 sphinx = "~4.5.0"
