@@ -59,25 +59,6 @@ def test_device_task(mocker, mock_device):
     )
 
 
-def test_device_task_chain(mocker, mock_pyboard):
-    mock_device1 = belay.Device()
-    mock_device1._traceback_execute = mocker.MagicMock(return_value=1)
-    mock_device2 = belay.Device()
-    mock_device2._traceback_execute = mocker.MagicMock(return_value=2)
-    mock_device3 = belay.Device()
-    mock_device3._traceback_execute = mocker.MagicMock(return_value=3)
-
-    @mock_device1.task
-    @mock_device2.task
-    @mock_device3.task
-    def foo(a, b):
-        c = a + b  # noqa: F841
-
-    res = foo("a", "b")
-
-    assert res == [3, 2, 1]
-
-
 def test_device_thread(mocker, mock_device):
     mock_device._traceback_execute = mocker.MagicMock()
 

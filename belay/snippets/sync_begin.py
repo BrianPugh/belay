@@ -1,7 +1,7 @@
 # Creates and populates two set[str]: all_files, all_dirs
 def __belay_hfs(fns):
     buf = memoryview(bytearray(4096))
-    print("_BELAYR" + repr([__belay_hf(fn, buf) for fn in fns]))
+    return [__belay_hf(fn, buf) for fn in fns]
 def __belay_mkdirs(fns):
     for fn in fns:
         try:

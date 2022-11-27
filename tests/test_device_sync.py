@@ -38,7 +38,8 @@ def mock_pyboard(mocker):
 
 
 @pytest.fixture
-def mock_device(mock_pyboard):
+def mock_device(mocker, mock_pyboard):
+    mocker.patch("belay.device.Device._emitter_check", return_value=[])
     device = belay.Device()
     return device
 
@@ -138,9 +139,7 @@ def test_sync_device_belay_hfs(sync_begin, capsys, tmp_path):
     foobar_file.write_text("foobar")
 
     return_value = __belay_hfs([str(fooba_file), str(foobar_file)])  # noqa: F821
-    assert return_value is None
-    captured = capsys.readouterr()
-    assert captured.out == f"_BELAYR[{0x39aaa18a}, {0xbf9cf968}]\n"
+    assert return_value == [0x39AAA18A, 0xBF9CF968]
 
 
 def test_sync_device_belay_mkdirs(sync_begin, tmp_path):
@@ -179,11 +178,11 @@ def test_device_sync_empty_remote(mocker, mock_device, sync_path):
     mock_device._board.exec.assert_has_calls(
         [
             call(
-                "__belay_mkdirs(['/folder1','/folder1/folder1_1'])",
+                "print('_BELAYR' + repr(__belay_mkdirs(['/folder1','/folder1/folder1_1'])))",
                 data_consumer=mocker.ANY,
             ),
             call(
-                "__belay_hfs(['/alpha.py','/bar.txt','/folder1/file1.txt','/folder1/folder1_1/file1_1.txt','/foo.txt'])",
+                "print('_BELAYR' + repr(__belay_hfs(['/alpha.py','/bar.txt','/folder1/file1.txt','/folder1/folder1_1/file1_1.txt','/foo.txt'])))",
                 data_consumer=mocker.ANY,
             ),
         ]
@@ -208,15 +207,22 @@ def test_device_sync_partial_remote(mocker, mock_device, sync_path):
         for fn in fns:
             local_fn = sync_path / fn[1:]
             if local_fn.stem.endswith("1"):
-                out.append(b"\x00")
+                out.append(0)
             else:
                 out.append(belay.device._local_hash_file(local_fn))
         return out
 
     def mock_exec(cmd, data_consumer=None):
-        if cmd.startswith("__belay_hfs"):
+        if cmd.startswith("print('_BELAYR' + repr(__belay_hfs"):
             nonlocal __belay_hfs
-            out = ("_BELAYR" + repr(eval(cmd)) + "\r\n").encode("utf-8")
+            out = b""
+
+            def print(s):
+                nonlocal out
+                s += "\r\n"
+                out = s.encode("utf-8")
+
+            eval(cmd)
         else:
             out = b""
         if data_consumer is not None:

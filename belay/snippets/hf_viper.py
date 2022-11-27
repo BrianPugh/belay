@@ -1,6 +1,6 @@
 @micropython.native
 def __belay_hf(fn, buf):
-    # inherently is inherently modulo 32-bit arithmetic
+    # is inherently modulo 32-bit arithmetic
     @micropython.viper
     def xor_mm(data, state: uint, prime: uint) -> uint:
         for b in data:
