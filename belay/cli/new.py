@@ -8,6 +8,7 @@ from typer import Argument, Option
 
 
 def new(project_name: str = Argument(..., help="Project Name.")):
+    """Create a new micropython project structure."""
     package_name = canonicalize_name(project_name)
     dst_dir = Path() / project_name
     template_dir = pkg_resources.files("belay") / "cli" / "new_template"

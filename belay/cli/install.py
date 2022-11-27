@@ -21,7 +21,7 @@ def install(
         None, help="Sync script to /main.py after installing."
     ),
 ):
-    """Sync dependencies and project itself."""
+    """Sync dependencies and project itself to device."""
     if run and run.suffix != ".py":
         raise ValueError("Run script MUST be a python file.")
     if main and main.suffix != ".py":
