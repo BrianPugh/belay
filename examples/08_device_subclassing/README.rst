@@ -10,5 +10,5 @@ This also allows for multiple devices to share the same task definitions
 by instantiating multiple objeccts.
 
 Methods marked with ``@Device.task`` are similar to ``@staticmethod`` in that
-they do **not** contain ``self`` in the method signature. To the device, each
-marked method is equivalent to an independent function.
+they do **not** contain ``self`` in the method signature.
+To the device, each marked method is equivalent to an independent function.

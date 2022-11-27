@@ -771,6 +771,25 @@ class Device:
 
     @staticmethod
     def task(f=None, **kwargs) -> staticmethod:
+        """Decorator that send code to device that executes when decorated function is called on-host.
+
+        Can either be used as a staticmethod ``@Device.task`` for marking methods in a subclass of ``Device``, or as a standard method ``@device.task`` for marking functions to a specific ``Device`` instance.
+
+        Parameters
+        ----------
+        f: Callable
+            Function to decorate. Can only accept and return python literals.
+        minify: bool
+            Minify ``cmd`` code prior to sending.
+            Defaults to ``True``.
+        register: bool
+            Assign an attribute to ``self.task`` with same name as ``f``.
+            Defaults to ``True``.
+        record: bool
+            Each invocation of the executer is recorded for playback upon reconnect.
+            Only recommended to be set to ``True`` for a setup-like function.
+            Defaults to ``False``.
+        """
         if f is None:
             return _wraps_partial(Device.task, **kwargs)  # type: ignore[reportGeneralTypeIssues]
         f.__belay__ = MethodMetadata(executer=_TaskExecuter, kwargs=kwargs)
@@ -778,6 +797,24 @@ class Device:
 
     @staticmethod
     def thread(f=None, **kwargs) -> staticmethod:
+        """Decorator that send code to device that spawns a thread when executed.
+
+        Can either be used as a staticmethod ``@Device.thread`` for marking methods in a subclass of ``Device``, or as a standard method ``@device.thread`` for marking functions to a specific ``Device`` instance.
+
+        Parameters
+        ----------
+        f: Callable
+            Function to decorate. Can only accept python literals as arguments.
+        minify: bool
+            Minify ``cmd`` code prior to sending.
+            Defaults to ``True``.
+        register: bool
+            Assign an attribute to ``self.thread`` with same name as ``f``.
+            Defaults to ``True``.
+        record: bool
+            Each invocation of the executer is recorded for playback upon reconnect.
+            Defaults to ``True``.
+        """
         if f is None:
             return _wraps_partial(Device.task, **kwargs)  # type: ignore[reportGeneralTypeIssues]
         f.__belay__ = MethodMetadata(executer=_ThreadExecuter, kwargs=kwargs)
