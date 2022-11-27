@@ -15,6 +15,7 @@ from inspect import isgeneratorfunction, signature
 from pathlib import Path
 from typing import Callable, Dict, Generator, List, Optional, Set, TextIO, Tuple, Union
 
+from autoregistry import Registry
 from pathspec import PathSpec
 from serial import SerialException
 
@@ -404,7 +405,7 @@ class MethodMetadata:
     kwargs: dict
 
 
-class Device:
+class Device(Registry):
     """Belay interface into a micropython device.
 
     Attributes
