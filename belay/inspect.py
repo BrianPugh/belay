@@ -91,3 +91,24 @@ def getsource(f) -> Tuple[str, int, str]:
     src_code = _dedent(src_code)
 
     return src_code, src_lineno, src_file
+
+
+def isexpression(code: str) -> bool:
+    """Checks if python code is an expression.
+
+    Parameters
+    ----------
+    code: str
+        Python code to check if is an expression.
+
+    Returns
+    -------
+    bool
+        ``True`` if ``code`` is an expression; returns
+        ``False`` otherwise (statement or invalid).
+    """
+    try:
+        compile(code, "<stdin>", "eval")
+        return True
+    except SyntaxError:
+        return False

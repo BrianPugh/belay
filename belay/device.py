@@ -10,7 +10,7 @@ import sys
 import tempfile
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from functools import lru_cache, wraps
+from functools import lru_cache, partial, wraps
 from inspect import isgeneratorfunction, signature
 from pathlib import Path
 from typing import Callable, Dict, Generator, List, Optional, Set, TextIO, Tuple, Union
@@ -26,7 +26,7 @@ from .exceptions import (
     MaxHistoryLengthError,
     SpecialFunctionNameError,
 )
-from .inspect import getsource
+from .inspect import getsource, isexpression
 from .pyboard import Pyboard, PyboardError, PyboardException
 from .webrepl import WebreplToSerial
 
@@ -40,6 +40,11 @@ BelayCallable = Callable[..., BelayReturn]
 _python_identifier_chars = (
     string.ascii_uppercase + string.ascii_lowercase + string.digits
 )
+
+
+def _wraps_partial(f, *args, **kwargs):
+    """Wrap and partial of a function."""
+    return wraps(f)(partial(f, *args, **kwargs))
 
 
 @lru_cache
@@ -116,11 +121,11 @@ class _TaskExecuter(_Executer):
     def __call__(
         self,
         f: Optional[BelayCallable] = None,
-        /,
+        *,
         minify: bool = True,
         register: bool = True,
         record: bool = False,
-    ) -> BelayCallable:
+    ):
         """Decorator that send code to device that executes when decorated function is called on-host.
 
         Parameters
@@ -144,7 +149,7 @@ class _TaskExecuter(_Executer):
             Remote-executor function.
         """
         if f is None:
-            return self  # type: ignore
+            return _wraps_partial(self, minify=minify, register=register, record=record)
 
         name = f.__name__
         src_code, src_lineno, src_file = getsource(f)
@@ -163,22 +168,6 @@ class _TaskExecuter(_Executer):
             return self._belay_device._traceback_execute(
                 src_file, src_lineno, name, cmd, record=record
             )
-
-        @wraps(f)
-        def multi_func_executer(*args, **kwargs):
-            res = func_executer(*args, **kwargs)
-            if hasattr(f, "_belay_level"):
-                # Call next device's wrapper.
-                if f._belay_level == 1:
-                    res = [f(*args, **kwargs), res]
-                else:
-                    res = [*f(*args, **kwargs), res]
-
-            return res
-
-        multi_func_executer._belay_level = 1
-        if hasattr(f, "_belay_level"):
-            multi_func_executer._belay_level += f._belay_level
 
         @wraps(f)
         def gen_executer(*args, **kwargs):
@@ -209,24 +198,7 @@ class _TaskExecuter(_Executer):
 
             return gen_inner()
 
-        @wraps(f)
-        def multi_gen_executer(*args, **kwargs):
-            raise NotImplementedError
-
-        multi_gen_executer._belay_level = 1
-        if hasattr(f, "_belay_level"):
-            multi_gen_executer._belay_level += f._belay_level
-
-        if isgeneratorfunction(f):
-            executer = gen_executer
-
-            # TODO: define multi_gen_executer
-            if multi_gen_executer._belay_level > 1:
-                raise NotImplementedError(
-                    "Multi-device generator task decorating not yet implemented."
-                )
-        else:
-            executer = multi_func_executer
+        executer = gen_executer if isgeneratorfunction(f) else func_executer
 
         if register:
             setattr(self, name, executer)
@@ -238,7 +210,7 @@ class _ThreadExecuter(_Executer):
     def __call__(
         self,
         f: Optional[Callable[..., None]] = None,
-        /,
+        *,
         minify: bool = True,
         register: bool = True,
         record: bool = True,
@@ -265,7 +237,7 @@ class _ThreadExecuter(_Executer):
             Remote-executor function.
         """
         if f is None:
-            return self  # type: ignore
+            return _wraps_partial(self, minify=minify, register=register, record=record)
 
         if self._belay_device.implementation.name == "circuitpython":
             raise FeatureUnavailableError("CircuitPython does not support threading.")
@@ -283,26 +255,10 @@ class _ThreadExecuter(_Executer):
                 src_file, src_lineno, name, cmd, record=record
             )
 
-        @wraps(f)
-        def multi_executer(*args, **kwargs):
-            res = executer(*args, **kwargs)
-            if hasattr(f, "_belay_level"):
-                # Call next device's wrapper.
-                if f._belay_level == 1:
-                    res = [f(*args, **kwargs), res]
-                else:
-                    res = [*f(*args, **kwargs), res]
-
-            return res
-
-        multi_executer._belay_level = 1
-        if hasattr(f, "_belay_level"):
-            multi_executer._belay_level += f._belay_level
-
         if register:
             setattr(self, name, executer)
 
-        return multi_executer
+        return executer
 
 
 def _discover_files_dirs(
@@ -442,6 +398,12 @@ class Implementation:
     emitters: Tuple[str]
 
 
+@dataclass
+class MethodMetadata:
+    executer: Callable
+    kwargs: dict
+
+
 class Device:
     """Belay interface into a micropython device.
 
@@ -478,16 +440,16 @@ class Device:
 
         self.task = _TaskExecuter(self)
         self.thread = _ThreadExecuter(self)
+        _executer_lookup = {
+            _TaskExecuter: self.task,
+            _ThreadExecuter: self.thread,
+        }
 
         self._exec_snippet("startup")
 
         self.implementation = Implementation(
             *self(
-                'print("_BELAYR("'
-                '+ repr(sys.implementation.name) + ","'
-                '+ repr(sys.implementation.version) + ","'
-                '+ repr(sys.platform) + ","'
-                '+")")'
+                "(sys.implementation.name, sys.implementation.version, sys.platform)"
             ),
             emitters=self._emitter_check(),
         )
@@ -499,6 +461,18 @@ class Device:
                 self._exec_snippet("convenience_imports_micropython")
         elif startup:
             self(startup)
+
+        # if subclassing Device, register methods decorated with
+        # ``@Device.task`` and ``@Device.thread``.
+        for name, method in vars(type(self)).items():
+            metadata = getattr(method, "__belay__", None)
+            if not metadata:
+                continue
+            setattr(
+                self,
+                name,
+                _executer_lookup[metadata.executer](method, **metadata.kwargs),
+            )
 
     def _emitter_check(self):
         # Detect which emitters are available
@@ -549,6 +523,7 @@ class Device:
     def __call__(
         self,
         cmd: str,
+        *,
         minify: bool = True,
         stream_out: TextIO = sys.stdout,
         record=True,
@@ -558,7 +533,7 @@ class Device:
         Parameters
         ----------
         cmd: str
-            Python code to execute.
+            Python code to execute. May be a statement or expression.
         minify: bool
             Minify ``cmd`` code prior to sending.
             Reduces the number of characters that need to be transmitted.
@@ -569,10 +544,13 @@ class Device:
 
         Returns
         -------
-            Return value from executing code on-device.
+            Correctly interpreted return value from executing code on-device.
         """
         if minify:
             cmd = minify_code(cmd)
+
+        if isexpression(cmd):
+            cmd = f"print('_BELAYR' + repr({cmd}))"
 
         if (
             record
@@ -791,6 +769,57 @@ class Device:
         for cmd in self._cmd_history:
             self(cmd, record=False)
 
+    @staticmethod
+    def task(f=None, **kwargs) -> staticmethod:
+        """Decorator that send code to device that executes when decorated function is called on-host.
+
+        Can either be used as a staticmethod ``@Device.task`` for marking methods in a subclass of ``Device``, or as a standard method ``@device.task`` for marking functions to a specific ``Device`` instance.
+
+        Parameters
+        ----------
+        f: Callable
+            Function to decorate. Can only accept and return python literals.
+        minify: bool
+            Minify ``cmd`` code prior to sending.
+            Defaults to ``True``.
+        register: bool
+            Assign an attribute to ``self.task`` with same name as ``f``.
+            Defaults to ``True``.
+        record: bool
+            Each invocation of the executer is recorded for playback upon reconnect.
+            Only recommended to be set to ``True`` for a setup-like function.
+            Defaults to ``False``.
+        """
+        if f is None:
+            return _wraps_partial(Device.task, **kwargs)  # type: ignore[reportGeneralTypeIssues]
+        f.__belay__ = MethodMetadata(executer=_TaskExecuter, kwargs=kwargs)
+        return f
+
+    @staticmethod
+    def thread(f=None, **kwargs) -> staticmethod:
+        """Decorator that send code to device that spawns a thread when executed.
+
+        Can either be used as a staticmethod ``@Device.thread`` for marking methods in a subclass of ``Device``, or as a standard method ``@device.thread`` for marking functions to a specific ``Device`` instance.
+
+        Parameters
+        ----------
+        f: Callable
+            Function to decorate. Can only accept python literals as arguments.
+        minify: bool
+            Minify ``cmd`` code prior to sending.
+            Defaults to ``True``.
+        register: bool
+            Assign an attribute to ``self.thread`` with same name as ``f``.
+            Defaults to ``True``.
+        record: bool
+            Each invocation of the executer is recorded for playback upon reconnect.
+            Defaults to ``True``.
+        """
+        if f is None:
+            return _wraps_partial(Device.task, **kwargs)  # type: ignore[reportGeneralTypeIssues]
+        f.__belay__ = MethodMetadata(executer=_ThreadExecuter, kwargs=kwargs)
+        return f
+
     def _traceback_execute(
         self,
         src_file: Union[str, Path],
@@ -798,7 +827,7 @@ class Device:
         name: str,
         cmd: str,
         record: bool = True,
-    ) -> BelayReturn:
+    ):
         """Invoke ``cmd``, and reinterprets raised stacktrace in ``PyboardException``.
 
         Parameters
@@ -814,6 +843,10 @@ class Device:
         record: bool
             Record the call for state-reconstruction if device is accidentally reset.
             Defaults to ``True``.
+
+        Returns
+        -------
+            Correctly interpreted return value from executing code on-device.
         """
         src_file = str(src_file)
 

@@ -2,8 +2,7 @@ Quick Start
 ===========
 
 Belay is a library that makes it quick and easy to interact with hardware via a MicroPython-compatible microcontroller.
-
-Belay has a single imporant class, ``Device``.
+Belay has a single imporant class, ``Device``:
 
 .. code-block:: python
 
@@ -16,20 +15,38 @@ On connection, the device is reset into REPL mode, and a few common imports are 
 
 .. code-block:: python
 
-   import binascii, errno, hashlib, machine, os, time
-   from machine import ADC, I2C, Pin, PWM, SPI, Timer
+   import os, time, machine
    from time import sleep
    from micropython import const
+   from machine import ADC, I2C, Pin, PWM, SPI, Timer
 
-The ``device`` object has 4 important methods for projects: directly calling, ``task``, ``thread``, and ``sync``.
+The ``device`` object has 4 important methods for projects: ``__call__``, ``task``, ``thread``, and ``sync``.
 These are described in the subsequent subsections.
 
-Call
+call
 ^^^^
 
-Directly calling the ``Device`` instance invokes a command string on-device.
-For example, ``device("foo = 1 + 2")`` would execute the code ``foo = 1 + 2`` on-device.
-This is typically used in Belay projects to import modules and declare global variables.
+Directly calling the ``device`` instance, like a function, invokes a python statement or expression on-device.
+
+Invoking a python statement like:
+
+.. code-block:: python
+
+   ret = device("foo = 1 + 2")
+
+would execute the code ``foo = 1 + 2`` on-device.
+Because this is a statement, the return value, ``ret`` is ``None``.
+
+Invoking a python expression like:
+
+.. code-block:: python
+
+   res = device("foo")
+
+results in ``res == 3``.
+
+Direct invocations like this are common to import modules and declare global variables.
+Alternative methods are described in the `task`_ section.
 
 task
 ^^^^
@@ -101,3 +118,41 @@ Then, after ``device.sync("board")`` is ran from ``main.py``, the remote filesys
     foo.py
     bar
     └── baz.py
+
+
+Subclassing Device
+^^^^^^^^^^^^^^^^^^
+``Device`` can be subclassed and have task/thread methods. Benefits of this approach is better organization, and being able to define tasks/threads before the actual object is instantiated.
+
+Consider the following:
+
+.. code-block:: python
+
+   from belay import Device
+
+   device = Device("/dev/ttyUSB0")
+
+
+   @device.task
+   def foo(a):
+       return a * 2
+
+is roughly equivalent to:
+
+.. code-block:: python
+
+   from belay import Device
+
+
+   class MyDevice(Device):
+       @Device.task
+       def foo(a):
+           return a * 2
+
+
+   device = MyDevice("/dev/ttyUSB0")
+
+Marking methods as tasks/threads in a class requires using the capital ``@Device.task`` decorator.
+Methods marked with ``@Device.task`` are similar to ``@staticmethod`` in that
+they do **not** contain ``self`` in the method signature.
+To the device, each marked method is equivalent to an independent function.
