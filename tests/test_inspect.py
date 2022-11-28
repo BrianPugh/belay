@@ -46,10 +46,26 @@ def test_getsource_basic(foo):
     assert file == foo.__file__
 
 
+def test_getsource_basic_body(foo):
+    code, lineno, file = belay.inspect.getsource(foo.foo, strip_signature=True)
+    assert code == "return arg1 +arg2 \n"
+    assert lineno == 16
+    assert file == foo.__file__
+
+
 def test_getsource_decorated_1(foo):
     code, lineno, file = belay.inspect.getsource(foo.foo_decorated_1)
     assert code == "def foo_decorated_1(arg1, arg2):\n    return arg1 + arg2\n"
     assert lineno == 20
+    assert file == foo.__file__
+
+
+def test_getsource_decorated_1_body(foo):
+    code, lineno, file = belay.inspect.getsource(
+        foo.foo_decorated_1, strip_signature=True
+    )
+    assert code == "return arg1 +arg2 \n"
+    assert lineno == 21
     assert file == foo.__file__
 
 
@@ -60,10 +76,28 @@ def test_getsource_decorated_2(foo):
     assert file == foo.__file__
 
 
+def test_getsource_decorated_2_body(foo):
+    code, lineno, file = belay.inspect.getsource(
+        foo.foo_decorated_2, strip_signature=True
+    )
+    assert code == "return arg1 +arg2 \n"
+    assert lineno == 26
+    assert file == foo.__file__
+
+
 def test_getsource_decorated_3(foo):
     code, lineno, file = belay.inspect.getsource(foo.foo_decorated_3)
     assert code == "def foo_decorated_3(arg1, arg2):\n    return arg1 + arg2\n"
     assert lineno == 30
+    assert file == foo.__file__
+
+
+def test_getsource_decorated_3_body(foo):
+    code, lineno, file = belay.inspect.getsource(
+        foo.foo_decorated_3, strip_signature=True
+    )
+    assert code == "return arg1 +arg2 \n"
+    assert lineno == 31
     assert file == foo.__file__
 
 
@@ -77,11 +111,30 @@ def test_getsource_decorated_4(foo):
     assert file == foo.__file__
 
 
+def test_getsource_decorated_4_body(foo):
+    code, lineno, file = belay.inspect.getsource(
+        foo.foo_decorated_4, strip_signature=True
+    )
+    assert code == "return arg1 +arg2 \n"
+    assert lineno == 39
+    assert file == foo.__file__
+
+
 def test_getsource_decorated_5(foo):
     """Removes leading indent."""
     code, lineno, file = belay.inspect.getsource(foo.foo_decorated_5)
     assert code == "def foo_decorated_5 (arg1 ,arg2 ):\n    return arg1 +arg2 \n"
     assert lineno == 45
+    assert file == foo.__file__
+
+
+def test_getsource_decorated_5_body(foo):
+    """Removes leading indent."""
+    code, lineno, file = belay.inspect.getsource(
+        foo.foo_decorated_5, strip_signature=True
+    )
+    assert code == "return arg1 +arg2 \n"
+    assert lineno == 46
     assert file == foo.__file__
 
 
@@ -93,6 +146,16 @@ def test_getsource_decorated_6(foo):
     assert file == foo.__file__
 
 
+def test_getsource_decorated_6_body(foo):
+    """Double decorated."""
+    code, lineno, file = belay.inspect.getsource(
+        foo.foo_decorated_6, strip_signature=True
+    )
+    assert code == "return arg1 +arg2 \n"
+    assert lineno == 52
+    assert file == foo.__file__
+
+
 def test_getsource_decorated_7(foo):
     """Double decorated."""
     code, lineno, file = belay.inspect.getsource(foo.foo_decorated_7)
@@ -101,6 +164,16 @@ def test_getsource_decorated_7(foo):
         == 'def foo_decorated_7(arg1, arg2):\n    return """This\n    is\na\n  multiline\n             string.\n"""\n'
     )
     assert lineno == 56
+    assert file == foo.__file__
+
+
+def test_getsource_decorated_7_body(foo):
+    """Double decorated."""
+    code, lineno, file = belay.inspect.getsource(
+        foo.foo_decorated_7, strip_signature=True
+    )
+    assert code == 'return """This\n    is\na\n  multiline\n             string.\n"""\n'
+    assert lineno == 57
     assert file == foo.__file__
 
 

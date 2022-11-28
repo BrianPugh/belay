@@ -56,7 +56,7 @@ def _dedent(code):
 def _remove_signature(code):
     tree = ast.parse(code)
     lines = code.split("\n")
-    lines_removed = tree.body[0].body[0].end_lineno - 1
+    lines_removed = tree.body[0].body[0].lineno - 1
     # TODO: won't properly handle single line functions.
     # Or other weirdly formatted stuff.
     lines = lines[lines_removed:]
