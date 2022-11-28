@@ -170,3 +170,15 @@ def test_isexpression_basic():
     # Invalid syntax (False)
     assert belay.inspect.isexpression("1foo") == False
     assert belay.inspect.isexpression("1+") == False
+
+
+def test_remove_signature_basic():
+    code = "def foo(arg1, arg2):\n    arg1 += 1\n    return arg1 + arg2\n"
+    res = belay.inspect._remove_signature(code)
+    assert res == "    arg1 += 1\n    return arg1 + arg2\n"
+
+
+def test_remove_signature_multiline():
+    code = "def foo(arg1,\n arg2\n):\n    arg1 += 1\n    return arg1 + arg2\n"
+    res = belay.inspect._remove_signature(code)
+    assert res == "    arg1 += 1\n    return arg1 + arg2\n"

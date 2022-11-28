@@ -1,3 +1,4 @@
+import ast
 import inspect
 import re
 from io import StringIO
@@ -50,6 +51,16 @@ def _dedent(code):
         return untokenize(_dedent_tokenizer(code))
     except _NoAction:
         return code
+
+
+def _remove_signature(code):
+    tree = ast.parse(code)
+    lines = code.split("\n")
+    end_lineno = tree.body[0].body[0].end_lineno
+    # TODO: won't properly handle single line functions.
+    # Or other weirdly formatted stuff.
+    lines = lines[end_lineno - 1 :]
+    return "\n".join(lines)
 
 
 def getsource(f) -> Tuple[str, int, str]:
