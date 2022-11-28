@@ -174,11 +174,35 @@ def test_isexpression_basic():
 
 def test_remove_signature_basic():
     code = "def foo(arg1, arg2):\n    arg1 += 1\n    return arg1 + arg2\n"
-    res = belay.inspect._remove_signature(code)
+    res, lines_removed = belay.inspect._remove_signature(code)
+    assert lines_removed == 1
     assert res == "    arg1 += 1\n    return arg1 + arg2\n"
 
 
 def test_remove_signature_multiline():
     code = "def foo(arg1,\n arg2\n):\n    arg1 += 1\n    return arg1 + arg2\n"
-    res = belay.inspect._remove_signature(code)
+    res, lines_removed = belay.inspect._remove_signature(code)
+    assert lines_removed == 3
     assert res == "    arg1 += 1\n    return arg1 + arg2\n"
+
+
+@pytest.mark.skip(reason="poc for executing body of function. remove later.")
+def test_signature_as_globals_poc():
+    def foo(arg1, arg2, arg3=1):
+        return arg1 + arg2 + arg3
+
+    import inspect
+    from functools import wraps
+
+    signature = inspect.signature(foo)
+
+    @wraps(foo)
+    def foo_wrapped(*args, **kwargs):
+        bound_arguments = signature.bind(*args, **kwargs)
+        bound_arguments.apply_defaults()
+        arg_assign_cmd = "\n".join(
+            f"{name}={repr(val)}" for name, val in bound_arguments.arguments.items()
+        )
+        print(arg_assign_cmd)
+
+    foo_wrapped("a", "b", "c")
