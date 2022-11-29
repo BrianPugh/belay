@@ -22,7 +22,7 @@ def test_install_basic(mocker):
     assert mock_sync.call_args_list == [
         mocker.call(
             port="/dev/ttyUSB0",
-            folder=Path(".belay-lib"),
+            folder=Path(".belay/dependencies/default"),
             dst="/lib",
             password="password",
             keep=None,
