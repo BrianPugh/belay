@@ -36,23 +36,36 @@ Next, we will create a ``Device`` object that will connect to the board.
 
       device = belay.Device("/dev/ttyUSB0")
 
-This also executes `some convenience imports on the board`_.
-We will be only using the ``Pin`` class in this example.
+Belay contains a small collections of decorators that shuttle code and commands to a micropython board.
+The body of decorated functions *always* execute on-device; never on host.
+
+Using the ``setup`` decorator, define a function to import the ``Pin`` class and create an object representing an LED.
+We don't strictly need to import ``Pin`` since its included in Belay's `convenience imports`_, but do so here for clarity.
+The pin number may vary, depending on your hardware setup.
+``setup`` decorated functions do not do anything until invoked.
+
+.. code-block:: python
+
+   @device.setup
+   def setup():  # The function name doesn't matter, but is "setup" by convention.
+       from machine import Pin
+
+       led = Pin(25, Pin.OUT)
+
+
 Next, we will decorate a function with the ``task`` decorator.
-The function decorated by this decorator will be sent to the board.
-The body of this function will never execute on host.
+The source code of the function decorated by ``task`` will be *immediately* sent to the board.
 
 .. code-block:: python
 
    @device.task
    def set_led(state):
        print(f"Printing from device; turning LED to {state}.")
-       Pin(25, Pin.OUT).value(state)
+       led.value(state)
 
-The pin number may vary, depending on your hardware setup.
 Now that the function ``set_led`` is defined in the board's current environment, we can execute it.
 Calling ``set_led(True)`` won't invoke the function on the host, but will send a command to execute it on-device with the argument ``True``.
 On-device ``print`` calls have their results forwarded to the host's ``stdout``.
 This results in the LED turning on.
 
-.. _some convenience imports on the board: https://github.com/BrianPugh/belay/blob/main/belay/snippets/convenience_imports_micropython.py
+.. _convenience imports: https://github.com/BrianPugh/belay/blob/main/belay/snippets/convenience_imports_micropython.py
