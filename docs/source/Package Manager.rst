@@ -6,10 +6,10 @@ In a nutshell, the Belay Package Manager does the following:
 
 1. Reads settings from ``pyproject.toml``. Dependencies are defined by URL's where they can be fetched.
    Commonly these are files hosted on github.
-2. Downloads dependencies to the ``.belay-lib`` folder. This folder should be committed to your
+2. Downloads dependencies to the ``.belay/dependencies/default`` folder. This folder should be committed to your
    project's git repository. This allows for repeatable deployment, even if a remote dependency
    goes missing or changes it's API.
-3. Syncs the contents of ``.belay-lib`` to the on-device ``/lib`` folder. This folder is included
+3. Syncs the contents of ``.belay/dependencies/default`` to the on-device ``/lib`` folder. This folder is included
    in the on-device ``PATH``.
 4. Syncs the contents of your project directory.
 
@@ -27,7 +27,7 @@ A typical project will look like:
    some_dependency = "https://github.com/BrianPugh/some-dependency/blob/main/some_dependency.py"
 
    [tool.pytest.ini_options]
-   pythonpath = ".belay-lib"
+   pythonpath = ".belay/dependencies/default"
 
 Belay assumes your project contains a python-package with the same name as ``tool.belay.name`` located in the root of your project.
 
@@ -53,8 +53,8 @@ Update
 ``belay update`` iterates over and downloads the dependencies defined
 in ``tool.belay.dependencies`` of ``pyproject.toml``.
 This command should be ran from the root of your project, and is ran when new upstream library changes want to be pulled.
-The downloaded dependencies are stored in ``.belay-lib/`` of the current working directory.
-``.belay-lib/`` should be committed to your git repo and can be thought of as a dependency lock file.
+The downloaded dependencies are stored in ``.belay/dependencies/default/`` of the current working directory.
+``.belay/dependencies/default/`` should be committed to your git repo and can be thought of as a dependency lock file.
 
 This decision is made because:
 
