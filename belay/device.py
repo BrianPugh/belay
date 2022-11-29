@@ -552,7 +552,7 @@ class Device(Registry):
             self(cmd, record=False)
 
     @staticmethod
-    def setup(f=None, **kwargs) -> staticmethod:
+    def setup(f=None, **kwargs) -> Callable:
         """Decorator that executes function's body in a global-context on-device when called.
 
         Keyword arguments are also in the global context.
@@ -580,7 +580,7 @@ class Device(Registry):
         return f
 
     @staticmethod
-    def task(f=None, **kwargs) -> staticmethod:
+    def task(f=None, **kwargs) -> Callable:
         """Decorator that send code to device that executes when decorated function is called on-host.
 
         Can either be used as a staticmethod ``@Device.task`` for marking methods in a subclass of ``Device``, or as a standard method ``@device.task`` for marking functions to a specific ``Device`` instance.
@@ -606,7 +606,7 @@ class Device(Registry):
         return f
 
     @staticmethod
-    def thread(f=None, **kwargs) -> staticmethod:
+    def thread(f=None, **kwargs) -> Callable:
         """Decorator that send code to device that spawns a thread when executed.
 
         Can either be used as a staticmethod ``@Device.thread`` for marking methods in a subclass of ``Device``, or as a standard method ``@device.thread`` for marking functions to a specific ``Device`` instance.
