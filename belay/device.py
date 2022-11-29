@@ -8,7 +8,7 @@ import string
 import subprocess  # nosec
 import sys
 import tempfile
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from dataclasses import dataclass
 from functools import lru_cache, partial, wraps
 from inspect import isgeneratorfunction, signature
@@ -93,7 +93,7 @@ def _parse_belay_response(line):
         raise ValueError(f'Received unknown code: "{code}"')
 
 
-class _Executer(ABC):
+class Executer(Registry, suffix="Executer"):
     def __init__(self, device):
         # To avoid Executer.__setattr__ raising an error
         object.__setattr__(self, "_belay_device", device)
@@ -118,7 +118,24 @@ class _Executer(ABC):
         raise NotImplementedError
 
 
-class _TaskExecuter(_Executer):
+class SetupExecuter(Executer):
+    def __call__(
+        self,
+        f: Optional[BelayCallable] = None,
+        *,
+        minify: bool = True,
+        register: bool = True,
+        record: bool = True,
+    ):
+        if f is None:
+            return _wraps_partial(self, minify=minify, register=register, record=record)
+        name = f.__name__
+        src_code, src_lineno, src_file = getsource(f)
+
+        raise NotImplementedError
+
+
+class TaskExecuter(Executer):
     def __call__(
         self,
         f: Optional[BelayCallable] = None,
@@ -207,7 +224,7 @@ class _TaskExecuter(_Executer):
         return executer
 
 
-class _ThreadExecuter(_Executer):
+class ThreadExecuter(Executer):
     def __call__(
         self,
         f: Optional[Callable[..., None]] = None,
@@ -439,12 +456,9 @@ class Device(Registry):
 
         self._connect_to_board(**self._board_kwargs)
 
-        self.task = _TaskExecuter(self)
-        self.thread = _ThreadExecuter(self)
-        _executer_lookup = {
-            _TaskExecuter: self.task,
-            _ThreadExecuter: self.thread,
-        }
+        self.setup = SetupExecuter(self)  # type: ignore[reportGeneralTypeIssues]
+        self.task = TaskExecuter(self)  # type: ignore[reportGeneralTypeIssues]
+        self.thread = ThreadExecuter(self)  # type: ignore[reportGeneralTypeIssues]
 
         self._exec_snippet("startup")
 
@@ -469,10 +483,11 @@ class Device(Registry):
             metadata = getattr(method, "__belay__", None)
             if not metadata:
                 continue
+            executer = getattr(Executer, metadata.executer.__registry__.name)
             setattr(
                 self,
                 name,
-                _executer_lookup[metadata.executer](method, **metadata.kwargs),
+                executer(method, **metadata.kwargs),
             )
 
     def _emitter_check(self):
@@ -771,6 +786,34 @@ class Device(Registry):
             self(cmd, record=False)
 
     @staticmethod
+    def setup(f=None, **kwargs) -> staticmethod:
+        """Decorator that executes function's body in a global-context on-device when called.
+
+        Keyword arguments are also in the global context.
+
+        Can either be used as a staticmethod ``@Device.setup`` for marking methods in a subclass of ``Device``, or as a standard method ``@device.setup`` for marking functions to a specific ``Device`` instance.
+
+        Parameters
+        ----------
+        f: Callable
+            Function to decorate. Can only accept and return python literals.
+        minify: bool
+            Minify ``cmd`` code prior to sending.
+            Defaults to ``True``.
+        register: bool
+            Assign an attribute to ``self.setup`` with same name as ``f``.
+            Defaults to ``True``.
+        record: bool
+            Each invocation of the executer is recorded for playback upon reconnect.
+            Only recommended to be set to ``True`` for a setup-like function.
+            Defaults to ``False``.
+        """
+        if f is None:
+            return _wraps_partial(Device.setup, **kwargs)  # type: ignore[reportGeneralTypeIssues]
+        f.__belay__ = MethodMetadata(executer=SetupExecuter, kwargs=kwargs)
+        return f
+
+    @staticmethod
     def task(f=None, **kwargs) -> staticmethod:
         """Decorator that send code to device that executes when decorated function is called on-host.
 
@@ -793,7 +836,7 @@ class Device(Registry):
         """
         if f is None:
             return _wraps_partial(Device.task, **kwargs)  # type: ignore[reportGeneralTypeIssues]
-        f.__belay__ = MethodMetadata(executer=_TaskExecuter, kwargs=kwargs)
+        f.__belay__ = MethodMetadata(executer=TaskExecuter, kwargs=kwargs)
         return f
 
     @staticmethod
@@ -818,7 +861,7 @@ class Device(Registry):
         """
         if f is None:
             return _wraps_partial(Device.task, **kwargs)  # type: ignore[reportGeneralTypeIssues]
-        f.__belay__ = MethodMetadata(executer=_ThreadExecuter, kwargs=kwargs)
+        f.__belay__ = MethodMetadata(executer=ThreadExecuter, kwargs=kwargs)
         return f
 
     def _traceback_execute(
