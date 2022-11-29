@@ -553,9 +553,11 @@ class Device(Registry):
 
     @staticmethod
     def setup(f=None, **kwargs) -> Callable:
-        """Decorator that executes function's body in a global-context on-device when called.
+        """setup(f, *, minify=True, register=True, record=True)
 
-        Keyword arguments are also in the global context.
+        Decorator that executes function's body in a global-context on-device when called.
+
+        Function arguments are also set in the global context.
 
         Can either be used as a staticmethod ``@Device.setup`` for marking methods in a subclass of ``Device``, or as a standard method ``@device.setup`` for marking functions to a specific ``Device`` instance.
 
@@ -571,9 +573,8 @@ class Device(Registry):
             Defaults to ``True``.
         record: bool
             Each invocation of the executer is recorded for playback upon reconnect.
-            Only recommended to be set to ``True`` for a setup-like function.
-            Defaults to ``False``.
-        """
+            Defaults to ``True``.
+        """  # noqa: D400
         if f is None:
             return wraps_partial(Device.setup, **kwargs)  # type: ignore[reportGeneralTypeIssues]
         f.__belay__ = MethodMetadata(executer=SetupExecuter, kwargs=kwargs)
@@ -581,7 +582,9 @@ class Device(Registry):
 
     @staticmethod
     def task(f=None, **kwargs) -> Callable:
-        """Decorator that send code to device that executes when decorated function is called on-host.
+        """task(f, *, minify=True, register=True, record=False)
+
+        Decorator that send code to device that executes when decorated function is called on-host.
 
         Can either be used as a staticmethod ``@Device.task`` for marking methods in a subclass of ``Device``, or as a standard method ``@device.task`` for marking functions to a specific ``Device`` instance.
 
@@ -599,7 +602,7 @@ class Device(Registry):
             Each invocation of the executer is recorded for playback upon reconnect.
             Only recommended to be set to ``True`` for a setup-like function.
             Defaults to ``False``.
-        """
+        """  # noqa: D400
         if f is None:
             return wraps_partial(Device.task, **kwargs)  # type: ignore[reportGeneralTypeIssues]
         f.__belay__ = MethodMetadata(executer=TaskExecuter, kwargs=kwargs)
@@ -607,7 +610,9 @@ class Device(Registry):
 
     @staticmethod
     def thread(f=None, **kwargs) -> Callable:
-        """Decorator that send code to device that spawns a thread when executed.
+        """thread(f, *, minify=True, register=True, record=True)
+
+        Decorator that send code to device that spawns a thread when executed.
 
         Can either be used as a staticmethod ``@Device.thread`` for marking methods in a subclass of ``Device``, or as a standard method ``@device.thread`` for marking functions to a specific ``Device`` instance.
 
@@ -624,7 +629,7 @@ class Device(Registry):
         record: bool
             Each invocation of the executer is recorded for playback upon reconnect.
             Defaults to ``True``.
-        """
+        """  # noqa: D400
         if f is None:
             return wraps_partial(Device.task, **kwargs)  # type: ignore[reportGeneralTypeIssues]
         f.__belay__ = MethodMetadata(executer=ThreadExecuter, kwargs=kwargs)

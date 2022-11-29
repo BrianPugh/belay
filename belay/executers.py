@@ -46,6 +46,7 @@ class SetupExecuter(Executer):
         register: bool = True,
         record: bool = True,
     ):
+        """See ``Device.setup``."""
         if f is None:
             return wraps_partial(self, minify=minify, register=register, record=record)
         if inspect.isgeneratorfunction(f):
@@ -86,28 +87,7 @@ class TaskExecuter(Executer):
         register: bool = True,
         record: bool = False,
     ):
-        """Decorator that send code to device that executes when decorated function is called on-host.
-
-        Parameters
-        ----------
-        f: Callable
-            Function to decorate. Can only accept and return python literals.
-        minify: bool
-            Minify ``cmd`` code prior to sending.
-            Defaults to ``True``.
-        register: bool
-            Assign an attribute to ``self`` with same name as ``f``.
-            Defaults to ``True``.
-        record: bool
-            Record task execution calls for state-reconstruction if device is accidentally reset.
-            Only recommended for tasks that are called a low amount of times to setup device state.
-            Defaults to ``False``.
-
-        Returns
-        -------
-        Callable
-            Remote-executor function.
-        """
+        """See ``Device.task``."""
         if f is None:
             return wraps_partial(self, minify=minify, register=register, record=record)
 
@@ -175,27 +155,7 @@ class ThreadExecuter(Executer):
         register: bool = True,
         record: bool = True,
     ) -> Callable[..., None]:
-        """Decorator that send code to device that spawns a thread when executed.
-
-        Parameters
-        ----------
-        f: Callable
-            Function to decorate. Can only accept python literals as arguments.
-        minify: bool
-            Minify ``cmd`` code prior to sending.
-            Defaults to ``True``.
-        register: bool
-            Assign an attribute to ``self`` with same name as ``f``.
-            Defaults to ``True``.
-        record: bool
-            Record thread execution calls for state-reconstruction if device is accidentally reset.
-            Defaults to ``True``.
-
-        Returns
-        -------
-        Callable
-            Remote-executor function.
-        """
+        """See ``Device.thread``."""
         if f is None:
             return wraps_partial(self, minify=minify, register=register, record=record)
 
