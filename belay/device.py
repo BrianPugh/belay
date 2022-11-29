@@ -222,9 +222,8 @@ class Device(Registry):
 
         self._connect_to_board(**self._board_kwargs)
 
-        self.setup = SetupExecuter(self)  # type: ignore[reportGeneralTypeIssues]
-        self.task = TaskExecuter(self)  # type: ignore[reportGeneralTypeIssues]
-        self.thread = ThreadExecuter(self)  # type: ignore[reportGeneralTypeIssues]
+        for executer_name, executer_cls in Executer.items():
+            setattr(self, executer_name, executer_cls(self))
 
         self._exec_snippet("startup")
 
