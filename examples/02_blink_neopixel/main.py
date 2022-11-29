@@ -11,8 +11,11 @@ args = parser.parse_args()
 # This also executes a few common imports on-device.
 device = belay.Device(args.port)
 
+
 # Executes string on-device in a global context.
-device("import neopixel")
+@device.setup
+def setup():
+    import neopixel
 
 
 # This sends the function's code over to the board.
@@ -26,6 +29,7 @@ def set_neopixel(r, g, b):
     pixel.write()
 
 
+setup()
 while True:
     set_neopixel(255, 0, 0)
     time.sleep(0.5)

@@ -1,10 +1,11 @@
+import inspect
 from abc import abstractmethod
 from functools import wraps
-from inspect import isgeneratorfunction, signature
 from typing import Callable, Optional
 
 from autoregistry import Registry
 
+from ._minify import minify as _minify
 from .exceptions import FeatureUnavailableError, SpecialFunctionNameError
 from .helpers import random_python_identifier, wraps_partial
 from .inspect import getsource
@@ -47,10 +48,33 @@ class SetupExecuter(Executer):
     ):
         if f is None:
             return wraps_partial(self, minify=minify, register=register, record=record)
+        if inspect.isgeneratorfunction(f):
+            raise ValueError("@Device.setup does not support generators.")
         name = f.__name__
-        src_code, src_lineno, src_file = getsource(f)
+        src_code, src_lineno, src_file = getsource(f, strip_signature=True)
+        if minify:
+            src_code = _minify(src_code)
+        signature = inspect.signature(f)
 
-        raise NotImplementedError
+        @wraps(f)
+        def executer(*args, **kwargs):
+            cmd = src_code
+            bound_arguments = signature.bind(*args, **kwargs)
+            bound_arguments.apply_defaults()
+            arg_assign_cmd = "\n".join(
+                f"{name}={repr(val)}" for name, val in bound_arguments.arguments.items()
+            )
+            if arg_assign_cmd:
+                cmd = arg_assign_cmd + "\n" + cmd
+
+            return self._belay_device._traceback_execute(
+                src_file, src_lineno, name, cmd, record=record
+            )
+
+        if register:
+            setattr(self, name, executer)
+
+        return executer
 
 
 class TaskExecuter(Executer):
@@ -134,7 +158,7 @@ class TaskExecuter(Executer):
 
             return gen_inner()
 
-        executer = gen_executer if isgeneratorfunction(f) else func_executer
+        executer = gen_executer if inspect.isgeneratorfunction(f) else func_executer
 
         if register:
             setattr(self, name, executer)
