@@ -16,6 +16,7 @@ def __belay(name):
             except StopIteration:
                 pass
         globals()["_belay_" + name] = gen_wrapper if isinstance(f, type(lambda: (yield))) else func_wrapper
+        return f
     return inner
 def __belay_gen_next(x, val):
     try:

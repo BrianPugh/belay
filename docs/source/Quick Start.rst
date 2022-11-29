@@ -20,7 +20,7 @@ On connection, the device is reset into REPL mode, and a few common imports are 
    from micropython import const
    from machine import ADC, I2C, Pin, PWM, SPI, Timer
 
-The ``device`` object has 4 important methods for projects: ``__call__``, ``task``, ``thread``, and ``sync``.
+The ``device`` object has 5 important methods for projects: ``__call__``, ``setup``, ``task``, ``thread``, and ``sync``.
 These are described in the subsequent subsections.
 
 call
@@ -45,8 +45,33 @@ Invoking a python expression like:
 
 results in ``res == 3``.
 
-Direct invocations like this are common to import modules and declare global variables.
-Alternative methods are described in the `task`_ section.
+setup
+^^^^^
+The ``setup`` decorator is a way of invoking code on-device in a global context,
+and is commonly used for imports and instantiating objects and hardware.
+For example:
+
+.. code-block:: python
+
+   @device.setup
+   def setup(pin_number):
+       from machine import Pin
+
+       led = Pin(pin_number)
+
+
+   setup(25)
+
+is equivalent to:
+
+.. code-block:: python
+
+   device("pin_number = 25")
+   device("from machine import Pin")
+   device("led = Pin(pin_number)")
+
+Functions decorated with ``setup`` should be called only a few times at most.
+For repeated functions calls, use the `task`_ decorator.
 
 task
 ^^^^
@@ -65,10 +90,7 @@ Invoking ``bar = foo(5)`` on host sends a command to the device to execute the f
 The result, ``10``, is sent back to the host and results in ``bar == 10``.
 This is the preferable way to interact with hardware.
 
-If a task is registered to multiple Belay devices, it will execute sequentially on the devices in the order that they were decorated (bottom upwards).
-The return value would be a list of results in order.
-
-To explicitly call a task on just one device, it can be invoked ``device.task.foo()``.
+Alternatively, the ``foo`` function will also be available at ``device.task.foo``.
 
 thread
 ^^^^^^
@@ -89,10 +111,6 @@ thread
 
 Not all MicroPython boards support threading, and those that do typically have a maximum of ``1`` thread.
 The decorated function has no return value.
-
-If a thread is registered to multiple Belay devices, it will execute sequentially on the devices in the order that they were decorated (bottom upwards).
-
-To explicitly call a thread on just one device, it can be invoked ``device.thread.led_loop()``.
 
 sync
 ^^^^
@@ -156,3 +174,4 @@ Marking methods as tasks/threads in a class requires using the capital ``@Device
 Methods marked with ``@Device.task`` are similar to ``@staticmethod`` in that
 they do **not** contain ``self`` in the method signature.
 To the device, each marked method is equivalent to an independent function.
+Methods can be marked with ``@Device.setup`` or ``@Device.thread`` for their respective functionality.

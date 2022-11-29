@@ -11,9 +11,14 @@ args = parser.parse_args()
 # This also executes a few common imports on-device.
 device = belay.Device(args.port)
 
-# Executes string on-device in a global context.
-device("led = digitalio.DigitalInOut(board.LED)")
-device("led.direction = digitalio.Direction.OUTPUT")
+
+@device.setup
+def setup():  # The function name doesn't matter, but is "setup" by convention.
+    import board
+    import digitalio
+
+    led = digitalio.DigitalInOut(board.LED)
+    led.direction = digitalio.Direction.OUTPUT
 
 
 # This sends the function's code over to the board.

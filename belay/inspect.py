@@ -1,3 +1,4 @@
+import ast
 import inspect
 import re
 from io import StringIO
@@ -52,7 +53,17 @@ def _dedent(code):
         return code
 
 
-def getsource(f) -> Tuple[str, int, str]:
+def _remove_signature(code):
+    tree = ast.parse(code)
+    lines = code.split("\n")
+    lines_removed = tree.body[0].body[0].lineno - 1
+    # TODO: won't properly handle single line functions.
+    # Or other weirdly formatted stuff.
+    lines = lines[lines_removed:]
+    return "\n".join(lines), lines_removed
+
+
+def getsource(f, *, strip_signature=False) -> Tuple[str, int, str]:
     """Get source code with mild post processing.
 
     * strips leading decorators.
@@ -62,6 +73,8 @@ def getsource(f) -> Tuple[str, int, str]:
     ----------
     f: Callable
         Function to get source code of.
+    strip_signature: bool
+        Remove the function signature from the returned code.
 
     Returns
     -------
@@ -89,6 +102,12 @@ def getsource(f) -> Tuple[str, int, str]:
     src_lineno += offset
 
     src_code = _dedent(src_code)
+
+    if strip_signature:
+        src_code, lines_removed = _remove_signature(src_code)
+        src_lineno += lines_removed
+
+        src_code = _dedent(src_code)
 
     return src_code, src_lineno, src_file
 
