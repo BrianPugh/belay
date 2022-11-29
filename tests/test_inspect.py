@@ -206,7 +206,7 @@ a
     assert file == __file__
 
 
-def test_getsource_nested_multiline_string():
+def test_getsource_nested_multiline_function():
     # fmt: off
     def bar(a, b):
         return a * b
