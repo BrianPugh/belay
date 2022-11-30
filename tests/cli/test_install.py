@@ -9,7 +9,7 @@ cli_runner = CliRunner()
 
 def test_install_basic(mocker):
     toml = {"name": "my_pkg_name"}
-    mock_load_toml = mocker.patch("belay.cli.install.load_toml", return_value=toml)
+    mock_load_toml = mocker.patch("belay.cli.install.load_pyproject", return_value=toml)
     mock_sync = mocker.patch("belay.cli.install.sync")
     mock_run = mocker.patch("belay.cli.install.run_cmd")
 
