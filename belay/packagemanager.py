@@ -62,7 +62,7 @@ def _get_text(url: Union[str, Path]):
 def download_dependencies(
     dependencies: Dict[str, Union[str, Dict]],
     packages: Optional[List[str]] = None,
-    local_dir: Union[str, Path] = ".belay/dependencies/default",
+    local_dir: Union[str, Path] = ".belay/dependencies/main",
     console: Optional[Console] = None,
 ):
     """Download dependencies.
@@ -129,7 +129,7 @@ def download_dependencies(
 
 def clean_local(
     dependencies: Union[Set[str], List[str]],
-    local_dir: Union[str, Path] = ".belay/dependencies/default",
+    local_dir: Union[str, Path] = ".belay/dependencies/main",
 ):
     """Delete downloaded dependencies if they are no longer referenced."""
     local_dir = Path(local_dir)

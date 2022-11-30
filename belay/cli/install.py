@@ -31,7 +31,7 @@ def install(
 
     sync(
         port=port,
-        folder=Path(".belay/dependencies/default"),
+        folder=Path(".belay/dependencies/main"),
         dst="/lib",
         password=password,
         keep=None,
