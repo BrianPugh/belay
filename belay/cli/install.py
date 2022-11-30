@@ -5,7 +5,7 @@ from rich.progress import Progress
 from typer import Argument, Option
 
 from belay import Device
-from belay.cli.common import help_password, help_port, load_toml
+from belay.cli.common import help_password, help_port, load_pyproject
 from belay.cli.run import run as run_cmd
 from belay.cli.sync import sync
 
@@ -26,7 +26,7 @@ def install(
         raise ValueError("Run script MUST be a python file.")
     if main and main.suffix != ".py":
         raise ValueError("Main script MUST be a python file.")
-    toml = load_toml()
+    toml = load_pyproject()
     pkg_name = toml.get("name")
 
     sync(

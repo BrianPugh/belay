@@ -5,13 +5,13 @@ from typer import Argument
 
 from belay.packagemanager import clean_local, download_dependencies
 
-from .common import load_toml
+from .common import load_pyproject
 
 
 def update(packages: List[str] = Argument(None, help="Specific package(s) to update.")):
     """Download new versions of dependencies."""
     console = Console()
-    toml = load_toml()
+    toml = load_pyproject()
 
     try:
         dependencies = toml["dependencies"]
