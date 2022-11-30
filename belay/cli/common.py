@@ -1,3 +1,4 @@
+from functools import lru_cache
 from pathlib import Path
 from typing import Union
 
@@ -9,6 +10,7 @@ help_password = (  # nosec
 )
 
 
+@lru_cache
 def find_pyproject() -> Path:
     path = Path("pyproject.toml").absolute()
 
@@ -19,10 +21,12 @@ def find_pyproject() -> Path:
     raise FileNotFoundError
 
 
+@lru_cache
 def find_belay() -> Path:
     return find_pyproject().parent / ".belay"
 
 
+@lru_cache
 def load_toml(path: Union[str, Path]) -> dict:
     path = Path(path)
     with path.open("rb") as f:
@@ -36,6 +40,7 @@ def load_toml(path: Union[str, Path]) -> dict:
     return toml
 
 
+@lru_cache
 def load_pyproject() -> dict:
     """Load the pyproject TOML file."""
     pyproject_path = find_pyproject()
