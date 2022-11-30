@@ -248,7 +248,7 @@ class Device(Registry):
             metadata = getattr(method, "__belay__", None)
             if not metadata:
                 continue
-            executer = getattr(Executer, metadata.executer.__registry__.name)
+            executer = getattr(self, metadata.executer.__registry__.name)
             setattr(
                 self,
                 name,
