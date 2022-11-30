@@ -4,4 +4,4 @@ name = "packagename"
 [tool.belay.dependencies]
 
 [tool.pytest.ini_options]
-pythonpath = ".belay/dependencies/default"
+pythonpath = ".belay/dependencies/main"
