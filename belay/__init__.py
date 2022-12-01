@@ -3,12 +3,15 @@ __version__ = "0.0.0"
 
 __all__ = [
     "AuthenticationError",
-    "minify",
+    "ConnectionLost",
     "Device",
-    "SpecialFunctionNameError",
-    "PyboardException",
-    "Implementation",
     "FeatureUnavailableError",
+    "Implementation",
+    "MaxHistoryLengthError",
+    "PyboardException",
+    "SpecialFunctionNameError",
+    "list_devices",
+    "minify",
 ]
 from ._minify import minify
 from .device import Device, Implementation
@@ -19,4 +22,5 @@ from .exceptions import (
     MaxHistoryLengthError,
     SpecialFunctionNameError,
 )
+from .helpers import list_devices
 from .pyboard import PyboardException
