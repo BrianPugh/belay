@@ -30,6 +30,10 @@ def read_snippet(name):
 def list_devices() -> List[str]:
     """Lists available device ports.
 
+    For example::
+
+        ['/dev/cu.usbmodem1143401', '/dev/cu.usbmodem113101']
+
     Returns
     -------
     list[str]
