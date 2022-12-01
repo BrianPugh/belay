@@ -20,3 +20,4 @@ from .exceptions import (
     SpecialFunctionNameError,
 )
 from .pyboard import PyboardException
+from .helpers import list_devices
