@@ -2,7 +2,21 @@ import os
 
 import pytest
 
-from belay.cli.common import find_pyproject, load_pyproject, load_toml
+import belay
+from belay.cli.common import (
+    find_pyproject,
+    load_dependency_groups,
+    load_pyproject,
+    load_toml,
+)
+
+
+@pytest.fixture(autouse=True)
+def cache_clear():
+    find_pyproject.cache_clear()
+    load_pyproject.cache_clear()
+    load_toml.cache_clear()
+    load_dependency_groups.cache_clear()
 
 
 @pytest.fixture
@@ -44,3 +58,54 @@ foo = "bar"
     )
     actual = load_toml(fn)
     assert not actual
+
+
+@pytest.fixture
+def mock_load_pyproject(mocker):
+    return mocker.patch("belay.cli.common.load_pyproject")
+
+
+def test_load_dependency_groups_empty(mock_load_pyproject):
+    mock_load_pyproject.return_value = {}
+    assert load_dependency_groups() == {}
+
+
+def test_load_dependency_groups_main_only(mock_load_pyproject):
+    mock_load_pyproject.return_value = {
+        "dependencies": {"foo": "foo_uri"},
+    }
+    assert load_dependency_groups() == {
+        "main": {"foo": "foo_uri"},
+    }
+
+
+def test_load_dependency_groups_main_group(mock_load_pyproject):
+    mock_load_pyproject.return_value = {
+        "group": {
+            "main": {
+                "dependencies": {
+                    "foo": "foo_uri",
+                }
+            },
+        },
+    }
+    with pytest.raises(belay.ConfigError):
+        load_dependency_groups()
+
+
+def test_load_dependency_groups_multiple(mock_load_pyproject):
+    mock_load_pyproject.return_value = {
+        "dependencies": {"foo": "foo_uri"},
+        "group": {
+            "dev": {
+                "dependencies": {
+                    "bar": "bar_uri",
+                }
+            },
+            "doc": {},  # This group doesn't have a "dependencies" field.
+        },
+    }
+    assert load_dependency_groups() == {
+        "main": {"foo": "foo_uri"},
+        "dev": {"bar": "bar_uri"},
+    }
