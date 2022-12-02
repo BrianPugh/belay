@@ -6,6 +6,7 @@ import pytest
 from typer.testing import CliRunner
 
 import belay
+import belay.cli.common
 from belay.cli import app
 
 
@@ -20,6 +21,16 @@ class MockDevice:
 
     def cls_assert_common(self):
         self.cls.assert_called_once_with("/dev/ttyUSB0", password="password")
+
+
+@pytest.fixture(autouse=True)
+def cache_clear():
+    belay.cli.common.find_pyproject.cache_clear()
+    belay.cli.common.find_belay_folder.cache_clear()
+    belay.cli.common.find_dependencies_folder.cache_clear()
+    belay.cli.common.load_pyproject.cache_clear()
+    belay.cli.common.load_toml.cache_clear()
+    belay.cli.common.load_dependency_groups.cache_clear()
 
 
 @pytest.fixture

@@ -11,14 +11,6 @@ from belay.cli.common import (
 )
 
 
-@pytest.fixture(autouse=True)
-def cache_clear():
-    find_pyproject.cache_clear()
-    load_pyproject.cache_clear()
-    load_toml.cache_clear()
-    load_dependency_groups.cache_clear()
-
-
 @pytest.fixture
 def toml_file_standard(tmp_path):
     fn = tmp_path / "pyproject.toml"
