@@ -5,19 +5,20 @@ from typer import Argument
 
 from belay.packagemanager import clean_local, download_dependencies
 
-from .common import load_pyproject
+from .common import find_dependencies_folder, load_dependency_groups, load_pyproject
 
 
 def update(packages: List[str] = Argument(None, help="Specific package(s) to update.")):
     """Download new versions of dependencies."""
     console = Console()
-    toml = load_pyproject()
+    dependency_groups = load_dependency_groups()
 
-    try:
-        dependencies = toml["dependencies"]
-    except KeyError:
-        return
-
-    download_dependencies(dependencies, packages=packages, console=console)
-
-    clean_local(dependencies.keys())
+    for name, dependencies in dependency_groups.items():
+        directory = find_dependencies_folder() / name
+        download_dependencies(
+            dependencies,
+            directory,
+            packages=packages,
+            console=console,
+        )
+        clean_local(dependencies.keys(), directory)

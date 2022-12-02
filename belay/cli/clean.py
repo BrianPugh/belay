@@ -1,15 +1,12 @@
 from belay.packagemanager import clean_local
 
-from .common import load_pyproject
+from .common import find_dependencies_folder, load_dependency_groups
 
 
 def clean():
     """Remove any downloaded dependencies if they are no longer specified in pyproject."""
-    toml = load_pyproject()
+    dependency_groups = load_dependency_groups()
 
-    try:
-        dependencies = toml["dependencies"]
-    except KeyError:
-        return
-
-    clean_local(dependencies.keys())
+    for name, dependencies in dependency_groups.items():
+        directory = find_dependencies_folder() / name
+        clean_local(dependencies.keys(), directory)

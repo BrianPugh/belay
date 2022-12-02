@@ -61,8 +61,8 @@ def _get_text(url: Union[str, Path]):
 
 def download_dependencies(
     dependencies: Dict[str, Union[str, Dict]],
+    local_dir: Union[str, Path],
     packages: Optional[List[str]] = None,
-    local_dir: Union[str, Path] = ".belay/dependencies/main",
     console: Optional[Console] = None,
 ):
     """Download dependencies.
@@ -71,11 +71,11 @@ def download_dependencies(
     ----------
     dependencies: dict
         Dependencies to install (probably parsed from TOML file).
-    packages: Optional[List[str]]
-        Only download this package.
     local_dir: Union[str, Path]
         Download dependencies to this directory.
         Will create directories as necessary.
+    packages: Optional[List[str]]
+        Only download these package.
     console: Optional[Console]
         Print progress out to console.
     """
@@ -129,12 +129,25 @@ def download_dependencies(
 
 def clean_local(
     dependencies: Union[Set[str], List[str]],
-    local_dir: Union[str, Path] = ".belay/dependencies/main",
+    local_dir: Union[str, Path],
 ):
-    """Delete downloaded dependencies if they are no longer referenced."""
+    """Delete downloaded dependencies if they are no longer referenced.
+
+    Parameters
+    ----------
+    dependencies: Union[Set[str], List[str]]
+        List or Set of dependency names to keep.
+    local_dir: Union[str, Path]
+        Folder containing dependency files. Typically something like
+        ``.belay/dependencies/main``.
+    """
     local_dir = Path(local_dir)
     dependencies = set(dependencies)
     existing_deps = []
+
+    if not local_dir.exists():
+        return
+
     existing_deps.extend(local_dir.glob("*.py"))
 
     for existing_dep in existing_deps:

@@ -82,7 +82,7 @@ def test_download_dependencies_all(mocker, tmp_path, spy_ast):
             "foo": "foo.py",
             "bar": "bar.py",
         },
-        local_dir=tmp_path,
+        tmp_path,
     )
 
     assert _get_text.mock_calls == [
@@ -114,8 +114,8 @@ def test_download_dependencies_specific(mocker, tmp_path, spy_ast):
             "foo": "foo.py",
             "bar": "bar.py",
         },
+        tmp_path,
         packages=["bar"],
-        local_dir=tmp_path,
     )
 
     assert _get_text.mock_calls == [
