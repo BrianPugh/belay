@@ -10,8 +10,6 @@ cli_runner = CliRunner()
 
 
 def test_update(mocker, tmp_path):
-    belay.cli.common.load_dependency_groups.cache_clear()
-
     os.chdir(tmp_path)
 
     toml_path = tmp_path / "pyproject.toml"
