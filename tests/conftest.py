@@ -48,9 +48,8 @@ def emulate_command():
 
 @pytest.fixture
 def emulated_device(emulate_command):
-    device = belay.Device(emulate_command)
-    yield device
-    device.close()
+    with belay.Device(emulate_command) as device:
+        yield device
 
 
 @pytest.fixture
