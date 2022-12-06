@@ -36,7 +36,7 @@ jobs:
           path: rp2040js
 
       - name: Cache $HOME/.local # Significantly speeds up Poetry Install
-        uses: actions/cache@v2.1.6
+        uses: actions/cache@v2
         with:
           path: ~/.local
           key: dotlocal-${{ runner.os }}-${{ hashFiles('.github/workflows/tests.yml') }}
