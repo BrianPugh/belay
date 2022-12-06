@@ -21,10 +21,9 @@ RUN curl -sSL https://install.python-poetry.org | python3 -
 
 # Install RP2040 emulator
 RUN cd / \
-    && git clone https://github.com/BrianPugh/rp2040js.git \
+    && git clone https://github.com/wokwi/rp2040js.git \
     && cd rp2040js \
     && curl -OJ https://micropython.org/resources/firmware/rp2-pico-20210902-v1.17.uf2 \
-    && git checkout check-tty \
     && npm install
 
 WORKDIR /belay
