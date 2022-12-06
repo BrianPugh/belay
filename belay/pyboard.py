@@ -174,7 +174,7 @@ class ProcessToSerial:
     def __init__(self, cmd):
         import subprocess
 
-        self.subp = subprocess.Popen(
+        self.subp = subp = subprocess.Popen(
             cmd,
             bufsize=0,
             shell=True,
@@ -198,7 +198,12 @@ class ProcessToSerial:
         self.poll.register(self.subp.stdout.fileno())
 
         def cleanup():
-            self.close()
+            import signal
+
+            try:
+                os.killpg(os.getpgid(subp.pid), signal.SIGTERM)
+            except ProcessLookupError:
+                pass
 
         atexit.register(cleanup)
 

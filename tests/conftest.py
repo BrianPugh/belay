@@ -43,7 +43,9 @@ def cli_runner(mock_device):
 
 @pytest.fixture
 def emulated_device():
-    return belay.Device("exec:npm run --prefix rp2040js start:micropython")
+    device = belay.Device("exec:npm run --prefix rp2040js start:micropython")
+    yield device
+    device.close()
 
 
 @pytest.fixture
