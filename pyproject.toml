@@ -85,3 +85,6 @@ exclude_lines = [
 exclude_dirs = [
     "tests",
 ]
+
+[tool.pytest.ini_options]
+norecursedirs = "integration"
