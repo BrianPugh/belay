@@ -233,5 +233,6 @@ Network Trash Folder
 Temporary Items
 .apdisk
 
-/poetry.lock
 profile.json
+
+rp2040js/

@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
+import belay
 from belay.cli import app
 
 
@@ -38,6 +39,17 @@ def cli_runner(mock_device):
         return result
 
     return run
+
+
+@pytest.fixture
+def emulate_command():
+    return "exec:npm run --prefix rp2040js start:micropython"
+
+
+@pytest.fixture
+def emulated_device(emulate_command):
+    with belay.Device(emulate_command) as device:
+        yield device
 
 
 @pytest.fixture

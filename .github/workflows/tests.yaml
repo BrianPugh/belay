@@ -20,26 +20,27 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        python-version: ["3.8", "3.9", "3.10"]
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
     env:
       OS: ${{ matrix.os }}
       PYTHON: ${{ matrix.python-version }}
 
     steps:
-      #----------------------------------------------
-      #       check-out repo and set-up python
-      #----------------------------------------------
-      - name: Check out repository
+      - name: Check out Belay repository
         uses: actions/checkout@v3
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v3
+      - name: Check out RP2040js repository
+        uses: actions/checkout@v3
         with:
-          python-version: ${{ matrix.python-version }}
+          repository: wokwi/rp2040js
+          path: rp2040js
 
-      #----------------------------------------------
-      #  -----  install & configure poetry  -----
-      #----------------------------------------------
+      - name: Cache $HOME/.local # Significantly speeds up Poetry Install
+        uses: actions/cache@v2
+        with:
+          path: ~/.local
+          key: dotlocal-${{ runner.os }}-${{ hashFiles('.github/workflows/tests.yml') }}
+
       - name: Install Poetry
         uses: snok/install-poetry@v1
         with:
@@ -47,32 +48,46 @@ jobs:
           virtualenvs-in-project: true
           installer-parallel: true
 
-      #----------------------------------------------
-      #       load cached venv if cache exists
-      #----------------------------------------------
-      - name: Load cached venv
-        id: cached-poetry-dependencies
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "poetry"
+
+      - name: Install Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+
+      - name: Cache pi pico firmware
+        id: cached-pi-pico-firmware
+        uses: actions/cache@v3
+        with:
+          path: rp2040js/rp2-pico-20210902-v1.17.uf2
+          key: pi-pico-rp2040js/rp2-pico-20210902-v1.17.uf2
+
+      - name: Download Pi Pico firmware
+        if: steps.cached-pi-pico-firmware.outputs.cache-hit != 'true'
+        run: |
+          cd rp2040js
+          wget https://micropython.org/resources/firmware/rp2-pico-20210902-v1.17.uf2
+
+      - name: Cache Node Modules
+        id: cached-npm
         uses: actions/cache@v2
         with:
-          path: .venv
-          key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
+          path: rp2040js/node_modules
+          key: modules-${{ hashFiles('rp2040js/package-lock.json') }}
 
-      #----------------------------------------------
-      # install dependencies if cache does not exist
-      #----------------------------------------------
-      - name: Install dependencies
-        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
-        run: poetry install --no-interaction --no-root
+      - name: Install rp2040js
+        if: steps.cached-npm.outputs.cache-hit != 'true'
+        run: |
+          cd rp2040js
+          npm install
 
-      #----------------------------------------------
-      #   install your root project, if required
-      #----------------------------------------------
-      - name: Install library
+      - name: Install Belay
         run: poetry install --no-interaction
 
-      #----------------------------------------------
-      #              run test suite
-      #----------------------------------------------
       - name: Sanity check with flake8
         run: |
           source .venv/bin/activate
@@ -84,7 +99,7 @@ jobs:
       - name: Run tests
         run: |
           source .venv/bin/activate
-          python -m pytest --cov=belay --cov-report term --cov-report xml --cov-config .coveragerc --junitxml=testresults.xml
+          python -m pytest --cov=belay --cov-report term --cov-report xml --cov-config .coveragerc --junitxml=testresults.xml tests tests/integration
           coverage report
 
       - name: Upload coverage to Codecov
