@@ -68,6 +68,7 @@ Or:
 """
 
 import ast
+import atexit
 import itertools
 import os
 import sys
@@ -195,6 +196,11 @@ class ProcessToSerial:
 
         self.poll = select.poll()
         self.poll.register(self.subp.stdout.fileno())
+
+        def cleanup():
+            self.close()
+
+        atexit.register(cleanup)
 
     def close(self):
         import signal
