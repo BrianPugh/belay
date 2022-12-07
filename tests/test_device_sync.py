@@ -345,6 +345,11 @@ def test_preprocess_keep_bool_false():
     assert actual == []
 
 
+def test_preprocess_keep_invalid_dtype(tmp_path):
+    with pytest.raises(ValueError):
+        belay.device._preprocess_keep(5, "")
+
+
 def test_preprocess_ignore_none():
     actual = belay.device._preprocess_ignore(None)
     assert actual == ["*.pyc", "__pycache__", ".DS_Store", ".pytest_cache"]
@@ -360,9 +365,31 @@ def test_preprocess_ignore_str():
     assert actual == ["foo"]
 
 
+def test_preprocess_ignore_invalid_dtype():
+    with pytest.raises(ValueError):
+        belay.device._preprocess_ignore(5)
+
+
 def test_preprocess_src_file_default_py(tmp_path):
     actual = belay.device._preprocess_src_file(tmp_path, "foo/bar/baz.py", False, None)
     assert actual == Path("foo/bar/baz.py")
+
+
+def test_preprocess_src_file_cross_mpy(tmp_path, mocker):
+    mock_check_output = mocker.patch("belay.device.subprocess.check_output")
+    actual = belay.device._preprocess_src_file(
+        tmp_path,
+        "foo/bar/baz.py",
+        False,
+        "fake-mpy-cross-binary",
+    )
+    mock_check_output.assert_called_once()
+    call = mock_check_output.call_args_list[0][0][0]
+    assert call[0] == "fake-mpy-cross-binary"
+    assert call[1] == "-o"
+    assert str(call[2]).endswith("foo/bar/baz.mpy")
+    assert str(call[3]).endswith("foo/bar/baz.py")
+    assert str(actual).endswith("foo/bar/baz.mpy")
 
 
 def test_preprocess_src_file_default_generic(tmp_path):

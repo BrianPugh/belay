@@ -22,6 +22,7 @@ exclude =
     examples/
     belay/snippets/
     tests/test_inspect.py
+    tests/integration/test_function_decorators_exception.py
 
 extend-immutable-calls =
     Argument
