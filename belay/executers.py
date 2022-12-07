@@ -103,7 +103,7 @@ class TaskExecuter(Executer):
 
         @wraps(f)
         def func_executer(*args, **kwargs):
-            cmd = f"_belay_{name}(*{repr(args)}, **{repr(kwargs)})"
+            cmd = f"{name}(*{repr(args)}, **{repr(kwargs)})"
 
             return self._belay_device._traceback_execute(
                 src_file, src_lineno, name, cmd, record=record

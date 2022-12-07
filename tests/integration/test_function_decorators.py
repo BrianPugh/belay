@@ -14,12 +14,16 @@ def test_setup_basic(emulated_device):
     assert 25 == emulated_device("foo")
 
 
-def test_task_basic(emulated_device):
+def test_task_basic(emulated_device, mocker):
+    spy_parse_belay_response = mocker.spy(belay.device, "_parse_belay_response")
+
     @emulated_device.task
     def foo(val):
         return 2 * val
 
     assert 10 == foo(5)
+
+    spy_parse_belay_response.assert_called_once_with("_BELAYR10\r\n")
 
 
 def test_task_generators_basic(emulated_device):

@@ -57,6 +57,7 @@ omit = [
     "tests/*",
     "belay/pyboard.py",  # Mostly comes from the MicroPython mpremote project.
     "belay/snippets/*",  # Ignore on-device code-snippets
+    "belay/webrepl.py",  # Cannot really be tested, copied from micropython
 ]
 
 [tool.coverage.report]

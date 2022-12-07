@@ -48,15 +48,10 @@ def test_device_task(mocker, mock_device):
     )
 
     foo(1, 2)
-    assert (
-        mock_device._traceback_execute.call_args.args[-1] == "_belay_foo(*(1, 2), **{})"
-    )
+    assert mock_device._traceback_execute.call_args.args[-1] == "foo(*(1, 2), **{})"
 
     foo(1, b=2)
-    assert (
-        mock_device._traceback_execute.call_args.args[-1]
-        == "_belay_foo(*(1,), **{'b': 2})"
-    )
+    assert mock_device._traceback_execute.call_args.args[-1] == "foo(*(1,), **{'b': 2})"
 
 
 def test_device_thread(mocker, mock_device):
