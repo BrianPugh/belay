@@ -123,7 +123,7 @@ class TaskExecuter(Executer):
                 send_val = None
                 try:
                     while True:
-                        cmd = f"__belay_gen_next({gen_identifier}, {repr(send_val)})"
+                        cmd = f"__belay_next({gen_identifier}, {repr(send_val)})"
                         send_val = yield self._belay_device._traceback_execute(
                             src_file, src_lineno, name, cmd, record=False
                         )
