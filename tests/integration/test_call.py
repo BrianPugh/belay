@@ -9,3 +9,5 @@ def test_call_various(emulated_device):
 
     with pytest.raises(belay.PyboardException):
         emulated_device("bar")
+
+    assert emulated_device("baz = 10", minify=False) is None
