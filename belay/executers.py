@@ -93,10 +93,6 @@ class TaskExecuter(Executer):
 
         name = f.__name__
         src_code, src_lineno, src_file = getsource(f)
-        src_lineno -= 1  # Because of the injected ``@__belay`` decorator below
-
-        # Add the __belay decorator for handling result serialization.
-        src_code = f"@__belay({repr(name)})\n" + src_code
 
         # Send the source code over to the device.
         self._belay_device(src_code, minify=minify)
@@ -117,7 +113,7 @@ class TaskExecuter(Executer):
                 )
             # Step 1: Create the on-device generator
             gen_identifier = random_python_identifier()
-            cmd = f"{gen_identifier} = _belay_{name}(*{repr(args)}, **{repr(kwargs)})"
+            cmd = f"{gen_identifier} = {name}(*{repr(args)}, **{repr(kwargs)})"
             self._belay_device._traceback_execute(
                 src_file, src_lineno, name, cmd, record=False
             )

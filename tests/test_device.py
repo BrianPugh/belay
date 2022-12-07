@@ -44,7 +44,7 @@ def test_device_task(mocker, mock_device):
         c = a + b  # noqa: F841
 
     mock_device._board.exec.assert_any_call(
-        "@__belay('foo')\ndef foo(a,b):\n c=a+b\n", data_consumer=mocker.ANY
+        "def foo(a,b):\n c=a+b\n", data_consumer=mocker.ANY
     )
 
     foo(1, 2)

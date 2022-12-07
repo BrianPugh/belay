@@ -126,10 +126,6 @@ def isexpression(code: str) -> bool:
         ``True`` if ``code`` is an expression; returns
         ``False`` otherwise (statement or invalid).
     """
-    if code.startswith("__belay_gen_next("):
-        # Special expression used internally for generators
-        return False
-
     try:
         compile(code, "<stdin>", "eval")
     except SyntaxError:
