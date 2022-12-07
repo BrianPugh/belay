@@ -331,6 +331,7 @@ class Device(Registry):
             cmd = minify_code(cmd)
 
         if isexpression(cmd):
+            # Belay Tasks are inherently expressions as well.
             cmd = f"print('_BELAYR' + repr({cmd}))"
 
         if (

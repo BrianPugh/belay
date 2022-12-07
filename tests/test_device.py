@@ -44,19 +44,14 @@ def test_device_task(mocker, mock_device):
         c = a + b  # noqa: F841
 
     mock_device._board.exec.assert_any_call(
-        "@__belay('foo')\ndef foo(a,b):\n c=a+b\n", data_consumer=mocker.ANY
+        "def foo(a,b):\n c=a+b\n", data_consumer=mocker.ANY
     )
 
     foo(1, 2)
-    assert (
-        mock_device._traceback_execute.call_args.args[-1] == "_belay_foo(*(1, 2), **{})"
-    )
+    assert mock_device._traceback_execute.call_args.args[-1] == "foo(*(1, 2), **{})"
 
     foo(1, b=2)
-    assert (
-        mock_device._traceback_execute.call_args.args[-1]
-        == "_belay_foo(*(1,), **{'b': 2})"
-    )
+    assert mock_device._traceback_execute.call_args.args[-1] == "foo(*(1,), **{'b': 2})"
 
 
 def test_device_thread(mocker, mock_device):
