@@ -1,3 +1,4 @@
+import os
 from distutils import dir_util
 from functools import partial
 from pathlib import Path
@@ -31,6 +32,13 @@ def cache_clear():
     belay.cli.common.load_pyproject.cache_clear()
     belay.cli.common.load_toml.cache_clear()
     belay.cli.common.load_dependency_groups.cache_clear()
+
+
+@pytest.fixture(autouse=True)
+def restore_cwd():
+    cwd = os.getcwd()  # noqa: PL109
+    yield
+    os.chdir(cwd)
 
 
 @pytest.fixture
