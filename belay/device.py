@@ -8,6 +8,7 @@ import tempfile
 from dataclasses import dataclass
 from inspect import signature
 from pathlib import Path
+from threading import Lock
 from typing import Callable, Optional, TextIO, Tuple, Union
 
 from autoregistry import Registry
@@ -182,10 +183,22 @@ class Implementation:
     emitters: Tuple[str]
 
 
+_method_metadata_counter_lock = Lock()
+_method_metadata_counter = 0
+
+
 @dataclass
 class MethodMetadata:
     executer: Callable
     kwargs: dict
+    autoinit: bool = False  # Only applies to ``SetupExecuter``.
+    id: int = -1  # monotonically increasing global identifier.
+
+    def __post_init__(self):
+        global _method_metadata_counter
+        with _method_metadata_counter_lock:
+            self.id = _method_metadata_counter
+            _method_metadata_counter += 1
 
 
 class Device(Registry):
@@ -243,17 +256,29 @@ class Device(Registry):
             self(startup)
 
         # if subclassing Device, register methods decorated with
-        # ``@Device.task`` and ``@Device.thread``.
+        # executer markers (e.g. ``Device.task``).
+        autoinit_executers = []
         for name, method in vars(type(self)).items():
             metadata = getattr(method, "__belay__", None)
             if not metadata:
                 continue
-            executer = getattr(self, metadata.executer.__registry__.name)
+            decorator = getattr(self, metadata.executer.__registry__.name)
+            executer = decorator(method, **metadata.kwargs)
+
+            if isinstance(decorator, SetupExecuter):
+                if metadata.autoinit:
+                    autoinit_executers.append(executer)
             setattr(
                 self,
                 name,
-                executer(method, **metadata.kwargs),
+                executer,
             )
+
+        autoinit_executers = sorted(
+            autoinit_executers, key=lambda x: x.__wrapped__.__belay__.id
+        )
+        for executer in autoinit_executers:
+            executer()
 
     def _emitter_check(self):
         # Detect which emitters are available
@@ -552,7 +577,7 @@ class Device(Registry):
             self(cmd, record=False)
 
     @staticmethod
-    def setup(f=None, **kwargs) -> Callable:
+    def setup(f=None, *, autoinit=False, **kwargs) -> Callable:
         """setup(f, *, minify=True, register=True, record=True)
 
         Decorator that executes function's body in a global-context on-device when called.
@@ -574,10 +599,23 @@ class Device(Registry):
         record: bool
             Each invocation of the executer is recorded for playback upon reconnect.
             Defaults to ``True``.
+        autoinit: bool
+            Automatically invokes decorated functions at the end of object ``__init__``.
+            Methods will be executed in order-registered.
+            Defaults to ``False``.
         """  # noqa: D400
         if f is None:
-            return wraps_partial(Device.setup, **kwargs)  # type: ignore[reportGeneralTypeIssues]
-        f.__belay__ = MethodMetadata(executer=SetupExecuter, kwargs=kwargs)
+            return wraps_partial(Device.setup, autoinit=autoinit, **kwargs)  # type: ignore[reportGeneralTypeIssues]
+        if signature(f).parameters:
+            raise ValueError(
+                f"Method {f} decorated with "
+                '"@Device.setup(autoinit=True)" '
+                "must have no arguments."
+            )
+
+        f.__belay__ = MethodMetadata(
+            executer=SetupExecuter, autoinit=autoinit, kwargs=kwargs
+        )
         return f
 
     @staticmethod
