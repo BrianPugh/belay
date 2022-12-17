@@ -14,8 +14,9 @@ from .typing import BelayCallable
 
 class Executer(Registry, suffix="Executer"):
     def __init__(self, device):
-        # To avoid Executer.__setattr__ raising an error
+        # Use object.__setattr__ to avoid Executer.__setattr__ raising an error
         object.__setattr__(self, "_belay_device", device)
+        object.__setattr__(self, "_belay_executers", [])
 
     def __setattr__(self, name: str, value: BelayCallable):
         if (
@@ -75,6 +76,7 @@ class _GlobalExecuter(Executer, skip=True):
 
         if register:
             setattr(self, name, executer)
+        self._belay_executers.append(executer)
 
         return executer
 
@@ -147,6 +149,7 @@ class TaskExecuter(Executer):
 
         if register:
             setattr(self, name, executer)
+        self._belay_executers.append(executer)
 
         return executer
 
@@ -182,5 +185,6 @@ class ThreadExecuter(Executer):
 
         if register:
             setattr(self, name, executer)
+        self._belay_executers.append(executer)
 
         return executer

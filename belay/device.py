@@ -1,6 +1,7 @@
 import ast
 import concurrent.futures
 import linecache
+import math
 import re
 import subprocess  # nosec
 import sys
@@ -166,7 +167,13 @@ def _generate_dst_dirs(dst, src, src_dirs) -> list:
 
 
 def _sort_executers(executers):
-    return sorted(executers, key=lambda x: x.__wrapped__.__belay__.id)
+    def get_key(x):
+        try:
+            return x.__wrapped__.__belay__.id
+        except AttributeError:
+            return math.inf
+
+    return sorted(executers, key=get_key)
 
 
 @dataclass
@@ -242,7 +249,6 @@ class Device(Registry):
         self._board_kwargs = signature(Pyboard).bind(*args, **kwargs).arguments
         self.attempts = attempts
         self._cmd_history = []
-        self._teardown_executers = []
 
         self._connect_to_board(**self._board_kwargs)
 
@@ -278,8 +284,6 @@ class Device(Registry):
 
             if metadata.autoinit:
                 autoinit_executers.append(executer)
-            if isinstance(decorator, TeardownExecuter):
-                self._teardown_executers.append(executer)
 
             setattr(
                 self,
@@ -287,7 +291,6 @@ class Device(Registry):
                 executer,
             )
 
-        self._teardown_executers = _sort_executers(self._teardown_executers)
         autoinit_executers = _sort_executers(autoinit_executers)
         for executer in autoinit_executers:
             executer()
@@ -559,7 +562,8 @@ class Device(Registry):
 
     def close(self) -> None:
         """Close the connection to device."""
-        for executer in self._teardown_executers:
+        # Invoke all teardown executers prior to closing out connection.
+        for executer in _sort_executers(self.teardown._belay_executers):
             executer()
 
         return self._board.close()
