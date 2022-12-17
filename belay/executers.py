@@ -37,7 +37,7 @@ class Executer(Registry, suffix="Executer"):
         raise NotImplementedError
 
 
-class SetupExecuter(Executer):
+class _GlobalExecuter(Executer, skip=True):
     def __call__(
         self,
         f: Optional[BelayCallable] = None,
@@ -46,11 +46,12 @@ class SetupExecuter(Executer):
         register: bool = True,
         record: bool = True,
     ):
-        """See ``Device.setup``."""
         if f is None:
             return wraps_partial(self, minify=minify, register=register, record=record)
         if inspect.isgeneratorfunction(f):
-            raise ValueError("@Device.setup does not support generators.")
+            raise ValueError(
+                f"@Device.{type(self).__registry__.name} does not support generators."
+            )
         name = f.__name__
         src_code, src_lineno, src_file = getsource(f, strip_signature=True)
         if minify:
@@ -76,6 +77,10 @@ class SetupExecuter(Executer):
             setattr(self, name, executer)
 
         return executer
+
+
+class SetupExecuter(_GlobalExecuter):
+    pass
 
 
 class TaskExecuter(Executer):
