@@ -253,7 +253,13 @@ class Device(Registry):
         self._connect_to_board(**self._board_kwargs)
 
         for executer_name, executer_cls in Executer.items():
-            setattr(self, executer_name, executer_cls(self))
+            executer = executer_cls(self)
+            setattr(
+                self, executer_name, executer
+            )  # Public interface; might get stomped
+            setattr(
+                self, "_belay_" + executer_name, executer
+            )  # Private interface; will always be there
 
         self._exec_snippet("startup")
 
@@ -563,7 +569,7 @@ class Device(Registry):
     def close(self) -> None:
         """Close the connection to device."""
         # Invoke all teardown executers prior to closing out connection.
-        for executer in _sort_executers(self.teardown._belay_executers):
+        for executer in _sort_executers(self._belay_teardown._belay_executers):
             executer()
 
         return self._board.close()
