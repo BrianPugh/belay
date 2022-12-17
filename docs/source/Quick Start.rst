@@ -175,3 +175,21 @@ Methods marked with ``@Device.task`` are similar to ``@staticmethod`` in that
 they do **not** contain ``self`` in the method signature.
 To the device, each marked method is equivalent to an independent function.
 Methods can be marked with ``@Device.setup`` or ``@Device.thread`` for their respective functionality.
+
+For methods decorated with ``@Device.setup``, the flag ``autoinit=True`` can be set to automatically
+call the method at the end of object creation.
+The decorated method must have no parameters, otherwise a ``ValueError`` will be raised.
+
+.. code-block:: python
+
+   from belay import Device
+
+
+   class MyDevice(Device):
+       @Device.setup(autoinit=True)
+       def setup():
+           foo = 42
+
+
+   device = MyDevice("/dev/ttyUSB0")
+   # Do NOT explicitly call ``device.setup()``, it has already been invoked.
