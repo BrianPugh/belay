@@ -17,7 +17,13 @@ from serial import SerialException
 
 from ._minify import minify as minify_code
 from .exceptions import ConnectionLost, MaxHistoryLengthError
-from .executers import Executer, SetupExecuter, TaskExecuter, ThreadExecuter
+from .executers import (
+    Executer,
+    SetupExecuter,
+    TaskExecuter,
+    TeardownExecuter,
+    ThreadExecuter,
+)
 from .hash import fnv1a
 from .helpers import read_snippet, wraps_partial
 from .inspect import isexpression
@@ -159,6 +165,10 @@ def _generate_dst_dirs(dst, src, src_dirs) -> list:
     return dst_dirs
 
 
+def _sort_executers(executers):
+    return sorted(executers, key=lambda x: x.__wrapped__.__belay__.id)
+
+
 @dataclass
 class Implementation:
     """Implementation dataclass detailing the device.
@@ -232,6 +242,7 @@ class Device(Registry):
         self._board_kwargs = signature(Pyboard).bind(*args, **kwargs).arguments
         self.attempts = attempts
         self._cmd_history = []
+        self._teardown_executers = []
 
         self._connect_to_board(**self._board_kwargs)
 
@@ -265,18 +276,19 @@ class Device(Registry):
             decorator = getattr(self, metadata.executer.__registry__.name)
             executer = decorator(method, **metadata.kwargs)
 
-            if isinstance(decorator, SetupExecuter):
-                if metadata.autoinit:
-                    autoinit_executers.append(executer)
+            if metadata.autoinit:
+                autoinit_executers.append(executer)
+            if isinstance(decorator, TeardownExecuter):
+                self._teardown_executers.append(executer)
+
             setattr(
                 self,
                 name,
                 executer,
             )
 
-        autoinit_executers = sorted(
-            autoinit_executers, key=lambda x: x.__wrapped__.__belay__.id
-        )
+        self._teardown_executers = _sort_executers(self._teardown_executers)
+        autoinit_executers = _sort_executers(autoinit_executers)
         for executer in autoinit_executers:
             executer()
 
@@ -547,6 +559,9 @@ class Device(Registry):
 
     def close(self) -> None:
         """Close the connection to device."""
+        for executer in self._teardown_executers:
+            executer()
+
         return self._board.close()
 
     def reconnect(self, attempts: Optional[int] = None) -> None:
@@ -619,6 +634,42 @@ class Device(Registry):
         return f
 
     @staticmethod
+    def teardown(f=None, **kwargs) -> Callable:
+        """teardown(f, *, minify=True, register=True, record=True)
+
+        Decorator that executes function's body in a global-context on-device
+        when ``device.close()`` is called.
+
+        Function arguments are also set in the global context.
+
+        Can either be used as a staticmethod ``@Device.teardown`` for marking methods in a subclass of ``Device``, or as a standard method ``@device.teardown`` for marking functions to a specific ``Device`` instance.
+
+        Parameters
+        ----------
+        f: Callable
+            Function to decorate. Can only accept and return python literals.
+        minify: bool
+            Minify ``cmd`` code prior to sending.
+            Defaults to ``True``.
+        register: bool
+            Assign an attribute to ``self.teardown`` with same name as ``f``.
+            Defaults to ``True``.
+        record: bool
+            Each invocation of the executer is recorded for playback upon reconnect.
+            Defaults to ``True``.
+        """  # noqa: D400
+        if f is None:
+            return wraps_partial(Device.setup, **kwargs)  # type: ignore[reportGeneralTypeIssues]
+
+        if signature(f).parameters:
+            raise ValueError(
+                f'Method {f} decorated with "@Device.teardown" must have no arguments.'
+            )
+
+        f.__belay__ = MethodMetadata(executer=TeardownExecuter, kwargs=kwargs)
+        return f
+
+    @staticmethod
     def task(f=None, **kwargs) -> Callable:
         """task(f, *, minify=True, register=True, record=False)
 
@@ -643,6 +694,7 @@ class Device(Registry):
         """  # noqa: D400
         if f is None:
             return wraps_partial(Device.task, **kwargs)  # type: ignore[reportGeneralTypeIssues]
+
         f.__belay__ = MethodMetadata(executer=TaskExecuter, kwargs=kwargs)
         return f
 

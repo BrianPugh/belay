@@ -83,6 +83,10 @@ class SetupExecuter(_GlobalExecuter):
     pass
 
 
+class TeardownExecuter(_GlobalExecuter):
+    pass
+
+
 class TaskExecuter(Executer):
     def __call__(
         self,
