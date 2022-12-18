@@ -63,3 +63,17 @@ def test_task_generators_communicate(emulated_device):
     with pytest.raises(StopIteration):
         generator.send(50)
     assert [5, 25] == actual
+
+
+def test_teardown(emulated_device, mocker):
+    @emulated_device.teardown
+    def foo():
+        pass
+
+    mock_teardown = mocker.MagicMock()
+    assert len(emulated_device._belay_teardown._belay_executers) == 1
+    emulated_device._belay_teardown._belay_executers[0] = mock_teardown
+
+    emulated_device.close()
+
+    mock_teardown.assert_called_once()

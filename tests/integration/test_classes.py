@@ -73,7 +73,36 @@ def test_classes_setup_autoinit_arguments(emulate_command):
                 pass
 
 
-def test_classes_teardown(emulate_command, mocker):
+def test_classes_teardown(emulate_command):
+    """Simply tests as its called and no uncaught exceptions occur."""
+
+    class MyDevice(Device, skip=True):
+        @Device.teardown
+        def teardown():
+            pass
+
+    with MyDevice(emulate_command) as device:
+        device.teardown()  # Testing that it can be directly called
+
+
+def test_classes_teardown_mocked(emulate_command, mocker):
+    """Tests if the teardown functions are executed on close."""
+
+    class MyDevice(Device, skip=True):
+        @Device.teardown
+        def teardown():
+            pass
+
+    device = MyDevice(emulate_command)
+    mock_teardown = mocker.MagicMock()
+    device._belay_teardown._belay_executers[0] = mock_teardown
+    device.close()
+    mock_teardown.assert_called_once()
+
+
+def test_classes_teardown_context_manager_mocked(emulate_command, mocker):
+    """Tests if the teardown functions are executed on close."""
+
     class MyDevice(Device, skip=True):
         @Device.teardown
         def teardown():
