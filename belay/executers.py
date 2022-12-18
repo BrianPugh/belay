@@ -14,8 +14,9 @@ from .typing import BelayCallable
 
 class Executer(Registry, suffix="Executer"):
     def __init__(self, device):
-        # To avoid Executer.__setattr__ raising an error
+        # Use object.__setattr__ to avoid Executer.__setattr__ raising an error
         object.__setattr__(self, "_belay_device", device)
+        object.__setattr__(self, "_belay_executers", [])
 
     def __setattr__(self, name: str, value: BelayCallable):
         if (
@@ -37,7 +38,7 @@ class Executer(Registry, suffix="Executer"):
         raise NotImplementedError
 
 
-class SetupExecuter(Executer):
+class _GlobalExecuter(Executer, skip=True):
     def __call__(
         self,
         f: Optional[BelayCallable] = None,
@@ -46,11 +47,12 @@ class SetupExecuter(Executer):
         register: bool = True,
         record: bool = True,
     ):
-        """See ``Device.setup``."""
         if f is None:
             return wraps_partial(self, minify=minify, register=register, record=record)
         if inspect.isgeneratorfunction(f):
-            raise ValueError("@Device.setup does not support generators.")
+            raise ValueError(
+                f"@Device.{type(self).__registry__.name} does not support generators."
+            )
         name = f.__name__
         src_code, src_lineno, src_file = getsource(f, strip_signature=True)
         if minify:
@@ -74,8 +76,17 @@ class SetupExecuter(Executer):
 
         if register:
             setattr(self, name, executer)
+        self._belay_executers.append(executer)
 
         return executer
+
+
+class SetupExecuter(_GlobalExecuter):
+    pass
+
+
+class TeardownExecuter(_GlobalExecuter):
+    pass
 
 
 class TaskExecuter(Executer):
@@ -138,6 +149,7 @@ class TaskExecuter(Executer):
 
         if register:
             setattr(self, name, executer)
+        self._belay_executers.append(executer)
 
         return executer
 
@@ -173,5 +185,6 @@ class ThreadExecuter(Executer):
 
         if register:
             setattr(self, name, executer)
+        self._belay_executers.append(executer)
 
         return executer

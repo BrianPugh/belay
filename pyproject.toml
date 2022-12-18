@@ -94,5 +94,5 @@ exclude_dirs = [
 ]
 
 [tool.pytest.ini_options]
-addopts = "--import-mode=importlib --timeout=120"
+addopts = "--import-mode=importlib"
 norecursedirs = "integration"
