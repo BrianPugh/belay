@@ -213,3 +213,6 @@ The decorated method must have no parameters, otherwise a ``ValueError`` will be
 
    device = MyDevice("/dev/ttyUSB0")
    # Do NOT explicitly call ``device.setup()``, it has already been invoked.
+
+Additionally, all decorators are aliased under the belay namespace, so ``@belay.setup`` is
+the same as ``@Device.setup``.

@@ -12,6 +12,10 @@ __all__ = [
     "SpecialFunctionNameError",
     "list_devices",
     "minify",
+    "setup",
+    "task",
+    "teardown",
+    "thread",
 ]
 from ._minify import minify
 from .device import Device, Implementation
@@ -24,3 +28,8 @@ from .exceptions import (
 )
 from .helpers import list_devices
 from .pyboard import PyboardException
+
+setup = Device.setup
+task = Device.task
+thread = Device.thread
+teardown = Device.teardown

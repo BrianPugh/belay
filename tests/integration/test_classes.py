@@ -2,6 +2,7 @@ from inspect import isfunction
 
 import pytest
 
+import belay
 from belay import Device, PyboardException
 
 
@@ -117,3 +118,22 @@ def test_classes_teardown_context_manager_mocked(emulate_command, mocker):
         device._belay_teardown._belay_executers[0] = mock_teardown
 
     mock_teardown.assert_called_once()
+
+
+def test_classes_belay_alias_decorators(emulate_command):
+    class MyDevice(Device, skip=True):
+        @belay.setup(autoinit=True)
+        def setup():
+            foo = 10  # noqa: F841
+            bar = 42  # noqa: F841
+
+        @belay.task
+        def get_times_foo(val):
+            return val * foo  # noqa: F821
+
+        @Device.teardown
+        def teardown():
+            foo = 0  # noqa: F841
+
+    with MyDevice(emulate_command) as device:
+        assert 10 == device.get_times_foo(1)
