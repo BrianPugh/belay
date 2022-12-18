@@ -20,8 +20,21 @@ On connection, the device is reset into REPL mode, and a few common imports are 
    from micropython import const
    from machine import ADC, I2C, Pin, PWM, SPI, Timer
 
-The ``device`` object has 5 important methods for projects: ``__call__``, ``setup``, ``task``, ``thread``, and ``sync``.
-These are described in the subsequent subsections.
+The ``Device`` object has 6 important methods for projects:
+
+1. ``__call__`` - Generic statement/expression string evaluation.
+
+2. ``setup`` - Executes body on-device in a global context.
+
+3. ``task`` - Executes function on-device.
+
+4. ``teardown`` - Executes body on-device in a global context when connection is closed.
+
+5. ``thread`` - Executes function on-device in a background thread.
+
+6. ``sync`` - Synchronized files from host to device.
+
+These are described in more detail in the subsequent subsections.
 
 call
 ^^^^
@@ -34,7 +47,7 @@ Invoking a python statement like:
 
    ret = device("foo = 1 + 2")
 
-would execute the code ``foo = 1 + 2`` on-device.
+would execute the code ``foo = 1 + 2`` on-device in the global context.
 Because this is a statement, the return value, ``ret`` is ``None``.
 
 Invoking a python expression like:
@@ -43,7 +56,7 @@ Invoking a python expression like:
 
    res = device("foo")
 
-results in ``res == 3``.
+results in the return value ``res == 3`` on host.
 
 setup
 ^^^^^
@@ -92,6 +105,12 @@ This is the preferable way to interact with hardware.
 
 Alternatively, the ``foo`` function will also be available at ``device.task.foo``.
 
+teardown
+^^^^^^^^
+Same as ``setup``, but automatically executes whenever ``device.close()`` is called.
+If ``Device`` is used as a context manager, ``device.close()`` is automatically called at context manager exit.
+Typically used for cleanup, like turning off LEDs or motors.
+
 thread
 ^^^^^^
 
@@ -111,6 +130,7 @@ thread
 
 Not all MicroPython boards support threading, and those that do typically have a maximum of ``1`` thread.
 The decorated function has no return value.
+
 
 sync
 ^^^^
