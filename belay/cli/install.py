@@ -42,6 +42,8 @@ def install(
         # Aggregate dependencies to an intermediate temporary directory.
         tmp_dir = Path(tmp_dir)
 
+        # TODO: better to get what groups to install from the cli.
+        #       If not specified, all non-optional groups will be installed.
         for group_folder in dependency_folder.glob("*/"):
             shutil.copytree(group_folder, tmp_dir, dirs_exist_ok=True)
 
