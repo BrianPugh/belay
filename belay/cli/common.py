@@ -66,7 +66,8 @@ def load_dependency_groups():
     for name, group_config in config.get("group", {}).items():
         if name == "main":
             raise ConfigError(
-                'Specify "main" group dependencies under tool.belay.dependencies'
+                'Specify "main" group dependencies under "tool.belay.dependencies", '
+                'not "tool.belay.main.dependencies"'
             )
 
         if "dependencies" in group_config:
