@@ -8,6 +8,7 @@ from typer.testing import CliRunner
 
 import belay
 import belay.cli.common
+import belay.project
 from belay.cli import app
 
 
@@ -26,12 +27,12 @@ class MockDevice:
 
 @pytest.fixture(autouse=True)
 def cache_clear():
-    belay.cli.common.find_pyproject.cache_clear()
-    belay.cli.common.find_belay_folder.cache_clear()
-    belay.cli.common.find_dependencies_folder.cache_clear()
-    belay.cli.common.load_pyproject.cache_clear()
-    belay.cli.common.load_toml.cache_clear()
-    belay.cli.common.load_dependency_groups.cache_clear()
+    belay.project.find_pyproject.cache_clear()
+    belay.project.find_belay_folder.cache_clear()
+    belay.project.find_dependencies_folder.cache_clear()
+    belay.project.load_pyproject.cache_clear()
+    belay.project.load_toml.cache_clear()
+    belay.project.load_groups.cache_clear()
 
 
 @pytest.fixture(autouse=True)

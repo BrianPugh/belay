@@ -7,14 +7,10 @@ from rich.progress import Progress
 from typer import Argument, Option
 
 from belay import Device
-from belay.cli.common import (
-    find_dependencies_folder,
-    help_password,
-    help_port,
-    load_pyproject,
-)
+from belay.cli.common import help_password, help_port
 from belay.cli.run import run as run_cmd
 from belay.cli.sync import sync
+from belay.project import find_dependencies_folder, load_pyproject
 
 
 def install(

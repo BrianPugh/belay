@@ -3,12 +3,8 @@ import os
 import pytest
 
 import belay
-from belay.cli.common import (
-    find_pyproject,
-    load_dependency_groups,
-    load_pyproject,
-    load_toml,
-)
+from belay.packagemanager import Group
+from belay.project import find_pyproject, load_groups, load_pyproject, load_toml
 
 
 @pytest.fixture
@@ -54,21 +50,21 @@ foo = "bar"
 
 @pytest.fixture
 def mock_load_pyproject(mocker):
-    return mocker.patch("belay.cli.common.load_pyproject")
+    return mocker.patch("belay.project.load_pyproject")
 
 
 def test_load_dependency_groups_empty(mock_load_pyproject):
     mock_load_pyproject.return_value = {}
-    assert load_dependency_groups() == {}
+    assert load_groups() == []
 
 
 def test_load_dependency_groups_main_only(mock_load_pyproject):
     mock_load_pyproject.return_value = {
         "dependencies": {"foo": "foo_uri"},
     }
-    assert load_dependency_groups() == {
-        "main": {"foo": "foo_uri"},
-    }
+    assert load_groups() == [
+        Group("main", dependencies={"foo": "foo_uri"}),
+    ]
 
 
 def test_load_dependency_groups_main_group(mock_load_pyproject):
@@ -82,7 +78,7 @@ def test_load_dependency_groups_main_group(mock_load_pyproject):
         },
     }
     with pytest.raises(belay.ConfigError):
-        load_dependency_groups()
+        load_groups()
 
 
 def test_load_dependency_groups_multiple(mock_load_pyproject):
@@ -97,7 +93,8 @@ def test_load_dependency_groups_multiple(mock_load_pyproject):
             "doc": {},  # This group doesn't have a "dependencies" field.
         },
     }
-    assert load_dependency_groups() == {
-        "main": {"foo": "foo_uri"},
-        "dev": {"bar": "bar_uri"},
-    }
+    assert load_groups() == [
+        Group("dev", dependencies={"bar": "bar_uri"}),
+        Group("doc", dependencies={}),
+        Group("main", dependencies={"foo": "foo_uri"}),
+    ]
