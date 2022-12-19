@@ -3,6 +3,7 @@ __version__ = "0.0.0"
 
 __all__ = [
     "AuthenticationError",
+    "ConfigError",
     "ConnectionLost",
     "Device",
     "FeatureUnavailableError",
@@ -17,6 +18,7 @@ from ._minify import minify
 from .device import Device, Implementation
 from .exceptions import (
     AuthenticationError,
+    ConfigError,
     ConnectionLost,
     FeatureUnavailableError,
     MaxHistoryLengthError,
