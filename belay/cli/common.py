@@ -20,7 +20,9 @@ def find_pyproject() -> Path:
         candidate = parent / path.name
         if candidate.exists():
             return candidate
-    raise FileNotFoundError
+    raise FileNotFoundError(
+        f'Cannot find a pyproject.toml in the current directory "{Path().absolute()}" or any parent directory.'
+    )
 
 
 @lru_cache
