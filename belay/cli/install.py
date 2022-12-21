@@ -1,16 +1,14 @@
-import shutil
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import List, Optional
+from typing import Optional
 
-from rich.progress import Progress
 from typer import Argument, Option
 
 from belay import Device
 from belay.cli.common import help_password, help_port
 from belay.cli.run import run as run_cmd
 from belay.cli.sync import sync
-from belay.project import find_dependencies_folder, load_pyproject
+from belay.project import load_groups, load_pyproject
 
 
 def install(
@@ -32,16 +30,14 @@ def install(
 
     toml = load_pyproject()
     pkg_name = toml.get("name")
-    dependency_folder = find_dependencies_folder()
+    groups = load_groups()
 
     with TemporaryDirectory() as tmp_dir:
         # Aggregate dependencies to an intermediate temporary directory.
         tmp_dir = Path(tmp_dir)
 
-        # TODO: better to get what groups to install from the cli.
-        #       If not specified, all non-optional groups will be installed.
-        for group_folder in dependency_folder.glob("*/"):
-            shutil.copytree(group_folder, tmp_dir, dirs_exist_ok=True)
+        for group in groups:
+            group.copy_to(tmp_dir)
 
         sync(
             port=port,

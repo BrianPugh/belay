@@ -74,7 +74,7 @@ def test_get_text_local(tmp_path):
     assert res == "bar"
 
 
-def test_download_dependencies_all(main_group, mocker, spy_ast):
+def test_download_all(main_group, mocker, spy_ast):
     _get_text = mocker.patch(
         "belay.packagemanager._get_text",
         side_effect=[
@@ -82,7 +82,7 @@ def test_download_dependencies_all(main_group, mocker, spy_ast):
             "def bar(): return 1",
         ],
     )
-    main_group.download_dependencies()
+    main_group.download()
 
     _get_text.assert_has_calls(
         [
@@ -102,7 +102,7 @@ def test_download_dependencies_all(main_group, mocker, spy_ast):
     assert actual_content == "def bar(): return 1"
 
 
-def test_download_dependencies_specific(main_group, mocker, tmp_path, spy_ast):
+def test_download_specific(main_group, mocker, tmp_path, spy_ast):
     _get_text = mocker.patch(
         "belay.packagemanager._get_text",
         side_effect=[
@@ -110,7 +110,7 @@ def test_download_dependencies_specific(main_group, mocker, tmp_path, spy_ast):
         ],
     )
 
-    main_group.download_dependencies(packages=["bar"])
+    main_group.download(packages=["bar"])
 
     _get_text.assert_called_once_with("bar_url/bar.py")
     spy_ast.parse.assert_called_once_with("def bar(): return 1")

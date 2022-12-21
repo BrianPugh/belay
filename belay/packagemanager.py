@@ -1,4 +1,5 @@
 import ast
+import shutil
 from contextlib import nullcontext
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -31,16 +32,14 @@ class Group:
     """Represents a group defined in ``pyproject.toml``."""
 
     def __init__(self, *args, **kwargs):
+        from belay.project import find_dependencies_folder
+
         self.config = GroupConfig(*args, **kwargs)
+
+        self.folder = find_dependencies_folder() / self.config.name
 
         if self.config.optional:
             raise NotImplementedError("Optional groups not implemented yet.")
-
-    @property
-    def folder(self) -> Path:
-        from belay.project import find_dependencies_folder
-
-        return find_dependencies_folder() / self.config.name
 
     def clean(self):
         folder = self.folder
@@ -57,7 +56,12 @@ class Group:
                 continue
             existing_dep.unlink()
 
-    def download_dependencies(
+    def copy_to(self, dst):
+        """Copy Dependencies folder to destination directory."""
+        if self.folder.exists():
+            shutil.copytree(self.folder, dst, dirs_exist_ok=True)
+
+    def download(
         self,
         packages: Optional[List[str]] = None,
         console: Optional[Console] = None,
