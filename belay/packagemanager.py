@@ -75,9 +75,12 @@ class Group:
         console: Optional[Console]
             Print progress out to console.
         """
-        if not packages:
+        if packages is None:
             # Update all packages
             packages = list(self.config.dependencies.keys())
+
+        if not packages:
+            return
 
         if console:
             cm = console.status("[bold green]Updating Dependencies")
