@@ -22,8 +22,13 @@ def find_pyproject() -> Path:
 
 
 @lru_cache
+def find_project_folder() -> Path:
+    return find_pyproject().parent
+
+
+@lru_cache
 def find_belay_folder() -> Path:
-    return find_pyproject().parent / ".belay"
+    return find_project_folder() / ".belay"
 
 
 @lru_cache

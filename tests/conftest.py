@@ -28,6 +28,7 @@ class MockDevice:
 @pytest.fixture(autouse=True)
 def cache_clear():
     belay.project.find_pyproject.cache_clear()
+    belay.project.find_project_folder.cache_clear()
     belay.project.find_belay_folder.cache_clear()
     belay.project.find_dependencies_folder.cache_clear()
     belay.project.load_pyproject.cache_clear()

@@ -8,7 +8,7 @@ from belay import Device
 from belay.cli.common import help_password, help_port
 from belay.cli.run import run as run_cmd
 from belay.cli.sync import sync
-from belay.project import load_groups, load_pyproject
+from belay.project import find_project_folder, load_groups, load_pyproject
 
 
 def install(
@@ -29,7 +29,8 @@ def install(
         raise ValueError("Main script MUST be a python file.")
 
     toml = load_pyproject()
-    pkg_name = toml.get("name")
+    project_folder = find_project_folder()
+    project_package = Path(toml.get("name"))
     groups = load_groups()
 
     with TemporaryDirectory() as tmp_dir:
@@ -49,11 +50,11 @@ def install(
             mpy_cross_binary=mpy_cross_binary,
         )
 
-    if pkg_name:
+    if project_package:
         sync(
             port=port,
-            folder=Path(pkg_name),
-            dst=f"/{pkg_name}",
+            folder=project_folder / project_package,
+            dst=f"/{project_package.name}",
             password=password,
             keep=None,
             ignore=None,
