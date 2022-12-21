@@ -16,7 +16,7 @@ def update(packages: List[str] = Argument(None, help="Specific package(s) to upd
         if packages is None:
             group_packages = None
         else:
-            group_packages = list(set(packages).intersection(group.config.dependencies))
+            group_packages = [x for x in packages if x in group.config.dependencies]
 
         group.download(
             packages=group_packages,
