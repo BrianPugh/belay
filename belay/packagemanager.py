@@ -27,7 +27,6 @@ class GroupConfig:
     dependencies: Dict[str, str] = field(default_factory=dict)
 
 
-@dataclass
 class Group:
     """Represents a group defined in ``pyproject.toml``."""
 
