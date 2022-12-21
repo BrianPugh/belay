@@ -13,8 +13,8 @@ def update(packages: List[str] = Argument(None, help="Specific package(s) to upd
     packages = packages if packages else None
 
     for group in groups:
-        group._download_dependencies(
+        group.download_dependencies(
             packages=packages,
             console=console,
         )
-        group._clean()
+        group.clean()

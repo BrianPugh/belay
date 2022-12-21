@@ -82,7 +82,7 @@ def test_download_dependencies_all(main_group, mocker, spy_ast):
             "def bar(): return 1",
         ],
     )
-    main_group._download_dependencies()
+    main_group.download_dependencies()
 
     _get_text.assert_has_calls(
         [
@@ -95,10 +95,10 @@ def test_download_dependencies_all(main_group, mocker, spy_ast):
         mocker.call("def bar(): return 1"),
     ]
 
-    actual_content = (main_group._folder / "foo.py").read_text()
+    actual_content = (main_group.folder / "foo.py").read_text()
     assert actual_content == "def foo(): return 0"
 
-    actual_content = (main_group._folder / "bar.py").read_text()
+    actual_content = (main_group.folder / "bar.py").read_text()
     assert actual_content == "def bar(): return 1"
 
 
@@ -110,12 +110,12 @@ def test_download_dependencies_specific(main_group, mocker, tmp_path, spy_ast):
         ],
     )
 
-    main_group._download_dependencies(packages=["bar"])
+    main_group.download_dependencies(packages=["bar"])
 
     _get_text.assert_called_once_with("bar_url/bar.py")
     spy_ast.parse.assert_called_once_with("def bar(): return 1")
 
-    actual_content = (main_group._folder / "bar.py").read_text()
+    actual_content = (main_group.folder / "bar.py").read_text()
     assert actual_content == "def bar(): return 1"
 
 
@@ -131,11 +131,11 @@ def main_group():
 
 
 def test_group_clean(main_group):
-    main_group._folder.mkdir()
-    (main_group._folder / "foo.py").touch()
-    (main_group._folder / "baz.py").touch()
+    main_group.folder.mkdir()
+    (main_group.folder / "foo.py").touch()
+    (main_group.folder / "baz.py").touch()
 
-    main_group._clean()
+    main_group.clean()
 
-    assert (main_group._folder / "foo.py").exists()
-    assert not (main_group._folder / "baz.py").exists()
+    assert (main_group.folder / "foo.py").exists()
+    assert not (main_group.folder / "baz.py").exists()

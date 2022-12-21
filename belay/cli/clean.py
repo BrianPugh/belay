@@ -6,4 +6,4 @@ def clean():
     groups = load_groups()
 
     for group in groups:
-        group._clean()
+        group.clean()

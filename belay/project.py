@@ -67,6 +67,6 @@ def load_groups() -> List[Group]:
     groups = [
         Group(name, **definition) for name, definition in groups_definitions.items()
     ]
-    groups.sort(key=lambda x: x.name)
+    groups.sort(key=lambda x: x.config.name)
 
     return groups

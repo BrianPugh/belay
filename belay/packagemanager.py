@@ -14,30 +14,37 @@ class NonMatchingURL(Exception):
 
 
 @dataclass
-class Group:
-    """Represents a group defined in ``pyproject.toml``.
+class GroupConfig:
+    """Schema and store of a group defined in ``pyproject.toml``.
 
-    All properties/functions should have a leading underscore to prevent
-    future potential key collisions between definition and implementation.
+    Don't put any methods in here, they go in ``Group``.
+    This class is primarily for namespacing and validation.
     """
 
     name: str
     optional: bool = False
     dependencies: Dict[str, str] = field(default_factory=dict)
 
-    def __post_init__(self):
-        if self.optional:
+
+@dataclass
+class Group:
+    """Represents a group defined in ``pyproject.toml``."""
+
+    def __init__(self, *args, **kwargs):
+        self.config = GroupConfig(*args, **kwargs)
+
+        if self.config.optional:
             raise NotImplementedError("Optional groups not implemented yet.")
 
     @property
-    def _folder(self) -> Path:
+    def folder(self) -> Path:
         from belay.project import find_dependencies_folder
 
-        return find_dependencies_folder() / self.name
+        return find_dependencies_folder() / self.config.name
 
-    def _clean(self):
-        folder = self._folder
-        dependencies = set(self.dependencies)
+    def clean(self):
+        folder = self.folder
+        dependencies = set(self.config.dependencies)
         existing_deps = []
 
         if not folder.exists():
@@ -50,7 +57,7 @@ class Group:
                 continue
             existing_dep.unlink()
 
-    def _download_dependencies(
+    def download_dependencies(
         self,
         packages: Optional[List[str]] = None,
         console: Optional[Console] = None,
@@ -66,7 +73,7 @@ class Group:
         """
         if not packages:
             # Update all packages
-            packages = list(self.dependencies.keys())
+            packages = list(self.config.dependencies.keys())
 
         if console:
             cm = console.status("[bold green]Updating Dependencies")
@@ -79,7 +86,7 @@ class Group:
 
         with cm:
             for pkg_name in packages:
-                dep = self.dependencies[pkg_name]
+                dep = self.config.dependencies[pkg_name]
                 if isinstance(dep, str):
                     dep = {"path": dep}
                 elif not isinstance(dep, dict):
@@ -91,7 +98,7 @@ class Group:
                 ext = Path(url).suffix
 
                 # Single file
-                dst = self._folder / (pkg_name + ext)
+                dst = self.folder / (pkg_name + ext)
                 dst.parent.mkdir(parents=True, exist_ok=True)
 
                 new_code = _get_text(url)
