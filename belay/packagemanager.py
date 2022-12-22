@@ -7,11 +7,15 @@ from typing import Dict, List, Optional, Set, Union
 from urllib.parse import urlparse
 
 import httpx
+from autoregistry import Registry
 from rich.console import Console
 
 
 class NonMatchingURL(Exception):
     pass
+
+
+url_processors = Registry()
 
 
 @dataclass
@@ -139,6 +143,7 @@ def _strip_www(url: str):
     return url
 
 
+@url_processors
 def _process_url_github(url: str):
     """Transforms github-like url into githubusercontent."""
     url = str(url)
@@ -156,12 +161,9 @@ def _process_url_github(url: str):
 
 
 def _process_url(url: str):
-    parsers = [
-        _process_url_github,
-    ]
-    for parser in parsers:
+    for processor in url_processors.values():
         try:
-            return parser(url)
+            return processor(url)
         except NonMatchingURL:
             pass
 
