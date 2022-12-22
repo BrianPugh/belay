@@ -11,11 +11,11 @@ from autoregistry import Registry
 from rich.console import Console
 
 
-class NonMatchingURL(Exception):
+class NonMatchingURI(Exception):
     pass
 
 
-url_processors = Registry()
+uri_processors = Registry()
 
 
 @dataclass
@@ -113,14 +113,14 @@ class Group:
 
                 log(f"{package_name}: Updating...")
 
-                url = _process_url(dep_src["path"])
-                ext = Path(url).suffix
+                uri = _process_uri(dep_src["path"])
+                ext = Path(uri).suffix
 
                 # Single file
                 dst = self.folder / (package_name + ext)
                 dst.parent.mkdir(parents=True, exist_ok=True)
 
-                new_code = _get_text(url)
+                new_code = _get_text(uri)
 
                 if ext == ".py":
                     ast.parse(new_code)  # Check for valid python code
@@ -137,17 +137,17 @@ class Group:
                     dst.write_text(new_code)
 
 
-def _strip_www(url: str):
-    if url.startswith("www."):
-        url = url[4:]
-    return url
+def _strip_www(uri: str):
+    if uri.startswith("www."):
+        uri = uri[4:]
+    return uri
 
 
-@url_processors
-def _process_url_github(url: str):
-    """Transforms github-like url into githubusercontent."""
-    url = str(url)
-    parsed = urlparse(url)
+@uri_processors
+def _process_uri_github(uri: str):
+    """Transforms github-like uri into githubusercontent."""
+    uri = str(uri)
+    parsed = urlparse(uri)
     netloc = _strip_www(parsed.netloc)
     if netloc == "github.com":
         # Transform to raw.githubusercontent
@@ -156,27 +156,27 @@ def _process_url_github(url: str):
     elif netloc == "raw.githubusercontent.com":
         return f"https://raw.githubusercontent.com{parsed.path}"
     else:
-        # TODO: Try and be a little helpful if url contains github.com
-        raise NonMatchingURL
+        # TODO: Try and be a little helpful if uri contains github.com
+        raise NonMatchingURI
 
 
-def _process_url(url: str):
-    for processor in url_processors.values():
+def _process_uri(uri: str):
+    for processor in uri_processors.values():
         try:
-            return processor(url)
-        except NonMatchingURL:
+            return processor(uri)
+        except NonMatchingURI:
             pass
 
-    # Unmodified URL
-    return url
+    # Unmodified URI
+    return uri
 
 
-def _get_text(url: Union[str, Path]):
-    url = str(url)
-    if url.startswith(("https://", "http://")):
-        res = httpx.get(url)
+def _get_text(uri: Union[str, Path]):
+    uri = str(uri)
+    if uri.startswith(("https://", "http://")):
+        res = httpx.get(uri)
         res.raise_for_status()
         return res.text
     else:
         # Assume local file
-        return Path(url).read_text()
+        return Path(uri).read_text()

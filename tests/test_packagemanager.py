@@ -19,9 +19,9 @@ def tmp_path_find_dependencies_folder(tmp_path, mocker):
         "raw.githubusercontent.com/BrianPugh/belay/main/belay/__init__.py",
     ],
 )
-def test_process_url_github(http, www, body):
+def test_process_uri_github(http, www, body):
     url = http + www + body
-    out = belay.packagemanager._process_url_github(url)
+    out = belay.packagemanager._process_uri_github(url)
     assert (
         out
         == "https://raw.githubusercontent.com/BrianPugh/belay/main/belay/__init__.py"
@@ -38,8 +38,8 @@ def test_process_url_github(http, www, body):
         ("path/to/local/file.py", "path/to/local/file.py"),
     ],
 )
-def test_process_url(url, formatted):
-    actual = belay.packagemanager._process_url(url)
+def test_process_uri(url, formatted):
+    actual = belay.packagemanager._process_uri(url)
     assert actual == formatted
 
 
