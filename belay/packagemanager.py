@@ -100,20 +100,20 @@ class Group:
                 console.log(*args, **kwargs)
 
         with cm:
-            for pkg_name in packages:
-                dep = self.config.dependencies[pkg_name]
-                if isinstance(dep, str):
-                    dep = {"path": dep}
-                elif not isinstance(dep, dict):
-                    raise ValueError(f"Invalid value for key {pkg_name}.")
+            for package_name in packages:
+                dep_src = self.config.dependencies[package_name]
+                if isinstance(dep_src, str):
+                    dep_src = {"path": dep_src}
+                elif not isinstance(dep_src, dict):
+                    raise ValueError(f"Invalid value for key {package_name}.")
 
-                log(f"{pkg_name}: Updating...")
+                log(f"{package_name}: Updating...")
 
-                url = _process_url(dep["path"])
+                url = _process_url(dep_src["path"])
                 ext = Path(url).suffix
 
                 # Single file
-                dst = self.folder / (pkg_name + ext)
+                dst = self.folder / (package_name + ext)
                 dst.parent.mkdir(parents=True, exist_ok=True)
 
                 new_code = _get_text(url)
@@ -127,9 +127,9 @@ class Group:
                     old_code = ""
 
                 if new_code == old_code:
-                    log(f"{pkg_name}: No changes detected.")
+                    log(f"{package_name}: No changes detected.")
                 else:
-                    log(f"[bold green]{pkg_name}: Updated.")
+                    log(f"[bold green]{package_name}: Updated.")
                     dst.write_text(new_code)
 
 
