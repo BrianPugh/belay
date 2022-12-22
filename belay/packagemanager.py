@@ -1,27 +1,153 @@
 import ast
+import shutil
 from contextlib import nullcontext
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Union
 from urllib.parse import urlparse
 
 import httpx
+from autoregistry import Registry
 from rich.console import Console
 
 
-class NonMatchingURL(Exception):
+class NonMatchingURI(Exception):
     pass
 
 
-def _strip_www(url: str):
-    if url.startswith("www."):
-        url = url[4:]
-    return url
+uri_processors = Registry()
 
 
-def _process_url_github(url: str):
-    """Transforms github-like url into githubusercontent."""
-    url = str(url)
-    parsed = urlparse(url)
+@dataclass
+class GroupConfig:
+    """Schema and store of a group defined in ``pyproject.toml``.
+
+    Don't put any methods in here, they go in ``Group``.
+    This class is primarily for namespacing and validation.
+    """
+
+    name: str
+    optional: bool = False
+    dependencies: Dict[str, str] = field(default_factory=dict)
+
+
+class Group:
+    """Represents a group defined in ``pyproject.toml``."""
+
+    def __init__(self, *args, **kwargs):
+        from belay.project import find_dependencies_folder
+
+        self.config = GroupConfig(*args, **kwargs)
+
+        self.folder = find_dependencies_folder() / self.config.name
+
+        if self.config.optional:
+            raise NotImplementedError("Optional groups not implemented yet.")
+
+    def __eq__(self, other):
+        if not isinstance(other, Group):
+            return False
+        return self.config.__dict__ == other.config.__dict__
+
+    def __repr__(self):
+        kws = [f"{key}={value!r}" for key, value in self.config.__dict__.items()]
+        return f"{type(self).__name__}({', '.join(kws)})"
+
+    def clean(self):
+        """Delete any dependency module not specified in ``self.config.dependencies``."""
+        dependencies = set(self.config.dependencies)
+        existing_deps = []
+
+        if not self.folder.exists():
+            return
+
+        existing_deps.extend(self.folder.glob("*"))
+
+        for existing_dep in existing_deps:
+            if existing_dep.stem in dependencies:
+                continue
+            existing_dep.unlink()
+
+    def copy_to(self, dst):
+        """Copy Dependencies folder to destination directory."""
+        if self.folder.exists():
+            shutil.copytree(self.folder, dst, dirs_exist_ok=True)
+
+    def download(
+        self,
+        packages: Optional[List[str]] = None,
+        console: Optional[Console] = None,
+    ):
+        """Download dependencies.
+
+        Parameters
+        ----------
+        packages: Optional[List[str]]
+            Only download these package.
+        console: Optional[Console]
+            Print progress out to console.
+        """
+        if packages is None:
+            # Update all packages
+            packages = list(self.config.dependencies.keys())
+
+        if not packages:
+            return
+
+        if console:
+            cm = console.status("[bold green]Updating Dependencies")
+        else:
+            cm = nullcontext()
+
+        def log(*args, **kwargs):
+            if console:
+                console.log(*args, **kwargs)
+
+        with cm:
+            for package_name in packages:
+                dep_src = self.config.dependencies[package_name]
+                if isinstance(dep_src, str):
+                    dep_src = {"path": dep_src}
+                elif not isinstance(dep_src, dict):
+                    raise ValueError(f"Invalid value for key {package_name}.")
+
+                log(f"{package_name}: Updating...")
+
+                uri = _process_uri(dep_src["path"])
+                ext = Path(uri).suffix
+
+                # Single file
+                dst = self.folder / (package_name + ext)
+                dst.parent.mkdir(parents=True, exist_ok=True)
+
+                new_code = _get_text(uri)
+
+                if ext == ".py":
+                    ast.parse(new_code)  # Check for valid python code
+
+                try:
+                    old_code = dst.read_text()
+                except FileNotFoundError:
+                    old_code = ""
+
+                if new_code == old_code:
+                    log(f"{package_name}: No changes detected.")
+                else:
+                    log(f"[bold green]{package_name}: Updated.")
+                    dst.write_text(new_code)
+
+
+def _strip_www(uri: str):
+    if uri.startswith("www."):
+        uri = uri[4:]
+    return uri
+
+
+@uri_processors
+def _process_uri_github(uri: str):
+    """Transforms github-like uri into githubusercontent."""
+    uri = str(uri)
+    parsed = urlparse(uri)
     netloc = _strip_www(parsed.netloc)
     if netloc == "github.com":
         # Transform to raw.githubusercontent
@@ -30,114 +156,27 @@ def _process_url_github(url: str):
     elif netloc == "raw.githubusercontent.com":
         return f"https://raw.githubusercontent.com{parsed.path}"
     else:
-        # TODO: Try and be a little helpful if url contains github.com
-        raise NonMatchingURL
+        # TODO: Try and be a little helpful if uri contains github.com
+        raise NonMatchingURI
 
 
-def _process_url(url: str):
-    parsers = [
-        _process_url_github,
-    ]
-    for parser in parsers:
+def _process_uri(uri: str):
+    for processor in uri_processors.values():
         try:
-            return parser(url)
-        except NonMatchingURL:
+            return processor(uri)
+        except NonMatchingURI:
             pass
 
-    # Unmodified URL
-    return url
+    # Unmodified URI
+    return uri
 
 
-def _get_text(url: Union[str, Path]):
-    url = str(url)
-    if url.startswith(("https://", "http://")):
-        res = httpx.get(url)
+def _get_text(uri: Union[str, Path]):
+    uri = str(uri)
+    if uri.startswith(("https://", "http://")):
+        res = httpx.get(uri)
         res.raise_for_status()
         return res.text
     else:
         # Assume local file
-        return Path(url).read_text()
-
-
-def download_dependencies(
-    dependencies: Dict[str, Union[str, Dict]],
-    packages: Optional[List[str]] = None,
-    local_dir: Union[str, Path] = ".belay/dependencies/main",
-    console: Optional[Console] = None,
-):
-    """Download dependencies.
-
-    Parameters
-    ----------
-    dependencies: dict
-        Dependencies to install (probably parsed from TOML file).
-    packages: Optional[List[str]]
-        Only download this package.
-    local_dir: Union[str, Path]
-        Download dependencies to this directory.
-        Will create directories as necessary.
-    console: Optional[Console]
-        Print progress out to console.
-    """
-    local_dir = Path(local_dir)
-    if not packages:
-        # Update all packages
-        packages = list(dependencies.keys())
-
-    if console:
-        cm = console.status("[bold green]Updating Dependencies")
-    else:
-        cm = nullcontext()
-
-    def log(*args, **kwargs):
-        if console:
-            console.log(*args, **kwargs)
-
-    with cm:
-        for pkg_name in packages:
-            dep = dependencies[pkg_name]
-            if isinstance(dep, str):
-                dep = {"path": dep}
-            elif not isinstance(dep, dict):
-                raise ValueError(f"Invalid value for key {pkg_name}.")
-
-            log(f"{pkg_name}: Updating...")
-
-            url = _process_url(dep["path"])
-            ext = Path(url).suffix
-
-            # Single file
-            dst = local_dir / (pkg_name + ext)
-            dst.parent.mkdir(parents=True, exist_ok=True)
-
-            new_code = _get_text(url)
-
-            if ext == ".py":
-                ast.parse(new_code)  # Check for valid python code
-
-            try:
-                old_code = dst.read_text()
-            except FileNotFoundError:
-                old_code = ""
-
-            if new_code == old_code:
-                log(f"{pkg_name}: No changes detected.")
-            else:
-                log(f"[bold green]{pkg_name}: Updated.")
-                dst.write_text(new_code)
-
-
-def clean_local(
-    dependencies: Union[Set[str], List[str]],
-    local_dir: Union[str, Path] = ".belay/dependencies/main",
-):
-    """Delete downloaded dependencies if they are no longer referenced."""
-    local_dir = Path(local_dir)
-    dependencies = set(dependencies)
-    existing_deps = []
-    existing_deps.extend(local_dir.glob("*.py"))
-
-    for existing_dep in existing_deps:
-        if existing_dep.stem in dependencies:
-            continue
-        existing_dep.unlink()
+        return Path(uri).read_text()

@@ -1,3 +1,4 @@
+import os
 from distutils import dir_util
 from functools import partial
 from pathlib import Path
@@ -6,6 +7,8 @@ import pytest
 from typer.testing import CliRunner
 
 import belay
+import belay.cli.common
+import belay.project
 from belay.cli import app
 
 
@@ -20,6 +23,24 @@ class MockDevice:
 
     def cls_assert_common(self):
         self.cls.assert_called_once_with("/dev/ttyUSB0", password="password")
+
+
+@pytest.fixture(autouse=True)
+def cache_clear():
+    belay.project.find_pyproject.cache_clear()
+    belay.project.find_project_folder.cache_clear()
+    belay.project.find_belay_folder.cache_clear()
+    belay.project.find_dependencies_folder.cache_clear()
+    belay.project.load_pyproject.cache_clear()
+    belay.project.load_toml.cache_clear()
+    belay.project.load_groups.cache_clear()
+
+
+@pytest.fixture(autouse=True)
+def restore_cwd():
+    cwd = os.getcwd()  # noqa: PL109
+    yield
+    os.chdir(cwd)
 
 
 @pytest.fixture

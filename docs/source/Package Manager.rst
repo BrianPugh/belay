@@ -52,7 +52,6 @@ Update
 ------
 ``belay update`` iterates over and downloads the dependencies defined
 in ``tool.belay.dependencies`` of ``pyproject.toml``.
-This command should be ran from the root of your project, and is ran when new upstream library changes want to be pulled.
 The downloaded dependencies are stored in ``.belay/dependencies/main/`` of the current working directory.
 ``.belay/dependencies/main/`` should be committed to your git repo and can be thought of as a dependency lock file.
 
