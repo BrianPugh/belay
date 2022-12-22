@@ -3,6 +3,7 @@ from typing import List
 from rich.console import Console
 from typer import Argument
 
+from belay.cli.clean import clean
 from belay.project import load_groups
 
 
@@ -22,4 +23,5 @@ def update(packages: List[str] = Argument(None, help="Specific package(s) to upd
             packages=group_packages,
             console=console,
         )
-        group.clean()
+
+    clean()

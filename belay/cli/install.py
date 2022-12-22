@@ -30,7 +30,7 @@ def install(
 
     toml = load_pyproject()
     project_folder = find_project_folder()
-    project_package = Path(toml.get("name"))
+    project_package = toml.get("name")
     groups = load_groups()
 
     with TemporaryDirectory() as tmp_dir:
@@ -51,6 +51,7 @@ def install(
         )
 
     if project_package:
+        project_package = Path(project_package)
         sync(
             port=port,
             folder=project_folder / project_package,

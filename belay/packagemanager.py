@@ -40,15 +40,24 @@ class Group:
         if self.config.optional:
             raise NotImplementedError("Optional groups not implemented yet.")
 
+    def __eq__(self, other):
+        if not isinstance(other, Group):
+            return False
+        return self.config.__dict__ == other.config.__dict__
+
+    def __repr__(self):
+        kws = [f"{key}={value!r}" for key, value in self.config.__dict__.items()]
+        return "{}({})".format(type(self).__name__, ", ".join(kws))
+
     def clean(self):
-        folder = self.folder
+        """Delete any dependency module not specified in ``self.config.dependencies``."""
         dependencies = set(self.config.dependencies)
         existing_deps = []
 
-        if not folder.exists():
+        if not self.folder.exists():
             return
 
-        existing_deps.extend(folder.rglob("*.py"))
+        existing_deps.extend(self.folder.glob("*"))
 
         for existing_dep in existing_deps:
             if existing_dep.stem in dependencies:

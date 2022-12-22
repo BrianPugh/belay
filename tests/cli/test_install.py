@@ -46,6 +46,7 @@ def test_install_basic(tmp_path, mocker):
     mocker.patch(
         "belay.project.find_dependencies_folder", return_value=dependencies_folder
     )
+    mocker.patch("belay.cli.install.find_project_folder", return_value=Path())
     mock_sync = mocker.patch("belay.cli.install.sync")
 
     result = cli_runner.invoke(
