@@ -47,7 +47,7 @@ class Group:
 
     def __repr__(self):
         kws = [f"{key}={value!r}" for key, value in self.config.__dict__.items()]
-        return "{}({})".format(type(self).__name__, ", ".join(kws))
+        return f"{type(self).__name__}({', '.join(kws)})"
 
     def clean(self):
         """Delete any dependency module not specified in ``self.config.dependencies``."""
