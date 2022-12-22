@@ -38,6 +38,9 @@ def install(
         tmp_dir = Path(tmp_dir)
 
         for group in groups:
+            if group.config.optional:
+                # TODO: Should only iterate over non-optional & manually specified groups.
+                raise NotImplementedError
             group.copy_to(tmp_dir)
 
         sync(
