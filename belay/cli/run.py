@@ -11,7 +11,17 @@ def run(
     file: Path = Argument(..., help="File to run on-device."),
     password: str = Option("", help=help_password),
 ):
-    """Run file on-device."""
+    """Run file on-device.
+
+    If the first argument, ``port``, is resolvable to an executable,
+    the remainder of the command will be interpreted as a shell command
+    that will be executed in a pseudo-micropython-virtual-environment.
+    As of right now, this just sets ``MICROPYPATH`` to all of the dependency
+    groups' folders. E.g::
+
+            belay run micropython -m unittest
+
+    """
     device = Device(port, password=password)
     content = file.read_text()
     device(content)
