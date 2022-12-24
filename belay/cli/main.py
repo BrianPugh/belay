@@ -36,7 +36,11 @@ def run_exec(command: List[str]):
     virtual_env = os.environ.copy()
     # Add all dependency groups to the micropython path.
     virtual_env["MICROPYPATH"] = os.pathsep.join(str(g.folder) for g in groups)
-    subprocess.check_output(command, env=virtual_env)  # nosec
+    subprocess.run(  # nosec
+        command,
+        env=virtual_env,
+        check=True,
+    )
 
 
 def run_app(*args, **kwargs):
