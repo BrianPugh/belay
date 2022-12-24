@@ -3,5 +3,9 @@ name = "packagename"
 
 [tool.belay.dependencies]
 
+[tool.belay.group.dev.dependencies]
+unittest = "https://github.com/micropython/micropython-lib/blob/master/python-stdlib/unittest/unittest/__init__.py"
+
+
 [tool.pytest.ini_options]
 pythonpath = ".belay/dependencies/main"
