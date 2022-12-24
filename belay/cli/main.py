@@ -1,4 +1,5 @@
 import os
+import shutil
 import subprocess  # nosec
 import sys
 from typing import List
@@ -36,23 +37,33 @@ def run_exec(command: List[str]):
     virtual_env = os.environ.copy()
     # Add all dependency groups to the micropython path.
     virtual_env["MICROPYPATH"] = os.pathsep.join(str(g.folder) for g in groups)
-    subprocess.run(  # nosec
+    return subprocess.run(  # nosec
         command,
         env=virtual_env,
         check=True,
-    )
+    ).returncode
+
+
+def _get(indexable, index, default=None):
+    try:
+        return indexable[index]
+    except IndexError:
+        return default
 
 
 def run_app(*args, **kwargs):
     """Add CLI hacks that are not Typer-friendly here."""
-    exec_identifier = "exec:"
-    if sys.argv[1] == "run" and sys.argv[2].startswith(exec_identifier):
+    command = _get(sys.argv, 1)
+    exec_path = _get(sys.argv, 2)
+
+    try:
+        exec_path = shutil.which(sys.argv[2])
+    except IndexError:
+        exec_path = None
+
+    if command == "run" and exec_path:
         # See docstring in belay.cli.run.run
-        command = sys.argv[2:].copy()
-        command[0] = command[0][len(exec_identifier) :]
-        if not command[0]:
-            command = command[1:]
-        run_exec(command)
-    else:
-        # Common-case; use Typer functionality.
-        app(*args, **kwargs)
+        return run_exec(sys.argv[2:])
+
+    # Common-case; use Typer functionality.
+    app(*args, **kwargs)
