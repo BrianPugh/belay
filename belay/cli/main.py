@@ -6,9 +6,7 @@ from typing import List
 
 import typer
 
-from belay import Device
 from belay.cli.clean import clean
-from belay.cli.common import help_password, help_port
 from belay.cli.exec import exec
 from belay.cli.identify import identify
 from belay.cli.info import info
