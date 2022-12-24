@@ -54,7 +54,6 @@ def _get(indexable, index, default=None):
 def run_app(*args, **kwargs):
     """Add CLI hacks that are not Typer-friendly here."""
     command = _get(sys.argv, 1)
-    exec_path = _get(sys.argv, 2)
 
     try:
         exec_path = shutil.which(sys.argv[2])
