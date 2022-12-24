@@ -32,6 +32,7 @@ def new(project_name: str = Argument(..., help="Project Name.")):
             "|".join(r"\b%s\b" % re.escape(s) for s in replacements), _replace, string
         )
 
+    # Replace contents of files.
     for path in paths:
         if path.is_dir():
             continue
