@@ -48,21 +48,6 @@ def spy_ast(mocker):
     return mocker.spy(belay.packagemanager, "ast")
 
 
-@pytest.fixture
-def mock_httpx(mocker):
-    mock_httpx = mocker.patch("belay.packagemanager.httpx")
-    mock_httpx.get.return_value = mocker.MagicMock()
-    return mock_httpx
-
-
-@pytest.mark.parametrize("url", ["https://foo.com", "http://foo.com"])
-def test_get_text_url(mock_httpx, url):
-    res = belay.packagemanager._get_text(url)
-    mock_httpx.get.assert_called_once_with(url)
-    mock_httpx.get.return_value.raise_for_status.assert_called_once()
-    assert res == mock_httpx.get.return_value.text
-
-
 def test_get_text_local(tmp_path):
     fn = tmp_path / "foo.py"
     fn.write_text("bar")

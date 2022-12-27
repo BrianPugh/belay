@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Set, Union
 from urllib.parse import urlparse
 
-import httpx
+import fsspec
 from autoregistry import Registry
 from rich.console import Console
 
@@ -173,10 +173,5 @@ def _process_uri(uri: str):
 
 def _get_text(uri: Union[str, Path]):
     uri = str(uri)
-    if uri.startswith(("https://", "http://")):
-        res = httpx.get(uri)
-        res.raise_for_status()
-        return res.text
-    else:
-        # Assume local file
-        return Path(uri).read_text()
+    with fsspec.open(uri, "r") as f:
+        return f.read()
