@@ -1,34 +1,40 @@
 import ast
+import hashlib
+import re
 import shutil
+import tempfile
 from contextlib import nullcontext
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Union
-from urllib.parse import urlparse
+from typing import Dict, List, Optional, Union
 
 import fsspec
 from autoregistry import Registry
 from rich.console import Console
+
+PathType = Union[str, Path]
 
 
 class NonMatchingURI(Exception):
     pass
 
 
-uri_processors = Registry()
+downloaders = Registry()
 
 
+# TODO: maybe use pydantic.dataclass
 @dataclass
 class GroupConfig:
     """Schema and store of a group defined in ``pyproject.toml``.
 
     Don't put any methods in here, they go in ``Group``.
+    Don't directly instnatiate ``GroupConfig`` outside of ``Config``.
     This class is primarily for namespacing and validation.
     """
 
     name: str
     optional: bool = False
-    dependencies: Dict[str, str] = field(default_factory=dict)
+    dependencies: Dict[str, Union[list, dict, str]] = field(default_factory=dict)
 
 
 class Group:
@@ -53,9 +59,13 @@ class Group:
         kws = [f"{key}={value!r}" for key, value in self.config.__dict__.items()]
         return f"{type(self).__name__}({', '.join(kws)})"
 
+    @property
+    def dependencies(self):
+        return self.config.dependencies
+
     def clean(self):
         """Delete any dependency module not specified in ``self.config.dependencies``."""
-        dependencies = set(self.config.dependencies)
+        dependencies = set(self.dependencies)
         existing_deps = []
 
         if not self.folder.exists():
@@ -89,7 +99,7 @@ class Group:
         """
         if packages is None:
             # Update all packages
-            packages = list(self.config.dependencies.keys())
+            packages = list(self.dependencies.keys())
 
         if not packages:
             return
@@ -105,73 +115,147 @@ class Group:
 
         with cm:
             for package_name in packages:
-                dep_src = self.config.dependencies[package_name]
+                local_folder = self.folder / package_name
+                local_folder.mkdir(exist_ok=True, parents=True)
+
+                dep_src = self.dependencies[package_name]
+
                 if isinstance(dep_src, str):
-                    dep_src = {"path": dep_src}
+                    # TODO: as we allow dict dependency specifiers, this should mirror it.
+                    dep_src = {"remote": dep_src}
+                elif isinstance(dep_src, list):
+                    raise NotImplementedError("List dependencies not yet supported.")
                 elif not isinstance(dep_src, dict):
-                    raise ValueError(f"Invalid value for key {package_name}.")
+                    raise NotImplementedError(
+                        "Dictionary dependencies not yet supported."
+                    )
 
                 log(f"{package_name}: Updating...")
 
-                uri = _process_uri(dep_src["path"])
-                ext = Path(uri).suffix
+                with tempfile.TemporaryDirectory() as tmp_dir:
+                    tmp_dir = Path(tmp_dir)
+                    _download_uri(tmp_dir, dep_src["remote"])
+                    _verify_files(tmp_dir)
+                    changed = _sync(tmp_dir, local_folder)
 
-                # Single file
-                dst = self.folder / (package_name + ext)
-                dst.parent.mkdir(parents=True, exist_ok=True)
-
-                new_code = _get_text(uri)
-
-                if ext == ".py":
-                    ast.parse(new_code)  # Check for valid python code
-
-                try:
-                    old_code = dst.read_text()
-                except FileNotFoundError:
-                    old_code = ""
-
-                if new_code == old_code:
-                    log(f"{package_name}: No changes detected.")
-                else:
+                if changed:
                     log(f"[bold green]{package_name}: Updated.")
-                    dst.write_text(new_code)
+                else:
+                    log(f"{package_name}: No changes detected.")
+
+                # Detect if an old single-py file exists and remove it from
+                # older version of Belay. We can eventually remove this check
+                # after enough time has passed.
+                local_folder.with_suffix(".py").unlink(missing_ok=True)
 
 
-def _strip_www(uri: str):
-    if uri.startswith("www."):
-        uri = uri[4:]
-    return uri
-
-
-@uri_processors
-def _process_uri_github(uri: str):
-    """Transforms github-like uri into githubusercontent."""
-    uri = str(uri)
-    parsed = urlparse(uri)
-    netloc = _strip_www(parsed.netloc)
-    if netloc == "github.com":
-        # Transform to raw.githubusercontent
-        _, user, project, mode, branch, *path = parsed.path.split("/")
-        return f"https://raw.githubusercontent.com/{user}/{project}/{branch}/{'/'.join(path)}"
-    elif netloc == "raw.githubusercontent.com":
-        return f"https://raw.githubusercontent.com{parsed.path}"
-    else:
-        # TODO: Try and be a little helpful if uri contains github.com
+@downloaders
+def _download_github(dst: Path, uri: str):
+    """Download a file or folder from github."""
+    # Single File
+    match = re.search(r"github\.com/(.+?)/(.+?)/blob/(.+?)/(.*)", uri)
+    if not match:
+        # Folder
+        match = re.search(r"github\.com/(.+?)/(.+?)/tree/(.+?)/(.*)", uri)
+    if not match:
         raise NonMatchingURI
+    org, repo, branch, path = match.groups()
+
+    # TODO: use github username/token from env-var, but first need to
+    #       figure out pyproject interface. Or maybe something with SSH?
+    username, token = None, None
+    # username = os.environ.get("GITHUB_USERNAME")
+    # token = os.environ.get("GITHUB_TOKEN")
+
+    fs = fsspec.filesystem("github", org=org, repo=repo, username=username, token=token)
+    if not fs.isdir(path):
+        dst = dst / "__init__.py"
+    fs.get(path, dst.as_posix(), recursive=True)
 
 
-def _process_uri(uri: str):
-    for processor in uri_processors.values():
+# DO NOT decorate with ``@downloaders``, since this must be last.
+def _download_generic(dst: Path, uri: str):
+    """Downloads a single file to ``dst / "__init__.py"``."""
+    dst = dst / "__init__.py"
+    with fsspec.open(uri, "rb") as f:
+        data = f.read()
+    with dst.open("wb") as f:
+        f.write(data)
+
+
+def _download_uri(dst_folder: PathType, uri: str):
+    """Download ``uri`` by trying all downloaders on ``uri`` until one works."""
+    dst_folder = Path(dst_folder)
+    for processor in downloaders.values():
         try:
-            return processor(uri)
+            processor(dst_folder, uri)
+            break
         except NonMatchingURI:
             pass
+    else:
+        _download_generic(dst_folder, uri)
 
-    # Unmodified URI
-    return uri
+
+def _verify_files(folder: PathType):
+    """Sanity checks downloaded files.
+
+    Currently just checks if ".py" files are valid python code.
+    """
+    folder = Path(folder)
+    for f in folder.rglob("*"):
+        if f.suffix == ".py":
+            code = f.read_text()
+            ast.parse(code)
 
 
-def _get_text(uri: Union[str, Path]):
-    uri = str(uri)
-    with fsspec.open(uri, "r") as f:
-        return f.read()
+def _sha256sum(path: PathType):
+    path = Path(path)
+    h = hashlib.sha256()
+    mv = memoryview(bytearray(128 * 1024))
+    with path.open("rb", buffering=0) as f:
+        while n := f.readinto(mv):
+            h.update(mv[:n])
+    return h.hexdigest()
+
+
+def _sync(src_folder: PathType, dst_folder: PathType) -> bool:
+    """Make ``dst_folder`` have the same contents as ``src_folder``.
+
+    Returns
+    -------
+    bool
+        ``True`` if contents of ``dst`` have changed; ``False`` otherwise.
+    """
+    changed = False
+    src_folder, dst_folder = Path(src_folder), Path(dst_folder)
+
+    src_files = {x.relative_to(src_folder) for x in src_folder.rglob("*")}
+    dst_files = {x.relative_to(dst_folder) for x in dst_folder.rglob("*")}
+
+    common_files = src_files.intersection(dst_files)
+    src_only_files = src_files - dst_files
+    dst_only_files = dst_files - src_files
+
+    # compare common files and copy over on change
+    for f in common_files:
+        src = src_folder / f
+        dst = dst_folder / f
+
+        if _sha256sum(src) != _sha256sum(dst):
+            changed = True
+            shutil.copy(src, dst)
+
+    # copy over src_only_files
+    for f in src_only_files:
+        changed = True
+        src = src_folder / f
+        dst = dst_folder / f
+        shutil.copy(src, dst)
+
+    # Remove files that only exist in the destination
+    for f in dst_only_files:
+        changed = True
+        dst = dst_folder / f
+        (dst_folder / f).unlink()
+
+    return changed

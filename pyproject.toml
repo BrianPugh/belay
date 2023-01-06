@@ -30,6 +30,8 @@ pathspec = "*"
 tomli = "^2.0.1"
 autoregistry = "^0.8.2"
 fsspec = "^2022.11.0"
+requests = "^2.28.1"
+aiohttp = "^3.8.3"
 
 [tool.poetry.group.docs.dependencies]
 sphinx = "~4.5.0"
@@ -97,3 +99,6 @@ exclude_dirs = [
 [tool.pytest.ini_options]
 addopts = "--import-mode=importlib"
 norecursedirs = "integration"
+markers = [
+    "network: mark a test that requires network access.",
+]
