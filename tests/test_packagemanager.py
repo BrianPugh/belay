@@ -16,7 +16,7 @@ def tmp_path_find_dependencies_folder(tmp_path, mocker):
 
 @pytest.fixture
 def spy_ast(mocker):
-    return mocker.spy(belay.packagemanager, "ast")
+    return mocker.spy(belay.packagemanager.group, "ast")
 
 
 @pytest.fixture

@@ -1,6 +1,4 @@
 import ast
-import hashlib
-import re
 import shutil
 import tempfile
 from contextlib import nullcontext
@@ -8,18 +6,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
-import fsspec
-from autoregistry import Registry
 from rich.console import Console
 
-PathType = Union[str, Path]
-
-
-class NonMatchingURI(Exception):
-    pass
-
-
-downloaders = Registry()
+from belay.packagemanager.download import download_uri
+from belay.packagemanager.sync import sync
+from belay.typing import PathType
 
 
 # TODO: maybe use pydantic.dataclass
@@ -134,9 +125,9 @@ class Group:
 
                 with tempfile.TemporaryDirectory() as tmp_dir:
                     tmp_dir = Path(tmp_dir)
-                    _download_uri(tmp_dir, dep_src["remote"])
+                    download_uri(tmp_dir, dep_src["remote"])
                     _verify_files(tmp_dir)
-                    changed = _sync(tmp_dir, local_folder)
+                    changed = sync(tmp_dir, local_folder)
 
                 if changed:
                     log(f"[bold green]{package_name}: Updated.")
@@ -149,53 +140,6 @@ class Group:
                 local_folder.with_suffix(".py").unlink(missing_ok=True)
 
 
-@downloaders
-def _download_github(dst: Path, uri: str):
-    """Download a file or folder from github."""
-    # Single File
-    match = re.search(r"github\.com/(.+?)/(.+?)/blob/(.+?)/(.*)", uri)
-    if not match:
-        # Folder
-        match = re.search(r"github\.com/(.+?)/(.+?)/tree/(.+?)/(.*)", uri)
-    if not match:
-        raise NonMatchingURI
-    org, repo, branch, path = match.groups()
-
-    # TODO: use github username/token from env-var, but first need to
-    #       figure out pyproject interface. Or maybe something with SSH?
-    username, token = None, None
-    # username = os.environ.get("GITHUB_USERNAME")
-    # token = os.environ.get("GITHUB_TOKEN")
-
-    fs = fsspec.filesystem("github", org=org, repo=repo, username=username, token=token)
-    if not fs.isdir(path):
-        dst = dst / "__init__.py"
-    fs.get(path, dst.as_posix(), recursive=True)
-
-
-# DO NOT decorate with ``@downloaders``, since this must be last.
-def _download_generic(dst: Path, uri: str):
-    """Downloads a single file to ``dst / "__init__.py"``."""
-    dst = dst / "__init__.py"
-    with fsspec.open(uri, "rb") as f:
-        data = f.read()
-    with dst.open("wb") as f:
-        f.write(data)
-
-
-def _download_uri(dst_folder: PathType, uri: str):
-    """Download ``uri`` by trying all downloaders on ``uri`` until one works."""
-    dst_folder = Path(dst_folder)
-    for processor in downloaders.values():
-        try:
-            processor(dst_folder, uri)
-            break
-        except NonMatchingURI:
-            pass
-    else:
-        _download_generic(dst_folder, uri)
-
-
 def _verify_files(folder: PathType):
     """Sanity checks downloaded files.
 
@@ -206,56 +150,3 @@ def _verify_files(folder: PathType):
         if f.suffix == ".py":
             code = f.read_text()
             ast.parse(code)
-
-
-def _sha256sum(path: PathType):
-    path = Path(path)
-    h = hashlib.sha256()
-    mv = memoryview(bytearray(128 * 1024))
-    with path.open("rb", buffering=0) as f:
-        while n := f.readinto(mv):
-            h.update(mv[:n])
-    return h.hexdigest()
-
-
-def _sync(src_folder: PathType, dst_folder: PathType) -> bool:
-    """Make ``dst_folder`` have the same contents as ``src_folder``.
-
-    Returns
-    -------
-    bool
-        ``True`` if contents of ``dst`` have changed; ``False`` otherwise.
-    """
-    changed = False
-    src_folder, dst_folder = Path(src_folder), Path(dst_folder)
-
-    src_files = {x.relative_to(src_folder) for x in src_folder.rglob("*")}
-    dst_files = {x.relative_to(dst_folder) for x in dst_folder.rglob("*")}
-
-    common_files = src_files.intersection(dst_files)
-    src_only_files = src_files - dst_files
-    dst_only_files = dst_files - src_files
-
-    # compare common files and copy over on change
-    for f in common_files:
-        src = src_folder / f
-        dst = dst_folder / f
-
-        if _sha256sum(src) != _sha256sum(dst):
-            changed = True
-            shutil.copy(src, dst)
-
-    # copy over src_only_files
-    for f in src_only_files:
-        changed = True
-        src = src_folder / f
-        dst = dst_folder / f
-        shutil.copy(src, dst)
-
-    # Remove files that only exist in the destination
-    for f in dst_only_files:
-        changed = True
-        dst = dst_folder / f
-        (dst_folder / f).unlink()
-
-    return changed
