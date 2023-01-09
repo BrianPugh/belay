@@ -3,11 +3,11 @@ from pathlib import Path
 
 import fsspec
 
-from . import NonMatchingURI, downloaders
+from .common import NonMatchingURI, downloaders
 
 
 @downloaders
-def _download_github(dst: Path, uri: str):
+def github(dst: Path, uri: str):
     """Download a file or folder from github."""
     # Single File Website; e.g.:
     #     https://github.com/BrianPugh/belay/blob/main/belay/__init__.py

@@ -1,4 +1,10 @@
-from belay.packagemanager.download.common import _download_generic
+from belay.packagemanager.download.common import _download_generic, downloaders
+
+
+def test_download_registry():
+    assert set(downloaders) == {
+        "github",
+    }
 
 
 def test_download_generic_local_single(tmp_path):
