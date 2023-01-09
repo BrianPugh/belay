@@ -16,11 +16,16 @@ downloaders = Registry()
 # DO NOT decorate with ``@downloaders``, since this must be last.
 def _download_generic(dst: Path, uri: str):
     """Downloads a single file to ``dst / "__init__.py"``."""
-    dst = dst / "__init__.py"
-    with fsspec.open(uri, "rb") as f:
-        data = f.read()
-    with dst.open("wb") as f:
-        f.write(data)
+    try:
+        with fsspec.open(uri, "rb") as f:
+            data = f.read()
+
+        dst /= "__init__.py"
+        with dst.open("wb") as f:
+            f.write(data)
+    except IsADirectoryError:
+        fs = fsspec.filesystem("file")
+        fs.get(uri, dst.as_posix(), recursive=True)
 
 
 def download_uri(dst_folder: PathType, uri: str):
