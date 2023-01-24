@@ -50,7 +50,7 @@ jobs:
           path: rp2040js
 
       - name: Cache $HOME/.local # Significantly speeds up Poetry Install
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ~/.local
           key: dotlocal-${{ runner.os }}-${{ hashFiles('.github/workflows/tests.yml') }}
@@ -86,7 +86,7 @@ jobs:
 
       - name: Cache Node Modules
         id: cached-npm
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: rp2040js/node_modules
           key: modules-${{ hashFiles('rp2040js/package-lock.json') }}
@@ -99,7 +99,7 @@ jobs:
 
       - name: Load cached venv
         id: cached-poetry-dependencies
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: .venv
           key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}

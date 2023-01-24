@@ -183,19 +183,10 @@ class ProcessToSerial:
             stdout=subprocess.PIPE,
         )
 
-        # Initially was implemented with selectors, but that adds Python3
-        # dependency. However, there can be race conditions communicating
-        # with a particular child process (like QEMU), and selectors may
-        # still work better in that case, so left inplace for now.
-        #
-        # import selectors
-        # self.sel = selectors.DefaultSelector()
-        # self.sel.register(self.subp.stdout, selectors.EVENT_READ)
+        import selectors
 
-        import select
-
-        self.poll = select.poll()
-        self.poll.register(self.subp.stdout.fileno())
+        self.sel = selectors.DefaultSelector()
+        self.sel.register(self.subp.stdout, selectors.EVENT_READ)
 
         def cleanup():
             import signal
@@ -223,8 +214,7 @@ class ProcessToSerial:
         return len(data)
 
     def inWaiting(self):
-        # res = self.sel.select(0)
-        res = self.poll.poll(0)
+        res = self.sel.select(0)
         if res:
             return 1
         return 0
