@@ -103,7 +103,7 @@ jobs:
 
       - name: Sanity check with flake8
         run: |
-          source $ACTIVATE_PYTHON_VENV
+          source ${{ env.ACTIVATE_PYTHON_VENV }}
           # stop the build if there are Python syntax errors or undefined names
           python -m flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
           # exit-zero treats all errors as warnings
@@ -111,7 +111,7 @@ jobs:
 
       - name: Run tests
         run: |
-          source $ACTIVATE_PYTHON_VENV
+          source ${{ env.ACTIVATE_PYTHON_VENV }}
           python -m pytest --cov=belay --cov-report term --cov-report xml --cov-config .coveragerc --junitxml=testresults.xml --timeout=120 tests tests/integration
           coverage report
 
@@ -128,5 +128,5 @@ jobs:
       #----------------------------------------------
       - name: Build HTML docs
         run: |
-          source $ACTIVATE_PYTHON_VENV
+          source ${{ env.ACTIVATE_PYTHON_VENV }}
           sphinx-build -b html docs/source/ docs/build/html
