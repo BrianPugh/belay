@@ -27,9 +27,18 @@ jobs:
     env:
       OS: ${{ matrix.os }}
       PYTHON: ${{ matrix.python-version }}
-      PYTHON_VENV_ACTIVATE: ${{ if matrix.os == 'ubuntu-latest'}}.venv/bin/activate${{else if matrix.os == 'windows-latest'}}.venv/scripts/activate${{endif}}
 
     steps:
+      - name: Set OS Environment Variables (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          echo 'PYTHON_VENV_ACTIVATE=.venv/scripts/activate' >> $GITHUB_ENV
+
+      - name: Set OS Environment Variables (not Windows)
+        if: runner.os != 'Windows'
+        run: |
+          echo 'PYTHON_VENV_ACTIVATE=.venv/bin/activate' >> $GITHUB_ENV
+
       - name: Check out Belay repository
         uses: actions/checkout@v3
 
