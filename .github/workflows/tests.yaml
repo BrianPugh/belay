@@ -32,12 +32,12 @@ jobs:
       - name: Set OS Environment Variables (Windows)
         if: runner.os == 'Windows'
         run: |
-          echo 'PYTHON_VENV_ACTIVATE=.venv/scripts/activate' >> $GITHUB_ENV
+          echo 'ACTIVATE_PYTHON_VENV=.venv/scripts/activate' >> $GITHUB_ENV
 
       - name: Set OS Environment Variables (not Windows)
         if: runner.os != 'Windows'
         run: |
-          echo 'PYTHON_VENV_ACTIVATE=.venv/bin/activate' >> $GITHUB_ENV
+          echo 'ACTIVATE_PYTHON_VENV=.venv/bin/activate' >> $GITHUB_ENV
 
       - name: Check out Belay repository
         uses: actions/checkout@v3
