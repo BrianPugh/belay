@@ -97,6 +97,13 @@ jobs:
           cd rp2040js
           npm install
 
+      - name: Load pip cache
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}
+          restore-keys: ${{ runner.os }}-pip
+
       - name: Load cached venv
         id: cached-poetry-dependencies
         uses: actions/cache@v3
