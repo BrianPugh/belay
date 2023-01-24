@@ -178,7 +178,7 @@ class ProcessToSerial:
             cmd,
             bufsize=0,
             shell=True,
-            preexec_fn=os.setsid,
+            start_new_session=True,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
         )
@@ -245,7 +245,7 @@ class ProcessPtyToTerminal:
             cmd.split(),
             bufsize=0,
             shell=False,
-            preexec_fn=os.setsid,
+            start_new_session=True,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
