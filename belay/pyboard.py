@@ -73,6 +73,7 @@ import itertools
 import os
 import sys
 import time
+from threading import Lock, Thread
 
 from .webrepl import WebreplToSerial
 
@@ -183,10 +184,22 @@ class ProcessToSerial:
             stdout=subprocess.PIPE,
         )
 
-        import selectors
+        self.buf = b""
+        self.lock = Lock()
 
-        self.sel = selectors.DefaultSelector()
-        self.sel.register(self.subp.stdout, selectors.EVENT_READ)
+        def process_output():
+            assert self.subp.stdout is not None
+            while True:
+                out = self.subp.stdout.read(1)
+                if out == "" and self.subp.poll() is not None:
+                    break
+                if out != "":
+                    with self.lock:
+                        self.buf += out
+
+        thread = Thread(target=process_output)
+        thread.daemon = True
+        thread.start()
 
         def cleanup():
             import signal
@@ -204,9 +217,14 @@ class ProcessToSerial:
         os.killpg(os.getpgid(self.subp.pid), signal.SIGTERM)
 
     def read(self, size=1):
-        data = b""
-        while len(data) < size:
-            data += self.subp.stdout.read(size - len(data))
+        while len(self.buf) < size:
+            # let the reading thread do its thing.
+            pass
+
+        with self.lock:
+            data = self.buf[:size]
+            self.buf = self.buf[size:]
+
         return data
 
     def write(self, data):
@@ -214,8 +232,7 @@ class ProcessToSerial:
         return len(data)
 
     def inWaiting(self):
-        res = self.sel.select(0)
-        if res:
+        if self.buf:
             return 1
         return 0
 
