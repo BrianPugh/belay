@@ -45,6 +45,7 @@ pytest-cov = "^3.0.0"
 pytest-mock = "^3.7.0"
 pytest-timeout = "^2.1.0"
 isort = "^5.11.4"
+flaky = "^3.7.0"
 
 [tool.poetry.group.debug]
 optional = true
