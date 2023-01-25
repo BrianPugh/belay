@@ -183,6 +183,7 @@ class ProcessToSerial:
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
         )
+        time.sleep(0.5)
 
         self.buf = b""
         self.lock = Lock()
