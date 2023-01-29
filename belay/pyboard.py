@@ -71,6 +71,9 @@ import ast
 import atexit
 import itertools
 import os
+import platform
+import signal
+import subprocess
 import sys
 import time
 from threading import Lock, Thread
@@ -82,6 +85,16 @@ try:
 except AttributeError:
     # Python2 doesn't have buffer attr
     stdout = sys.stdout
+
+
+def _kill_process(pid):
+    try:
+        if platform.system() == "Windows":
+            subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)])
+        else:
+            os.killpg(os.getpgid(pid), signal.SIGTERM)
+    except ProcessLookupError:
+        pass
 
 
 def stdout_write_bytes(b):
@@ -203,19 +216,12 @@ class ProcessToSerial:
         thread.start()
 
         def cleanup():
-            import signal
-
-            try:
-                os.killpg(os.getpgid(subp.pid), signal.SIGTERM)
-            except ProcessLookupError:
-                pass
+            _kill_process(subp.pid)
 
         atexit.register(cleanup)
 
     def close(self):
-        import signal
-
-        os.killpg(os.getpgid(self.subp.pid), signal.SIGTERM)
+        _kill_process(self.subp.pid)
 
     def read(self, size=1):
         while len(self.buf) < size:
