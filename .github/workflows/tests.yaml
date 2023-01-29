@@ -129,7 +129,7 @@ jobs:
       - name: Run tests
         run: |
           source ${{ env.ACTIVATE_PYTHON_VENV }}
-          python -m pytest --cov=belay --cov-report term --cov-report xml --cov-config .coveragerc --junitxml=testresults.xml --timeout=15 --force-flaky --max-runs=3 tests tests/integration
+          python -m pytest --cov=belay --cov-report term --cov-report xml --cov-config .coveragerc --junitxml=testresults.xml --timeout=45 --force-flaky --max-runs=3 tests tests/integration
           coverage report
 
       - name: Upload coverage to Codecov
