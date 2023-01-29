@@ -1,4 +1,4 @@
-from pathlib import PosixPath
+from pathlib import Path
 
 
 def test_sync_basic(mocker, mock_device, cli_runner):
@@ -6,7 +6,7 @@ def test_sync_basic(mocker, mock_device, cli_runner):
     result = cli_runner("sync", "foo")
     assert result.exit_code == 0
     mock_device.inst.sync.assert_called_once_with(
-        PosixPath("foo"),
+        Path("foo"),
         dst="/",
         keep=None,
         ignore=None,
