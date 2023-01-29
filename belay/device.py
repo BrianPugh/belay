@@ -104,7 +104,7 @@ def _preprocess_keep(
         keep = []
     else:
         raise ValueError
-    keep = [str(dst / Path(x)) for x in keep]
+    keep = [(dst / Path(x)).as_posix() for x in keep]
     return keep
 
 
@@ -157,7 +157,7 @@ def _preprocess_src_file_hash(*args, **kwargs):
 
 
 def _generate_dst_dirs(dst, src, src_dirs) -> list:
-    dst_dirs = [str(dst / x.relative_to(src)) for x in src_dirs]
+    dst_dirs = [(dst / x.relative_to(src)).as_posix() for x in src_dirs]
     # Add all directories leading up to ``dst``.
     dst_prefix_tokens = dst.split("/")
     for i in range(2, len(dst_prefix_tokens) + (dst[-1] != "/")):
@@ -503,7 +503,7 @@ class Device(Registry):
                 dst_file.with_suffix(".mpy") if dst_file.suffix == ".py" else dst_file
                 for dst_file in dst_files
             ]
-        dst_files = [str(dst_file) for dst_file in dst_files]
+        dst_files = [dst_file.as_posix() for dst_file in dst_files]
         dst_dirs = _generate_dst_dirs(dst, folder, src_dirs)
 
         if keep_all:
@@ -555,10 +555,6 @@ class Device(Registry):
                 self._board.fs_put(src_file, dst_file)
                 if progress_update:
                     progress_update(advance=1)
-
-        # Remove all the files and directories that did not exist in local filesystem.
-        if progress_update:
-            progress_update(description="Cleaning up...")
 
     def __enter__(self):
         return self

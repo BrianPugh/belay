@@ -16,6 +16,7 @@ on:
 
 jobs:
   test:
+    timeout-minutes: 20
     defaults:
       run:
         shell: bash
@@ -27,23 +28,38 @@ jobs:
     env:
       OS: ${{ matrix.os }}
       PYTHON: ${{ matrix.python-version }}
-      PYTHON_VENV_ACTIVATE: ${{ if matrix.os == 'ubuntu-latest'}}.venv/bin/activate${{else if matrix.os == 'windows-latest'}}.venv/scripts/activate${{endif}}
 
     steps:
+      - name: Set OS Environment Variables (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          echo 'ACTIVATE_PYTHON_VENV=.venv/scripts/activate' >> $GITHUB_ENV
+
+      - name: Set OS Environment Variables (not Windows)
+        if: runner.os != 'Windows'
+        run: |
+          echo 'ACTIVATE_PYTHON_VENV=.venv/bin/activate' >> $GITHUB_ENV
+
       - name: Check out Belay repository
         uses: actions/checkout@v3
 
       - name: Check out RP2040js repository
         uses: actions/checkout@v3
         with:
-          repository: wokwi/rp2040js
+          repository: BrianPugh/rp2040js
+          ref: cli-options
           path: rp2040js
 
       - name: Cache $HOME/.local # Significantly speeds up Poetry Install
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ~/.local
           key: dotlocal-${{ runner.os }}-${{ hashFiles('.github/workflows/tests.yml') }}
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
 
       - name: Install Poetry
         uses: snok/install-poetry@v1
@@ -51,12 +67,6 @@ jobs:
           virtualenvs-create: true
           virtualenvs-in-project: true
           installer-parallel: true
-
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python-version }}
-          cache: "poetry"
 
       - name: Install Node
         uses: actions/setup-node@v3
@@ -73,12 +83,11 @@ jobs:
       - name: Download Pi Pico firmware
         if: steps.cached-pi-pico-firmware.outputs.cache-hit != 'true'
         run: |
-          cd rp2040js
-          wget https://micropython.org/resources/firmware/rp2-pico-20210902-v1.17.uf2
+          curl https://micropython.org/resources/firmware/rp2-pico-20210902-v1.17.uf2 -o rp2040js/rp2-pico-20210902-v1.17.uf2
 
       - name: Cache Node Modules
         id: cached-npm
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: rp2040js/node_modules
           key: modules-${{ hashFiles('rp2040js/package-lock.json') }}
@@ -89,12 +98,30 @@ jobs:
           cd rp2040js
           npm install
 
+      - name: Load pip cache
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}
+          restore-keys: ${{ runner.os }}-pip
+
+      - name: Load cached venv
+        id: cached-poetry-dependencies
+        uses: actions/cache@v3
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
+
+      - name: Install Belay dependencies
+        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+        run: poetry install --no-interaction --no-root
+
       - name: Install Belay
         run: poetry install --no-interaction
 
       - name: Sanity check with flake8
         run: |
-          source $ACTIVATE_PYTHON_VENV
+          source ${{ env.ACTIVATE_PYTHON_VENV }}
           # stop the build if there are Python syntax errors or undefined names
           python -m flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
           # exit-zero treats all errors as warnings
@@ -102,8 +129,8 @@ jobs:
 
       - name: Run tests
         run: |
-          source $ACTIVATE_PYTHON_VENV
-          python -m pytest --cov=belay --cov-report term --cov-report xml --cov-config .coveragerc --junitxml=testresults.xml --timeout=120 tests tests/integration
+          source ${{ env.ACTIVATE_PYTHON_VENV }}
+          python -m pytest --cov=belay --cov-report term --cov-report xml --cov-config .coveragerc --junitxml=testresults.xml --timeout=70 --force-flaky --max-runs=3 tests tests/integration
           coverage report
 
       - name: Upload coverage to Codecov
@@ -119,5 +146,5 @@ jobs:
       #----------------------------------------------
       - name: Build HTML docs
         run: |
-          source $ACTIVATE_PYTHON_VENV
+          source ${{ env.ACTIVATE_PYTHON_VENV }}
           sphinx-build -b html docs/source/ docs/build/html

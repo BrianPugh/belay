@@ -1,5 +1,5 @@
 import os
-from pathlib import Path, PosixPath
+from pathlib import Path
 from unittest.mock import call
 
 import pytest
@@ -248,15 +248,15 @@ def test_discover_files_dirs_dir(tmp_path):
     src_files = [x.relative_to(tmp_path) for x in src_files]
     src_dirs = [x.relative_to(tmp_path) for x in src_dirs]
     assert src_files == [
-        PosixPath("file1.ext"),
-        PosixPath("file2.ext"),
-        PosixPath("folder1/file3.ext"),
+        Path("file1.ext"),
+        Path("file2.ext"),
+        Path("folder1/file3.ext"),
     ]
-    assert src_dirs == [PosixPath("folder1")]
+    assert src_dirs == [Path("folder1")]
     assert dst_files == [
-        PosixPath("/foo/bar/file1.ext"),
-        PosixPath("/foo/bar/file2.ext"),
-        PosixPath("/foo/bar/folder1/file3.ext"),
+        Path("/foo/bar/file1.ext"),
+        Path("/foo/bar/file2.ext"),
+        Path("/foo/bar/folder1/file3.ext"),
     ]
 
 
@@ -276,13 +276,13 @@ def test_discover_files_dirs_dir_ignore(tmp_path):
     src_files = [x.relative_to(tmp_path) for x in src_files]
     src_dirs = [x.relative_to(tmp_path) for x in src_dirs]
     assert src_files == [
-        PosixPath("file1.ext"),
-        PosixPath("folder1/file3.ext"),
+        Path("file1.ext"),
+        Path("folder1/file3.ext"),
     ]
-    assert src_dirs == [PosixPath("folder1")]
+    assert src_dirs == [Path("folder1")]
     assert dst_files == [
-        PosixPath("/foo/bar/file1.ext"),
-        PosixPath("/foo/bar/folder1/file3.ext"),
+        Path("/foo/bar/file1.ext"),
+        Path("/foo/bar/folder1/file3.ext"),
     ]
 
 
@@ -310,9 +310,9 @@ def test_discover_files_dirs_single_file(tmp_path):
 
     src_files = [x.relative_to(tmp_path) for x in src_files]
     src_dirs = [x.relative_to(tmp_path) for x in src_dirs]
-    assert src_files == [PosixPath("file1.ext")]
+    assert src_files == [Path("file1.ext")]
     assert src_dirs == []
-    assert dst_files == [PosixPath("/foo/bar/file1.ext")]
+    assert dst_files == [Path("/foo/bar/file1.ext")]
 
 
 def test_preprocess_keep_none_root():
@@ -387,9 +387,9 @@ def test_preprocess_src_file_cross_mpy(tmp_path, mocker):
     call = mock_check_output.call_args_list[0][0][0]
     assert call[0] == "fake-mpy-cross-binary"
     assert call[1] == "-o"
-    assert str(call[2]).endswith("foo/bar/baz.mpy")
-    assert str(call[3]).endswith("foo/bar/baz.py")
-    assert str(actual).endswith("foo/bar/baz.mpy")
+    assert call[2].as_posix().endswith("foo/bar/baz.mpy")
+    assert call[3].as_posix().endswith("foo/bar/baz.py")
+    assert actual.as_posix().endswith("foo/bar/baz.mpy")
 
 
 def test_preprocess_src_file_default_generic(tmp_path):

@@ -64,7 +64,7 @@ def cli_runner(mock_device):
 
 @pytest.fixture
 def emulate_command():
-    return "exec:npm run --prefix rp2040js start:micropython"
+    return "exec:npm run --prefix rp2040js start:micropython -- --no_gdb"
 
 
 @pytest.fixture

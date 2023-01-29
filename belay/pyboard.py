@@ -71,8 +71,12 @@ import ast
 import atexit
 import itertools
 import os
+import platform
+import signal
+import subprocess
 import sys
 import time
+from threading import Lock, Thread
 
 from .webrepl import WebreplToSerial
 
@@ -81,6 +85,16 @@ try:
 except AttributeError:
     # Python2 doesn't have buffer attr
     stdout = sys.stdout
+
+
+def _kill_process(pid):
+    try:
+        if platform.system() == "Windows":
+            subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)])
+        else:
+            os.killpg(os.getpgid(pid), signal.SIGTERM)
+    except ProcessLookupError:
+        pass
 
 
 def stdout_write_bytes(b):
@@ -178,44 +192,48 @@ class ProcessToSerial:
             cmd,
             bufsize=0,
             shell=True,
-            preexec_fn=os.setsid,
+            start_new_session=True,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
         )
+        time.sleep(0.5)
 
-        # Initially was implemented with selectors, but that adds Python3
-        # dependency. However, there can be race conditions communicating
-        # with a particular child process (like QEMU), and selectors may
-        # still work better in that case, so left inplace for now.
-        #
-        # import selectors
-        # self.sel = selectors.DefaultSelector()
-        # self.sel.register(self.subp.stdout, selectors.EVENT_READ)
+        self.buf = b""
+        self.lock = Lock()
 
-        import select
+        def process_output():
+            assert self.subp.stdout is not None
+            while True:
+                out = self.subp.stdout.read(1)
+                if out == "" and self.subp.poll() is not None:
+                    break
+                if out != "":
+                    with self.lock:
+                        self.buf += out
 
-        self.poll = select.poll()
-        self.poll.register(self.subp.stdout.fileno())
+        thread = Thread(target=process_output)
+        thread.daemon = True
+        thread.start()
+
+        time.sleep(5.0)  # Give process a chance to boot up.
 
         def cleanup():
-            import signal
-
-            try:
-                os.killpg(os.getpgid(subp.pid), signal.SIGTERM)
-            except ProcessLookupError:
-                pass
+            _kill_process(subp.pid)
 
         atexit.register(cleanup)
 
     def close(self):
-        import signal
-
-        os.killpg(os.getpgid(self.subp.pid), signal.SIGTERM)
+        _kill_process(self.subp.pid)
 
     def read(self, size=1):
-        data = b""
-        while len(data) < size:
-            data += self.subp.stdout.read(size - len(data))
+        while len(self.buf) < size:
+            # let the reading thread do its thing.
+            pass
+
+        with self.lock:
+            data = self.buf[:size]
+            self.buf = self.buf[size:]
+
         return data
 
     def write(self, data):
@@ -223,9 +241,7 @@ class ProcessToSerial:
         return len(data)
 
     def inWaiting(self):
-        # res = self.sel.select(0)
-        res = self.poll.poll(0)
-        if res:
+        if self.buf:
             return 1
         return 0
 
@@ -245,7 +261,7 @@ class ProcessPtyToTerminal:
             cmd.split(),
             bufsize=0,
             shell=False,
-            preexec_fn=os.setsid,
+            start_new_session=True,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -372,7 +388,7 @@ class Pyboard:
                 timeout_count += 1
                 if timeout is not None and timeout_count >= 100 * timeout:
                     raise PyboardError(
-                        "Timed out reading until {repr(ending)}\n    Received: {repr(data)}"
+                        f"Timed out reading until {repr(ending)}\n    Received: {repr(data)}"
                     )
                 time.sleep(0.01)
         return data
