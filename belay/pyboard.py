@@ -215,6 +215,10 @@ class ProcessToSerial:
         thread.daemon = True
         thread.start()
 
+        if platform.system() == "Windows":
+            time.sleep(7.0)  # Windows is slow, sleep here
+            # So downstream timeouts are still reasonable.
+
         def cleanup():
             _kill_process(subp.pid)
 
