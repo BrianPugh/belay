@@ -386,7 +386,7 @@ class Pyboard:
                 timeout_count += 1
                 if timeout is not None and timeout_count >= 100 * timeout:
                     raise PyboardError(
-                        "Timed out reading until {repr(ending)}\n    Received: {repr(data)}"
+                        f"Timed out reading until {repr(ending)}\n    Received: {repr(data)}"
                     )
                 time.sleep(0.01)
         return data
