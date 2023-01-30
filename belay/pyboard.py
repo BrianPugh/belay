@@ -216,14 +216,15 @@ class ProcessToSerial:
         thread.start()
 
         time.sleep(5.0)  # Give process a chance to boot up.
+        if platform.system() == "Windows":
+            # Windows needs more time
+            time.sleep(5.0)
 
-        def cleanup():
-            _kill_process(subp.pid)
-
-        atexit.register(cleanup)
+        atexit.register(self.close)
 
     def close(self):
         _kill_process(self.subp.pid)
+        atexit.unregister(self.close)
 
     def read(self, size=1):
         while len(self.buf) < size:
@@ -357,8 +358,15 @@ class Pyboard:
 
                 time.sleep(1.0)
 
+        atexit.register(self.close)
+
     def close(self):
+        if not self.serial:
+            return
+        self.exit_raw_repl()
         self.serial.close()
+        self.serial = None
+        atexit.unregister(self.close)
 
     def read_until(self, min_num_bytes, ending, timeout=10, data_consumer=None):
         """
