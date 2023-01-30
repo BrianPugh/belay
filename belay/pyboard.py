@@ -216,6 +216,9 @@ class ProcessToSerial:
         thread.start()
 
         time.sleep(5.0)  # Give process a chance to boot up.
+        if platform.system() == "Windows":
+            # Windows needs more time
+            time.sleep(5.0)
 
         def cleanup():
             _kill_process(subp.pid)
