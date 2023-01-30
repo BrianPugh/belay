@@ -46,8 +46,7 @@ jobs:
       - name: Check out RP2040js repository
         uses: actions/checkout@v3
         with:
-          repository: BrianPugh/rp2040js
-          ref: cli-options
+          repository: wokwi/rp2040js
           path: rp2040js
 
       - name: Cache $HOME/.local # Significantly speeds up Poetry Install
