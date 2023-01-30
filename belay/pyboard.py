@@ -357,8 +357,15 @@ class Pyboard:
 
                 time.sleep(1.0)
 
+        atexit.register(self.close)
+
     def close(self):
+        if not self.serial:
+            return
+        self.exit_raw_repl()
         self.serial.close()
+        self.serial = None
+        atexit.unregister(self.close)
 
     def read_until(self, min_num_bytes, ending, timeout=10, data_consumer=None):
         """
