@@ -20,14 +20,17 @@ jobs:
     defaults:
       run:
         shell: bash
+
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
         python-version: ["3.8", "3.9", "3.10", "3.11"]
+
     env:
       OS: ${{ matrix.os }}
       PYTHON: ${{ matrix.python-version }}
+      BELAY_SLEEP_MULTIPLIER: 2.0
 
     steps:
       - name: Set OS Environment Variables (Windows)
