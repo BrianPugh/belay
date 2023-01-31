@@ -219,7 +219,7 @@ class ProcessToSerial:
         time.sleep(5.0 * sleep_multiplier)  # Give process a chance to boot up.
         if platform.system() == "Windows":
             # Windows needs more time
-            time.sleep(5.0 * sleep_multiplier)
+            time.sleep(6.0 * sleep_multiplier)
 
         atexit.register(self.close)
 
