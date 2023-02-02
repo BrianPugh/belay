@@ -76,16 +76,16 @@ jobs:
           node-version: 16
 
       - name: Cache pi pico firmware
-        id: cached-pi-pico-firmware
+        id: cached-pi-pico-micropython-firmware
         uses: actions/cache@v3
         with:
           path: rp2040js/rp2-pico-20210902-v1.17.uf2
-          key: pi-pico-rp2040js/rp2-pico-20210902-v1.17.uf2
+          key: pi-pico-rp2040js/micropython-v1.17.uf2
 
-      - name: Download Pi Pico firmware
-        if: steps.cached-pi-pico-firmware.outputs.cache-hit != 'true'
+      - name: Download Pi Pico MicroPython firmware
+        if: steps.cached-pi-pico-micropython-firmware.outputs.cache-hit != 'true'
         run: |
-          curl https://micropython.org/resources/firmware/rp2-pico-20210902-v1.17.uf2 -o rp2040js/rp2-pico-20210902-v1.17.uf2
+          curl https://micropython.org/resources/firmware/rp2-pico-20210902-v1.17.uf2 -o rp2040js/micropython-v1.17.uf2
 
       - name: Cache Node Modules
         id: cached-npm
