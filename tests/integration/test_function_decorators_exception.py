@@ -13,5 +13,10 @@ def test_task_exception(emulated_device, mocker):
     with pytest.raises(belay.PyboardException) as e:
         foo(10)
 
-    expected_message = f'Traceback (most recent call last):\r\n  File "<stdin>", line 1, in <module>\r\n  File "{__file__}", line 10, in foo\n    baz  # Should cause an exception here!\nNameError: name \'baz\' isn\'t defined\r\n'
-    assert e.value.args[0] == expected_message
+    expected_message_micropython = f'Traceback (most recent call last):\r\n  File "<stdin>", line 1, in <module>\r\n  File "{__file__}", line 10, in foo\n    baz  # Should cause an exception here!\nNameError: name \'baz\' isn\'t defined\r\n'
+    expected_message_circuitpython = f'Traceback (most recent call last):\r\n  File "<stdin>", line 1, in <module>\r\n  File "{__file__}", line 10, in foo\n    baz  # Should cause an exception here!\nNameError: name \'baz\' is not defined\r\n'
+
+    assert (
+        e.value.args[0] == expected_message_micropython
+        or e.value.args[0] == expected_message_circuitpython
+    )
