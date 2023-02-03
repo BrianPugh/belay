@@ -8,7 +8,7 @@ from typing import Dict, List, Optional, Union
 
 from rich.console import Console
 
-from belay.packagemanager.download import download_uri
+from belay.packagemanager.downloaders import download_uri
 from belay.packagemanager.sync import sync
 from belay.typing import PathType
 

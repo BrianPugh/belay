@@ -1,4 +1,4 @@
-from belay.packagemanager.download.common import _download_generic, downloaders
+from belay.packagemanager.downloaders.common import _download_generic, downloaders
 
 
 def test_download_registry():
