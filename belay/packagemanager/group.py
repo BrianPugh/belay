@@ -65,7 +65,7 @@ class Group:
         existing_deps.extend(self.folder.glob("*"))
 
         for existing_dep in existing_deps:
-            if existing_dep.stem in dependencies:
+            if existing_dep.name in dependencies:
                 continue
             existing_dep.unlink()
 
@@ -133,11 +133,6 @@ class Group:
                     log(f"[bold green]{package_name}: Updated.")
                 else:
                     log(f"{package_name}: No changes detected.")
-
-                # Detect if an old single-py file exists and remove it from
-                # older version of Belay. We can eventually remove this check
-                # after enough time has passed.
-                local_folder.with_suffix(".py").unlink(missing_ok=True)
 
 
 def _verify_files(folder: PathType):
