@@ -24,4 +24,4 @@ def github(dst: Path, uri: str):
 
     if not fs.isdir(path):
         dst = dst / "__init__.py"
-    fs.get(path, dst.as_posix(), recursive=True)
+    fs.get(path, str(dst), recursive=True)

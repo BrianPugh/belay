@@ -5,12 +5,11 @@ from autoregistry import Registry
 
 from belay.typing import PathType
 
+downloaders = Registry()
+
 
 class NonMatchingURI(Exception):
-    pass
-
-
-downloaders = Registry()
+    """Provided URI does not match downloading function."""
 
 
 # DO NOT decorate with ``@downloaders``, since this must be last.
@@ -25,7 +24,7 @@ def _download_generic(dst: Path, uri: str):
             f.write(data)
     except IsADirectoryError:
         fs = fsspec.filesystem("file")
-        fs.get(uri, dst.as_posix(), recursive=True)
+        fs.get(uri, str(dst), recursive=True)
 
 
 def download_uri(dst_folder: PathType, uri: str):
