@@ -37,6 +37,16 @@ def find_dependencies_folder() -> Path:
 
 
 @lru_cache
+def find_cache_folder() -> Path:
+    return find_project_folder() / ".belay-cache"
+
+
+@lru_cache
+def find_cache_dependencies_folder() -> Path:
+    return find_cache_folder() / "dependencies"
+
+
+@lru_cache
 def load_toml(path: Union[str, Path]) -> dict:
     path = Path(path)
     with path.open("rb") as f:
