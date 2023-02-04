@@ -8,7 +8,8 @@ In a nutshell, the Belay Package Manager does the following:
    Commonly these are files hosted on github.
 2. Downloads dependencies to the ``.belay/dependencies/main`` folder. This folder should be committed to your
    project's git repository. This allows for repeatable deployment, even if a remote dependency
-   goes missing or changes it's API.
+   goes missing or changes it's API. Belay *may* keep a cache at ``.belay-cache``; this directory should
+   **not** be committed to your project's git repository.
 3. Syncs the contents of ``.belay/dependencies/main`` to the on-device ``/lib`` folder. This folder is included
    in the on-device ``PATH``.
 4. Syncs the contents of your project directory.
