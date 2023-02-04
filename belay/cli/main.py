@@ -8,6 +8,7 @@ import typer
 from typer import Option
 
 import belay
+from belay.cli import cache
 from belay.cli.clean import clean
 from belay.cli.exec import exec
 from belay.cli.identify import identify
@@ -19,7 +20,9 @@ from belay.cli.sync import sync
 from belay.cli.update import update
 from belay.project import load_groups
 
-app = typer.Typer()
+app = typer.Typer(no_args_is_help=True)
+app.add_typer(cache.app, name="cache")
+
 app.command()(clean)
 app.command()(exec)
 app.command()(identify)
