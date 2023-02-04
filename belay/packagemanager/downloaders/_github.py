@@ -44,7 +44,7 @@ def github(dst: Path, uri: str):
             # Already been cloned
             repo = git.Repo(repo_folder)
             origin = repo.remote("origin")
-            origin.pull()
+            origin.fetch()
         else:
             repo = git.Repo.clone_from(repo_url, repo_folder)
 
