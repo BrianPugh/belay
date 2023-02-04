@@ -64,10 +64,10 @@ def test_download_specific(main_group, spy_ast):
 
 def test_group_clean(main_group):
     main_group.folder.mkdir()
-    (main_group.folder / "foo.py").touch()
-    (main_group.folder / "baz.py").touch()
+    (main_group.folder / "foo").mkdir()
+    (main_group.folder / "baz").mkdir()
 
     main_group.clean()
 
-    assert (main_group.folder / "foo.py").exists()
-    assert not (main_group.folder / "baz.py").exists()
+    assert (main_group.folder / "foo").exists()
+    assert not (main_group.folder / "baz").exists()

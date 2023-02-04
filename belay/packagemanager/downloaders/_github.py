@@ -1,7 +1,9 @@
 import re
+import shutil
 from pathlib import Path
 
-import fsspec
+import git
+import requests
 
 from .common import NonMatchingURI, downloaders
 
@@ -18,10 +20,39 @@ def github(dst: Path, uri: str):
         match = re.search(r"github\.com/(.+?)/(.+?)/tree/(.+?)/(.*)", uri)
     if not match:
         raise NonMatchingURI
-    org, repo, sha, path = match.groups()
+    org, repo, ref, path = match.groups()
 
-    fs = fsspec.filesystem("github", org=org, repo=repo, sha=sha)
+    githubusercontent_url = (
+        f"https://raw.githubusercontent.com/{org}/{repo}/{ref}/{path}"
+    )
 
-    if not fs.isdir(path):
-        dst = dst / "__init__.py"
-    fs.get(path, str(dst), recursive=True)
+    r = requests.get(githubusercontent_url)
+
+    if r.status_code == 200:
+        # It was, indeed, a single file.
+        (dst / "__init__.py").write_bytes(r.content)
+    elif r.status_code == 404:
+        # Probably a folder; use git.
+        from belay.project import find_cache_folder
+
+        repo_url = f"https://github.com/{org}/{repo}.git"
+        repo_folder = find_cache_folder() / "git" / f"{org}-{repo}"
+        repo_folder.mkdir(exist_ok=True, parents=True)
+
+        # Check if we have already cloned
+        if (repo_folder / ".git").is_dir():
+            # Already been cloned
+            repo = git.Repo(repo_folder)
+            origin = repo.remote("origin")
+            origin.pull()
+        else:
+            repo = git.Repo.clone_from(repo_url, repo_folder)
+
+        # Set to specified reference
+        commit = repo.rev_parse(ref)
+        repo.head.reference = commit
+        repo.head.reset(index=True, working_tree=True)
+
+        shutil.copytree(repo_folder / path, dst, dirs_exist_ok=True)
+    else:
+        r.raise_for_status()

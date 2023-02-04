@@ -67,7 +67,11 @@ class Group:
         for existing_dep in existing_deps:
             if existing_dep.name in dependencies:
                 continue
-            existing_dep.unlink()
+
+            if existing_dep.is_dir():
+                shutil.rmtree(existing_dep)
+            else:
+                existing_dep.unlink()
 
     def copy_to(self, dst):
         """Copy Dependencies folder to destination directory."""
