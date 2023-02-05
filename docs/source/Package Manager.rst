@@ -44,16 +44,25 @@ more robust code and improve development iteration speed.
 Commands
 ^^^^^^^^
 
-New
+new
 ---
-``belay new belay-micropython-demo`` creates a new micropython project structure.
+This command will create a new Python project by creating a directory structure suitable for most belay projects.
 
-Update
+.. code-block:: bash
+
+   belay new my-project
+
+
+update
 ------
-``belay update`` iterates over and downloads the dependencies defined
-in ``tool.belay.dependencies`` of ``pyproject.toml``.
-The downloaded dependencies are stored in ``.belay/dependencies/main/`` of the current working directory.
-``.belay/dependencies/main/`` should be committed to your git repo and can be thought of as a dependency lock file.
+Iterate over and update dependencies specified in  ``pyproject.toml``.
+
+.. code-block:: bash
+
+   belay update
+
+The downloaded dependencies are stored in ``.belay/dependencies/<group>/`` of the current working directory.
+``.belay`` should be committed to your git repo and can be thought of as a dependency lock file.
 
 This decision is made because:
 
@@ -75,24 +84,39 @@ To update only specific dependencies, specify their name(s) as additional argume
 Dependencies that are no longer referenced in ``tool.belay.dependencies`` are deleted.
 See ``belay update --help`` for more information.
 
-Install
+install
 -------
-To actually sync your project and dependencies on-device, invoke the ``belay install [PORT]`` command.
+Syncs your project and dependencies to device.
+
+.. code-block:: bash
+
+   belay install [PORT]
 
 To additionally sync a script to ``/main.py``, specify the script using the ``--main`` option.
+
+.. code-block:: bash
+
+   belay install [PORT] --main main.py
 
 During development, it is convenient to specify a script to run without actually syncing it to ``/main.py``.
 For this, specify the script using the ``--run`` option.
 
-See ``belay install --help`` for more information.
+.. code-block:: bash
 
-Clean
+   belay install [PORT] --run main.py
+
+clean
 -----
-``belay clean`` will remove any downloaded dependencies if they are no longer specified in ``tool.belay.dependecies``.
+Remove any downloaded dependencies if they are no longer specified in ``tool.belay.dependecies``.
+
+.. code-block:: bash
+
+   belay clean
+
 ``clean`` is automatically invoked at the end of ``belay update``, so you will usually not need to explicitly use this
 command.
 
-Cache
+cache
 -----
 Belay may keep a cache of files that aid when downloading and updating dependencies.
 The location of this cache depends on the operating system:
