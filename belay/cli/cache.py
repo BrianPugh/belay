@@ -1,5 +1,9 @@
 import builtins
-import readline
+
+try:
+    import readline
+except ImportError:
+    pass
 import shutil
 
 import typer
