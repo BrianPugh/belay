@@ -8,8 +8,7 @@ In a nutshell, the Belay Package Manager does the following:
    Commonly these are files hosted on github.
 2. Downloads dependencies to the ``.belay/dependencies/main`` folder. This folder should be committed to your
    project's git repository. This allows for repeatable deployment, even if a remote dependency
-   goes missing or changes it's API. Belay *may* keep a cache at ``.belay-cache``; this directory should
-   **not** be committed to your project's git repository.
+   goes missing or changes it's API.
 3. Syncs the contents of ``.belay/dependencies/main`` to the on-device ``/lib`` folder. This folder is included
    in the on-device ``PATH``.
 4. Syncs the contents of your project directory.
@@ -92,6 +91,66 @@ Clean
 ``belay clean`` will remove any downloaded dependencies if they are no longer specified in ``tool.belay.dependecies``.
 ``clean`` is automatically invoked at the end of ``belay update``, so you will usually not need to explicitly use this
 command.
+
+Cache
+-----
+Belay may keep a cache of files that aid when downloading and updating dependencies.
+The location of this cache depends on the operating system:
+
+* Windows: ``%LOCALAPPDATA%\belay``
+
+* MacOS: ``~/Library/Caches/belay``
+
+* Linux: ``~/.cache/belay``
+
+info
+~~~~
+The ``cache info`` command will display Belay's cache location and other metadata.
+
+.. code-block:: bash
+
+   $ belay cache info
+   Location: /Users/brianpugh/Library/Caches/belay
+   Elements: 1
+   Total Size: 3.84MB
+
+list
+~~~~
+The ``cache list`` command will list all the items Belay is currently caching.
+
+.. code-block:: bash
+
+   $ belay cache list
+   git-github-micropython-micropython-lib
+
+clear
+~~~~~
+The ``cache clear`` will clear all cached items that begin with the provided prefix
+
+.. code-block:: bash
+
+   belay cache clear
+
+For example, to delete all ``git`` caches, use the command:
+
+.. code-block:: bash
+
+   belay cache clear git
+
+
+To clear **all** caches, specify the ``--all`` flag.
+
+.. code-block:: bash
+
+   belay cache clear --all
+
+By default, Belay will display an interactive prompt to confirm the clearing action.
+This confirmation prompt can be bypassed by specifying the ``--yes`` flag.
+
+.. code-block:: bash
+
+   belay cache clear --all --yes
+
 
 Q&A
 ^^^
