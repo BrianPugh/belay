@@ -43,13 +43,10 @@ def find_cache_folder() -> Path:
     cache_folder = Path.home()
 
     if system == "Windows":
-        # Windows-specific code
         cache_folder /= "AppData/Local/belay/Cache"
     elif system == "Darwin":
-        # macOS-specific code
         cache_folder /= "Library/Caches/belay"
     else:
-        # code for other systems
         cache_folder /= ".cache/belay"
 
     return cache_folder.absolute()
