@@ -29,8 +29,9 @@ def github(dst: Path, uri: str):
     r = requests.get(githubusercontent_url)
 
     if r.status_code == 200:
-        # It was, indeed, a single file.
-        (dst / "__init__.py").write_bytes(r.content)
+        # Provided URI is a single file.
+        dst /= Path(path).name
+        dst.write_bytes(r.content)
     elif r.status_code == 404:
         # Probably a folder; use git.
         from belay.project import find_cache_folder
@@ -56,3 +57,5 @@ def github(dst: Path, uri: str):
         shutil.copytree(repo_folder / path, dst, dirs_exist_ok=True)
     else:
         r.raise_for_status()
+
+    return dst
