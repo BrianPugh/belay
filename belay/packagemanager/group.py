@@ -59,14 +59,11 @@ class Group:
     def clean(self):
         """Delete any dependency module not specified in ``self.config.dependencies``."""
         dependencies = set(self.dependencies)
-        existing_deps = []
 
         if not self.folder.exists():
             return
 
-        existing_deps.extend(self.folder.glob("*"))
-
-        for existing_dep in existing_deps:
+        for existing_dep in self.folder.glob("*"):
             if existing_dep.name in dependencies:
                 continue
 
