@@ -33,5 +33,5 @@ def test_download_github_single(tmp_path):
     downloaders.github(tmp_path, uri)
 
     assert (
-        tmp_path / "__init__.py"
+        tmp_path / "file1.py"
     ).read_text() == 'print("belay test file for downloading.")\n'

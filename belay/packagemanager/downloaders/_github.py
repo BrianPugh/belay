@@ -19,6 +19,8 @@ def github(dst: Path, uri: str):
         #     https://github.com/BrianPugh/belay/tree/main/belay
         match = re.search(r"github\.com/(.+?)/(.+?)/tree/(.+?)/(.*)", uri)
     if not match:
+        match = re.search(r"raw\.githubusercontent\.com/(.+?)/(.+?)/(.+?)/(.*)", uri)
+    if not match:
         raise NonMatchingURI
     org, repo, ref, path = match.groups()
 
