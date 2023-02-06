@@ -18,7 +18,7 @@ def test_download_generic_local_single(tmp_path):
 
     _download_generic(dst, str(src))
 
-    assert (dst / "__init__.py").read_text() == "a = 5"
+    assert (dst / "foo.py").read_text() == "a = 5"
 
 
 def test_download_generic_local_folder(tmp_path):
