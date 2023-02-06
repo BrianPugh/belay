@@ -1,3 +1,4 @@
+import platform
 from functools import lru_cache
 from pathlib import Path
 from typing import List, Union
@@ -34,6 +35,26 @@ def find_belay_folder() -> Path:
 @lru_cache
 def find_dependencies_folder() -> Path:
     return find_belay_folder() / "dependencies"
+
+
+@lru_cache
+def find_cache_folder() -> Path:
+    system = platform.system()
+    cache_folder = Path.home()
+
+    if system == "Windows":
+        cache_folder /= "AppData/Local/belay/Cache"
+    elif system == "Darwin":
+        cache_folder /= "Library/Caches/belay"
+    else:
+        cache_folder /= ".cache/belay"
+
+    return cache_folder.absolute()
+
+
+@lru_cache
+def find_cache_dependencies_folder() -> Path:
+    return find_cache_folder() / "dependencies"
 
 
 @lru_cache

@@ -5,7 +5,10 @@ import sys
 from typing import List
 
 import typer
+from typer import Option
 
+import belay
+from belay.cli import cache
 from belay.cli.clean import clean
 from belay.cli.exec import exec
 from belay.cli.identify import identify
@@ -17,7 +20,9 @@ from belay.cli.sync import sync
 from belay.cli.update import update
 from belay.project import load_groups
 
-app = typer.Typer()
+app = typer.Typer(no_args_is_help=True)
+app.add_typer(cache.app, name="cache")
+
 app.command()(clean)
 app.command()(exec)
 app.command()(identify)
@@ -64,3 +69,24 @@ def run_app(*args, **kwargs):
 
     # Common-case; use Typer functionality.
     app(*args, **kwargs)
+
+
+def version_callback(value: bool):
+    if not value:
+        return
+    print(belay.__version__)
+    raise typer.Exit()
+
+
+@app.callback()
+def common(
+    ctx: typer.Context,
+    version: bool = Option(
+        None,
+        "--version",
+        "-v",
+        callback=version_callback,
+        help="Display Belay's version.",
+    ),
+):
+    pass

@@ -1,6 +1,6 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Optional
+from typing import List, Optional
 
 from typer import Argument, Option
 
@@ -21,6 +21,9 @@ def install(
     main: Optional[Path] = Option(
         None, help="Sync script to /main.py after installing."
     ),
+    with_groups: List[str] = Option(
+        None, "--with", help="Include specified optional dependency group."
+    ),
 ):
     """Sync dependencies and project itself to device."""
     if run and run.suffix != ".py":
@@ -38,9 +41,8 @@ def install(
         tmp_dir = Path(tmp_dir)
 
         for group in groups:
-            if group.config.optional:
-                # TODO: Should only iterate over non-optional & manually specified groups.
-                raise NotImplementedError
+            if group.optional and group.name not in with_groups:
+                continue
             group.copy_to(tmp_dir)
 
         sync(

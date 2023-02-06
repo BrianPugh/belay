@@ -14,10 +14,6 @@ def update(packages: List[str] = Argument(None, help="Specific package(s) to upd
     packages = packages if packages else None
 
     for group in groups:
-        if group.config.optional:
-            # TODO: only include optional if manually specified.
-            raise NotImplementedError
-
         if packages is None:
             group_packages = None
         else:

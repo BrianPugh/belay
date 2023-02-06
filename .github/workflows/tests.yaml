@@ -23,6 +23,7 @@ jobs:
 
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
         python-version: ["3.8", "3.9", "3.10", "3.11"]
@@ -30,7 +31,7 @@ jobs:
     env:
       OS: ${{ matrix.os }}
       PYTHON: ${{ matrix.python-version }}
-      BELAY_SLEEP_MULTIPLIER: 2.0
+      BELAY_SLEEP_MULTIPLIER: 3.0
 
     steps:
       - name: Set OS Environment Variables (Windows)
@@ -144,7 +145,7 @@ jobs:
       - name: Run tests
         run: |
           source ${{ env.ACTIVATE_PYTHON_VENV }}
-          python -m pytest --cov=belay --cov-report term --cov-report xml --cov-config .coveragerc --junitxml=testresults.xml --max-runs=3 --timeout=100 --force-flaky tests tests/integration
+          python -m pytest --cov=belay --cov-report term --cov-report xml --cov-config .coveragerc --junitxml=testresults.xml --max-runs=3 --timeout=200 --force-flaky --network tests tests/integration
           coverage report
 
       - name: Upload coverage to Codecov

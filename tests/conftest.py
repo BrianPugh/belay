@@ -31,6 +31,8 @@ def cache_clear():
     belay.project.find_project_folder.cache_clear()
     belay.project.find_belay_folder.cache_clear()
     belay.project.find_dependencies_folder.cache_clear()
+    belay.project.find_cache_folder.cache_clear()
+    belay.project.find_cache_dependencies_folder.cache_clear()
     belay.project.load_pyproject.cache_clear()
     belay.project.load_toml.cache_clear()
     belay.project.load_groups.cache_clear()
@@ -89,3 +91,16 @@ def data_path(tmp_path, request):
         dir_util.copy_tree(str(test_dir), str(tmp_path))
 
     return tmp_path
+
+
+def pytest_addoption(parser):
+    parser.addoption(
+        "--network",
+        action="store_true",
+        help="Include tests that interact with network (marked with marker @network)",
+    )
+
+
+def pytest_runtest_setup(item):
+    if "network" in item.keywords and not item.config.getoption("--network"):
+        pytest.skip("need --network option to run this test")

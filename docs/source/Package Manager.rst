@@ -44,16 +44,35 @@ more robust code and improve development iteration speed.
 Commands
 ^^^^^^^^
 
-New
+new
 ---
-``belay new belay-micropython-demo`` creates a new micropython project structure.
+Creates a new directory structure suitable as a starting point for most belay projects.
 
-Update
+.. code-block:: bash
+
+   belay new my-project
+
+The project structure is as follows:
+
+.. code-block:: text
+
+   my-project/
+   ├─ my-project/
+   │  └─ __init__.py
+   ├─ pyproject.toml
+   └─ README.md
+
+
+update
 ------
-``belay update`` iterates over and downloads the dependencies defined
-in ``tool.belay.dependencies`` of ``pyproject.toml``.
-The downloaded dependencies are stored in ``.belay/dependencies/main/`` of the current working directory.
-``.belay/dependencies/main/`` should be committed to your git repo and can be thought of as a dependency lock file.
+Updates dependencies specified in  ``pyproject.toml``.
+
+.. code-block:: bash
+
+   belay update
+
+The downloaded dependencies are, by default, stored in ``.belay/dependencies/<group>/`` of the current working directory.
+``.belay`` should be committed to your git repo and can be thought of as a dependency lock file.
 
 This decision is made because:
 
@@ -75,22 +94,103 @@ To update only specific dependencies, specify their name(s) as additional argume
 Dependencies that are no longer referenced in ``tool.belay.dependencies`` are deleted.
 See ``belay update --help`` for more information.
 
-Install
+install
 -------
-To actually sync your project and dependencies on-device, invoke the ``belay install [PORT]`` command.
+Syncs your project and dependencies to device.
+
+.. code-block:: bash
+
+   belay install [PORT]
 
 To additionally sync a script to ``/main.py``, specify the script using the ``--main`` option.
+
+.. code-block:: bash
+
+   belay install [PORT] --main main.py
 
 During development, it is convenient to specify a script to run without actually syncing it to ``/main.py``.
 For this, specify the script using the ``--run`` option.
 
-See ``belay install --help`` for more information.
+.. code-block:: bash
 
-Clean
+   belay install [PORT] --run main.py
+
+To include a dependency group that has been declared optional, add the ``--with`` option.
+
+.. code-block:: bash
+
+   belay install [PORT] --with dev
+
+clean
 -----
-``belay clean`` will remove any downloaded dependencies if they are no longer specified in ``tool.belay.dependecies``.
-``clean`` is automatically invoked at the end of ``belay update``, so you will usually not need to explicitly use this
-command.
+Removes any downloaded dependencies if they are no longer specified in ``tool.belay.dependecies``.
+
+.. code-block:: bash
+
+   belay clean
+
+``clean`` is automatically invoked at the end of ``belay update``, so you will usually **not**
+need to explicitly use this command.
+
+cache
+-----
+Belay may keep a cache of files that aid when downloading and updating dependencies.
+The location of this cache depends on the operating system:
+
+* Windows: ``%LOCALAPPDATA%\belay``
+
+* MacOS: ``~/Library/Caches/belay``
+
+* Linux: ``~/.cache/belay``
+
+info
+~~~~
+Displays Belay's cache location and other metadata.
+
+.. code-block:: bash
+
+   $ belay cache info
+   Location: /Users/brianpugh/Library/Caches/belay
+   Elements: 1
+   Total Size: 3.84MB
+
+list
+~~~~
+Lists all the items Belay is currently caching.
+
+.. code-block:: bash
+
+   $ belay cache list
+   git-github-micropython-micropython-lib
+
+clear
+~~~~~
+Deletes all cached items that begin with the provided prefix
+
+.. code-block:: bash
+
+   belay cache clear
+
+For example, to delete all ``git`` caches, use the command:
+
+.. code-block:: bash
+
+   belay cache clear git
+
+
+To clear **all** caches, specify the ``--all`` flag.
+
+.. code-block:: bash
+
+   belay cache clear --all
+
+By default, Belay will display an interactive prompt to confirm the clearing action.
+This confirmation prompt can be bypassed by specifying the ``--yes`` flag.
+
+.. code-block:: bash
+
+   belay cache clear --all --yes
+
 
 Q&A
 ^^^
