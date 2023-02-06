@@ -73,16 +73,55 @@ class Group:
             else:
                 existing_dep.unlink()
 
-    def copy_to(self, dst):
+    def copy_to(self, dst) -> None:
         """Copy Dependencies folder to destination directory."""
         if self.folder.exists():
             shutil.copytree(self.folder, dst, dirs_exist_ok=True)
+
+    def _download_package(self, package_name) -> bool:
+        rename_to_init = False
+        local_folder = self.folder / package_name
+        local_folder.mkdir(exist_ok=True, parents=True)
+
+        dep_srcs = self.dependencies[package_name]
+
+        if isinstance(dep_srcs, str):
+            rename_to_init = True
+
+        if isinstance(dep_srcs, (str, dict)):
+            dep_srcs = [dep_srcs]
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_dir = Path(tmp_dir)
+            for dep_src in dep_srcs:
+                if isinstance(dep_src, str):
+                    dep_src = {"remote": dep_src}
+                elif isinstance(dep_src, list):
+                    raise ValueError("Cannot double nest group lists.")
+                elif isinstance(dep_src, dict):
+                    # TODO: Pass it along unmodified; we need to finalize
+                    #       the internal representation before allowing this.
+                    raise NotImplementedError(
+                        "Dictionary dependencies not yet supported."
+                    )
+                else:
+                    raise ValueError(f"Unexpected type {type(dep_src)}")
+
+                out = download_uri(tmp_dir, dep_src["remote"])
+
+                if out.is_file() and out.suffix == ".py" and rename_to_init:
+                    out.rename(out.parent / "__init__.py")
+
+            _verify_files(tmp_dir)
+            changed = sync(tmp_dir, local_folder)
+
+        return changed
 
     def download(
         self,
         packages: Optional[List[str]] = None,
         console: Optional[Console] = None,
-    ):
+    ) -> None:
         """Download dependencies.
 
         Parameters
@@ -110,29 +149,8 @@ class Group:
 
         with cm:
             for package_name in packages:
-                local_folder = self.folder / package_name
-                local_folder.mkdir(exist_ok=True, parents=True)
-
-                dep_src = self.dependencies[package_name]
-
-                if isinstance(dep_src, str):
-                    # TODO: as we allow dict dependency specifiers, this should mirror it.
-                    dep_src = {"remote": dep_src}
-                elif isinstance(dep_src, list):
-                    raise NotImplementedError("List dependencies not yet supported.")
-                elif not isinstance(dep_src, dict):
-                    raise NotImplementedError(
-                        "Dictionary dependencies not yet supported."
-                    )
-
                 log(f"{package_name}: Updating...")
-
-                with tempfile.TemporaryDirectory() as tmp_dir:
-                    tmp_dir = Path(tmp_dir)
-                    download_uri(tmp_dir, dep_src["remote"])
-                    _verify_files(tmp_dir)
-                    changed = sync(tmp_dir, local_folder)
-
+                changed = self._download_package(package_name)
                 if changed:
                     log(f"[bold green]{package_name}: Updated.")
                 else:
