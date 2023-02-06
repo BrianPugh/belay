@@ -20,16 +20,16 @@ class NonMatchingURI(Exception):
 # DO NOT decorate with ``@downloaders``, since this must be last.
 def _download_generic(dst: Path, uri: str) -> Path:
     """Downloads a single file to ``dst / "__init__.py"``."""
-    try:
+    if Path(uri).is_dir():
+        fs = fsspec.filesystem("file")
+        fs.get(uri, str(dst), recursive=True)
+    else:
         with fsspec.open(uri, "rb") as f:
             data = f.read()
 
         dst /= Path(uri).name
         with dst.open("wb") as f:
             f.write(data)
-    except IsADirectoryError:
-        fs = fsspec.filesystem("file")
-        fs.get(uri, str(dst), recursive=True)
 
     return dst
 
