@@ -94,6 +94,8 @@ class Group:
             tmp_dir = Path(tmp_dir)
             for dep_src in dep_srcs:
                 if isinstance(dep_src, str):
+                    # TODO: this dictionary should eventually be a pydantic.BaseModel.
+                    #       To be updated once the ``dict`` representation is determined below.
                     dep_src = {"remote": dep_src}
                 elif isinstance(dep_src, list):
                     raise ValueError("Cannot double nest group lists.")
@@ -108,7 +110,7 @@ class Group:
 
                 out = download_uri(tmp_dir, dep_src["remote"])
 
-                if out.is_file() and out.suffix == ".py" and rename_to_init:
+                if rename_to_init and out.is_file() and out.suffix == ".py":
                     out.rename(out.parent / "__init__.py")
 
             _verify_files(tmp_dir)

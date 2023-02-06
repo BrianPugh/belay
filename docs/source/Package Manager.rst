@@ -46,22 +46,32 @@ Commands
 
 new
 ---
-This command will create a new Python project by creating a directory structure suitable for most belay projects.
+Creates a new directory structure suitable as a starting point for most belay projects.
 
 .. code-block:: bash
 
    belay new my-project
 
+The project structure is as follows:
+
+.. code-block:: text
+
+   my-project/
+   ├─ my-project/
+   │  └─ __init__.py
+   ├─ pyproject.toml
+   └─ README.md
+
 
 update
 ------
-Iterate over and update dependencies specified in  ``pyproject.toml``.
+Updates dependencies specified in  ``pyproject.toml``.
 
 .. code-block:: bash
 
    belay update
 
-The downloaded dependencies are stored in ``.belay/dependencies/<group>/`` of the current working directory.
+The downloaded dependencies are, by default, stored in ``.belay/dependencies/<group>/`` of the current working directory.
 ``.belay`` should be committed to your git repo and can be thought of as a dependency lock file.
 
 This decision is made because:
@@ -113,14 +123,14 @@ To include a dependency group that has been declared optional, add the ``--with`
 
 clean
 -----
-Remove any downloaded dependencies if they are no longer specified in ``tool.belay.dependecies``.
+Removes any downloaded dependencies if they are no longer specified in ``tool.belay.dependecies``.
 
 .. code-block:: bash
 
    belay clean
 
-``clean`` is automatically invoked at the end of ``belay update``, so you will usually not need to explicitly use this
-command.
+``clean`` is automatically invoked at the end of ``belay update``, so you will usually **not**
+need to explicitly use this command.
 
 cache
 -----
@@ -135,7 +145,7 @@ The location of this cache depends on the operating system:
 
 info
 ~~~~
-The ``cache info`` command will display Belay's cache location and other metadata.
+Displays Belay's cache location and other metadata.
 
 .. code-block:: bash
 
@@ -146,7 +156,7 @@ The ``cache info`` command will display Belay's cache location and other metadat
 
 list
 ~~~~
-The ``cache list`` command will list all the items Belay is currently caching.
+Lists all the items Belay is currently caching.
 
 .. code-block:: bash
 
@@ -155,7 +165,7 @@ The ``cache list`` command will list all the items Belay is currently caching.
 
 clear
 ~~~~~
-The ``cache clear`` will clear all cached items that begin with the provided prefix
+Deletes all cached items that begin with the provided prefix
 
 .. code-block:: bash
 
