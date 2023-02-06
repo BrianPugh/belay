@@ -2,10 +2,10 @@ import ast
 import shutil
 import tempfile
 from contextlib import nullcontext
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
+from pydantic import BaseModel
 from rich.console import Console
 
 from belay.packagemanager.downloaders import download_uri
@@ -13,9 +13,7 @@ from belay.packagemanager.sync import sync
 from belay.typing import PathType
 
 
-# TODO: maybe use pydantic.dataclass
-@dataclass
-class GroupConfig:
+class GroupConfig(BaseModel):
     """Schema and store of a group defined in ``pyproject.toml``.
 
     Don't put any methods in here, they go in ``Group``.
@@ -25,16 +23,16 @@ class GroupConfig:
 
     name: str
     optional: bool = False
-    dependencies: Dict[str, Union[list, dict, str]] = field(default_factory=dict)
+    dependencies: Dict[str, Union[list, str]] = {}  # TODO allow dict value type.
 
 
 class Group:
     """Represents a group defined in ``pyproject.toml``."""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, name: str, **kwargs):
         from belay.project import find_dependencies_folder
 
-        self.config = GroupConfig(*args, **kwargs)
+        self.config = GroupConfig(name=name, **kwargs)
         self.folder = find_dependencies_folder() / self.config.name
 
     def __eq__(self, other):

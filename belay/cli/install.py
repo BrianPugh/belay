@@ -21,7 +21,7 @@ def install(
     main: Optional[Path] = Option(
         None, help="Sync script to /main.py after installing."
     ),
-    with_group: List[str] = Option(
+    with_groups: List[str] = Option(
         None, "--with", help="Include specified optional dependency group."
     ),
 ):
@@ -41,7 +41,7 @@ def install(
         tmp_dir = Path(tmp_dir)
 
         for group in groups:
-            if group.optional and group.name not in with_group:
+            if group.optional and group.name not in with_groups:
                 continue
             group.copy_to(tmp_dir)
 
