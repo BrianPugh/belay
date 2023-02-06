@@ -35,11 +35,7 @@ class Group:
         from belay.project import find_dependencies_folder
 
         self.config = GroupConfig(*args, **kwargs)
-
         self.folder = find_dependencies_folder() / self.config.name
-
-        if self.config.optional:
-            raise NotImplementedError("Optional groups not implemented yet.")
 
     def __eq__(self, other):
         if not isinstance(other, Group):
@@ -49,6 +45,14 @@ class Group:
     def __repr__(self):
         kws = [f"{key}={value!r}" for key, value in self.config.__dict__.items()]
         return f"{type(self).__name__}({', '.join(kws)})"
+
+    @property
+    def name(self) -> str:
+        return self.config.name
+
+    @property
+    def optional(self) -> bool:
+        return self.config.optional
 
     @property
     def dependencies(self):

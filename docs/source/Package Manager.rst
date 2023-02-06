@@ -105,6 +105,12 @@ For this, specify the script using the ``--run`` option.
 
    belay install [PORT] --run main.py
 
+To include a dependency group that has been declared optional, add the ``--with`` option.
+
+.. code-block:: bash
+
+   belay install [PORT] --with dev
+
 clean
 -----
 Remove any downloaded dependencies if they are no longer specified in ``tool.belay.dependecies``.
