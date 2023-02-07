@@ -3,12 +3,21 @@
 
 from typing import Dict, List, Optional, Union
 
-from pydantic import BaseModel, root_validator
+from pydantic import BaseModel, root_validator, validator
 
 
 class GroupConfig(BaseModel):
     optional: bool = False
     dependencies: Dict[str, Union[List, str]] = {}  # TODO allow dict value type.
+
+    @validator("dependencies")
+    def keys_are_python_identifiers(cls, v):
+        for group_name in v:
+            if not group_name.isidentifier():
+                raise ValueError(
+                    "Dependency group name must be a valid python identifier."
+                )
+        return v
 
 
 class BelayConfig(BaseModel):
