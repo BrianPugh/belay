@@ -27,11 +27,11 @@ class BelayConfig(BaseModel):
     dependencies: Dict = {}  # "main" dependencies
     group: Dict[str, GroupConfig] = {}  # Other dependencies
 
-    @root_validator
-    def main_not_in_group(cls, values):
-        if "main" in values.get("group", {}):
+    @validator("group")
+    def main_not_in_group(cls, v):
+        if "main" in v:
             raise ValueError(
                 'Specify "main" group dependencies under "tool.belay.dependencies", '
                 'not "tool.belay.group.main.dependencies"'
             )
-        return values
+        return v
