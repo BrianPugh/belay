@@ -16,7 +16,13 @@ device = belay.Device(args.port)
 def setup():  # The function name doesn't matter, but is "setup" by convention.
     from machine import Pin
 
-    led = Pin(25, Pin.OUT)
+    print("hello world")
+
+    try:
+        # RP2040 wireless plus others
+        led = Pin.board.LED
+    except (TypeError, AttributeError):
+        led = Pin(25, Pin.OUT)
 
 
 # This sends the function's code over to the board.
