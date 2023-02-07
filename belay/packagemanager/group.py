@@ -3,26 +3,14 @@ import shutil
 import tempfile
 from contextlib import nullcontext
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import List, Optional
 
-from pydantic import BaseModel
 from rich.console import Console
 
 from belay.packagemanager.downloaders import download_uri
+from belay.packagemanager.models import GroupConfig
 from belay.packagemanager.sync import sync
 from belay.typing import PathType
-
-
-class GroupConfig(BaseModel):
-    """Schema and store of a group defined in ``pyproject.toml``.
-
-    Don't put any methods in here, they go in ``Group``.
-    Don't directly instnatiate ``GroupConfig`` outside of ``Config``.
-    This class is primarily for namespacing and validation.
-    """
-
-    optional: bool = False
-    dependencies: Dict[str, Union[list, str]] = {}  # TODO allow dict value type.
 
 
 class Group:
@@ -32,7 +20,7 @@ class Group:
         from belay.project import find_dependencies_folder
 
         self.name = name
-        self.config = GroupConfig(name=name, **kwargs)
+        self.config = GroupConfig(**kwargs)
         self.folder = find_dependencies_folder() / self.name
 
     def __eq__(self, other):

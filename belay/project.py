@@ -1,29 +1,11 @@
 import platform
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import List, Union
 
 import tomli
-from pydantic import BaseModel, root_validator
 
-from belay.packagemanager import Group, GroupConfig
-
-
-class BelayConfig(BaseModel):
-    """Configuration schema under the ``tool.belay`` section of ``pyproject.toml``."""
-
-    name: Optional[str] = None
-    dependencies: Dict = {}  # "main" dependencies
-    group: Dict[str, GroupConfig] = {}  # Other dependencies
-
-    @root_validator
-    def main_not_in_group(cls, values):
-        if "main" in values.get("group", {}):
-            raise ValueError(
-                'Specify "main" group dependencies under "tool.belay.dependencies", '
-                'not "tool.belay.group.main.dependencies"'
-            )
-        return values
+from belay.packagemanager import BelayConfig, Group
 
 
 @lru_cache
