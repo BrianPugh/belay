@@ -1,8 +1,8 @@
 import os
 
+import pydantic
 import pytest
 
-import belay
 from belay.packagemanager import Group
 from belay.project import find_pyproject, load_groups, load_pyproject, load_toml
 
@@ -13,7 +13,7 @@ def toml_file_standard(tmp_path):
     fn.write_text(
         """
 [tool.belay]
-foo = "bar"
+name = "bar"
 """
     )
     return fn
@@ -21,7 +21,7 @@ foo = "bar"
 
 def test_load_toml_standard(toml_file_standard):
     actual = load_toml(toml_file_standard)
-    assert actual == {"foo": "bar"}
+    assert actual == {"name": "bar"}
 
 
 def test_find_pyproject_parents(tmp_path, toml_file_standard):
@@ -33,7 +33,7 @@ def test_find_pyproject_parents(tmp_path, toml_file_standard):
     assert actual == toml_file_standard
 
     actual = load_pyproject()
-    assert actual == {"foo": "bar"}
+    assert actual.name == "bar"
 
 
 def test_load_toml_no_belay_section(tmp_path):
@@ -49,17 +49,17 @@ foo = "bar"
 
 
 @pytest.fixture
-def mock_load_pyproject(mocker):
-    return mocker.patch("belay.project.load_pyproject")
+def mock_load_toml(mocker):
+    return mocker.patch("belay.project.load_toml")
 
 
-def test_load_dependency_groups_empty(mock_load_pyproject):
-    mock_load_pyproject.return_value = {}
-    assert load_groups() == []
+def test_load_dependency_groups_empty(mock_load_toml):
+    mock_load_toml.return_value = {}
+    assert load_groups() == [Group("main")]
 
 
-def test_load_dependency_groups_main_only(mock_load_pyproject):
-    mock_load_pyproject.return_value = {
+def test_load_dependency_groups_main_only(mock_load_toml):
+    mock_load_toml.return_value = {
         "dependencies": {"foo": "foo_uri"},
     }
     assert load_groups() == [
@@ -67,8 +67,8 @@ def test_load_dependency_groups_main_only(mock_load_pyproject):
     ]
 
 
-def test_load_dependency_groups_main_group(mock_load_pyproject):
-    mock_load_pyproject.return_value = {
+def test_load_dependency_groups_main_group(mock_load_toml):
+    mock_load_toml.return_value = {
         "group": {
             "main": {
                 "dependencies": {
@@ -77,12 +77,12 @@ def test_load_dependency_groups_main_group(mock_load_pyproject):
             },
         },
     }
-    with pytest.raises(belay.ConfigError):
+    with pytest.raises(pydantic.ValidationError):
         load_groups()
 
 
-def test_load_dependency_groups_multiple(mock_load_pyproject):
-    mock_load_pyproject.return_value = {
+def test_load_dependency_groups_multiple(mock_load_toml):
+    mock_load_toml.return_value = {
         "dependencies": {"foo": "foo_uri"},
         "group": {
             "dev": {

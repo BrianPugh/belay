@@ -10,8 +10,7 @@ cli_runner = CliRunner()
 def test_install_no_pkg(mocker):
     toml = {}
 
-    mocker.patch("belay.project.load_pyproject", return_value=toml)
-    mock_load_toml = mocker.patch("belay.cli.install.load_pyproject", return_value=toml)
+    mock_load_toml = mocker.patch("belay.project.load_toml", return_value=toml)
     mock_sync = mocker.patch("belay.cli.install.sync")
     mock_run = mocker.patch("belay.cli.install.run_cmd")
 
@@ -41,8 +40,7 @@ def test_install_basic(tmp_path, mocker):
 
     toml = {"name": "my_pkg_name"}
 
-    mocker.patch("belay.project.load_pyproject", return_value=toml)
-    mock_load_toml = mocker.patch("belay.cli.install.load_pyproject", return_value=toml)
+    mock_load_toml = mocker.patch("belay.project.load_toml", return_value=toml)
     mocker.patch(
         "belay.project.find_dependencies_folder", return_value=dependencies_folder
     )

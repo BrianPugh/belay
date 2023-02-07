@@ -5,8 +5,7 @@ from typing import List, Union
 
 import tomli
 
-from belay.exceptions import ConfigError
-from belay.packagemanager import Group
+from belay.packagemanager import BelayConfig, Group
 
 
 @lru_cache
@@ -72,27 +71,19 @@ def load_toml(path: Union[str, Path]) -> dict:
 
 
 @lru_cache
-def load_pyproject() -> dict:
+def load_pyproject() -> BelayConfig:
     """Load the pyproject TOML file."""
     pyproject_path = find_pyproject()
-    return load_toml(pyproject_path)
+    belay_data = load_toml(pyproject_path)
+    return BelayConfig(**belay_data)
 
 
 @lru_cache
 def load_groups() -> List[Group]:
     config = load_pyproject()
-    groups_definitions = config.get("group", {})
-    if "main" in groups_definitions:
-        raise ConfigError(
-            'Specify "main" group dependencies under "tool.belay.dependencies", '
-            'not "tool.belay.group.main.dependencies"'
-        )
-    if "dependencies" in config:
-        groups_definitions["main"] = {"dependencies": config["dependencies"]}
-
-    groups = [
-        Group(name, **definition) for name, definition in groups_definitions.items()
-    ]
-    groups.sort(key=lambda x: x.config.name)
-
+    groups = [Group("main", dependencies=config.dependencies)]
+    groups.extend(
+        Group(name, **definition.dict()) for name, definition in config.group.items()
+    )
+    groups.sort(key=lambda x: x.name)
     return groups
