@@ -31,9 +31,9 @@ def install(
     if main and main.suffix != ".py":
         raise ValueError("Main script MUST be a python file.")
 
-    toml = load_pyproject()
+    config = load_pyproject()
     project_folder = find_project_folder()
-    project_package = toml.get("name")
+    project_package = config.name
     groups = load_groups()
 
     with TemporaryDirectory() as tmp_dir:

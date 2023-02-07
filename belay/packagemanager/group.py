@@ -21,7 +21,6 @@ class GroupConfig(BaseModel):
     This class is primarily for namespacing and validation.
     """
 
-    name: str
     optional: bool = False
     dependencies: Dict[str, Union[list, str]] = {}  # TODO allow dict value type.
 
@@ -32,8 +31,9 @@ class Group:
     def __init__(self, name: str, **kwargs):
         from belay.project import find_dependencies_folder
 
+        self.name = name
         self.config = GroupConfig(name=name, **kwargs)
-        self.folder = find_dependencies_folder() / self.config.name
+        self.folder = find_dependencies_folder() / self.name
 
     def __eq__(self, other):
         if not isinstance(other, Group):
@@ -43,10 +43,6 @@ class Group:
     def __repr__(self):
         kws = [f"{key}={value!r}" for key, value in self.config.__dict__.items()]
         return f"{type(self).__name__}({', '.join(kws)})"
-
-    @property
-    def name(self) -> str:
-        return self.config.name
 
     @property
     def optional(self) -> bool:

@@ -27,7 +27,3 @@ class MaxHistoryLengthError(BelayException):
 
 class ConnectionLost(BelayException):
     """Lost connection to device."""
-
-
-class ConfigError(BelayException):
-    """Configuration file invalid."""
