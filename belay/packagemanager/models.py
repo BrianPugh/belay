@@ -3,7 +3,13 @@
 
 from typing import Dict, List, Optional, Union
 
-from pydantic import BaseModel, root_validator, validator
+from pydantic import BaseModel as PydanticBaseModel
+from pydantic import root_validator, validator
+
+
+class BaseModel(PydanticBaseModel):
+    class Config:
+        allow_mutation = False
 
 
 class GroupConfig(BaseModel):
