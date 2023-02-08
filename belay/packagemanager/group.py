@@ -62,39 +62,17 @@ class Group:
             shutil.copytree(self.folder, dst, dirs_exist_ok=True)
 
     def _download_package(self, package_name) -> bool:
-        rename_to_init = False
         local_folder = self.folder / package_name
         local_folder.mkdir(exist_ok=True, parents=True)
 
-        dep_srcs = self.dependencies[package_name]
-
-        if isinstance(dep_srcs, str):
-            rename_to_init = True
-
-        if isinstance(dep_srcs, (str, dict)):
-            dep_srcs = [dep_srcs]
+        dependencies = self.dependencies[package_name]
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_dir = Path(tmp_dir)
-            for dep_src in dep_srcs:
-                if isinstance(dep_src, str):
-                    # TODO: this dictionary should eventually be a pydantic.BaseModel.
-                    #       To be updated once the ``dict`` representation is determined below.
-                    dep_src = {"remote": dep_src}
-                elif isinstance(dep_src, list):
-                    raise ValueError("Cannot double nest group lists.")
-                elif isinstance(dep_src, dict):
-                    # TODO: Pass it along unmodified; we need to finalize
-                    #       the internal representation before allowing this.
-                    raise NotImplementedError(
-                        "Dictionary dependencies not yet supported."
-                    )
-                else:
-                    raise ValueError(f"Unexpected type {type(dep_src)}")
+            for src in dependencies:
+                out = download_uri(tmp_dir, src.uri)
 
-                out = download_uri(tmp_dir, dep_src["remote"])
-
-                if rename_to_init and out.is_file() and out.suffix == ".py":
+                if src.rename_to_init and out.is_file() and out.suffix == ".py":
                     out.rename(out.parent / "__init__.py")
 
             _verify_files(tmp_dir)
