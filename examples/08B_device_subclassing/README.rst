@@ -1,5 +1,10 @@
-Example 08: Device Subclassing
+Example 08B: Device Subclassing
 ==============================
+This is an alternative version of Example 08 that explicitly separates
+code that runs on the host (``main.py``, ``main_multiple_devices``)
+from the class that contains the code (``MyDevice`` in ``mydevice.py``)
+that will be pushed to the microcontroller.
+
 It may be convenient to organize your Belay tasks into a class
 rather than decorated standalone functions.
 To accomplish this, have your class inherit from ``Device``,
