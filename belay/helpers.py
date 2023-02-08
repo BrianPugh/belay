@@ -1,4 +1,4 @@
-import importlib.resources as pkg_resources
+import importlib.resources
 import secrets
 import string
 from functools import lru_cache, partial, wraps
@@ -24,7 +24,8 @@ def random_python_identifier(n=16):
 
 @lru_cache
 def read_snippet(name):
-    return pkg_resources.read_text(snippets, f"{name}.py")
+    resource = f"{name}.py"
+    return importlib.resources.files(snippets).joinpath(resource).read_text()
 
 
 def list_devices() -> List[str]:
