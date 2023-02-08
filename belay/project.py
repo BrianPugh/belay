@@ -33,7 +33,8 @@ def find_belay_folder() -> Path:
 
 @lru_cache
 def find_dependencies_folder() -> Path:
-    return find_belay_folder() / "dependencies"
+    config = load_pyproject()
+    return find_project_folder() / config.dependencies_path
 
 
 @lru_cache
