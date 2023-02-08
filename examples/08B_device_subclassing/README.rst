@@ -1,4 +1,4 @@
-Example 08: Device Subclassing
+Example 08B: Device Subclassing
 ==============================
 This is an alternative version of Example 08 that explicitly separates
 code that runs on the host (``main.py``, ``main_multiple_devices``)
