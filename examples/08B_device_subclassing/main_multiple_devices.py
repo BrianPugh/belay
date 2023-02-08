@@ -1,7 +1,6 @@
 import argparse
 import time
 
-from belay import Device
 from mydevice import MyDevice
 
 parser = argparse.ArgumentParser()
