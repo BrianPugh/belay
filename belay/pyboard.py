@@ -416,10 +416,6 @@ class Pyboard:
             self.read_until(1, b"raw REPL; CTRL-B to exit\r\n>")
             self.serial.write(b"\x04")  # ctrl-D: soft reset
 
-            # Waiting for "soft reboot" independently to "raw REPL" (done below)
-            # allows boot.py to print, which will show up after "soft reboot"
-            # and before "raw REPL".
-            self.read_until(1, b"soft reboot\r\n")
         self.read_until(1, b"raw REPL; CTRL-B to exit\r\n")
         self.in_raw_repl = True
 
