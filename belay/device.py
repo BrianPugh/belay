@@ -170,6 +170,11 @@ def _generate_dst_dirs(dst, src, src_dirs) -> list:
 
 
 def _sort_executers(executers):
+    """Sorts executers by monotonically increasing ``__belay__.id``.
+
+    This ensures that, when necessary, executers are called in the order they are defined.
+    """
+
     def get_key(x):
         try:
             return x.__wrapped__.__belay__.id
@@ -300,20 +305,26 @@ class Device(Registry):
                 executer,
             )
 
+        self.__pre_autoinit__()
+
         autoinit_executers = _sort_executers(autoinit_executers)
         for executer in autoinit_executers:
             executer()
 
         self.__post_init__()
 
-    def __post_init__(self):
-        """Convenience method to run code after ``__init__``.
+    def __pre_autoinit__(self):
+        """Runs near the end of ``__init__``, but before methods marked with ``setup(autoinit=True)`` are invoked.
 
         This would be a good location to call items like:
             * ``self.sync(...)`` - Basic file sync
             * ``self.sync_dependencies(...)`` - More advanced sync.
               Recommended way of getting dependencies on-device.
         """
+        pass
+
+    def __post_init__(self):
+        """Runs at the very end of ``__init__``."""
         pass
 
     def _emitter_check(self):
