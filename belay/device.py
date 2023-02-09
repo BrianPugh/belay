@@ -1,15 +1,18 @@
 import ast
 import concurrent.futures
+import importlib.resources
 import linecache
 import math
 import re
+import shutil
 import subprocess  # nosec
 import sys
-import tempfile
 from dataclasses import dataclass
 from inspect import signature
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from threading import Lock
+from types import ModuleType
 from typing import Callable, Optional, TextIO, Tuple, Union
 
 from autoregistry import Registry
@@ -29,7 +32,7 @@ from .hash import fnv1a
 from .helpers import read_snippet, wraps_partial
 from .inspect import isexpression
 from .pyboard import Pyboard, PyboardError, PyboardException
-from .typing import BelayReturn
+from .typing import BelayReturn, PathType
 from .webrepl import WebreplToSerial
 
 
@@ -121,8 +124,8 @@ def _preprocess_ignore(ignore: Union[None, str, list, tuple]) -> list:
 
 
 def _preprocess_src_file(
-    tmp_dir: Union[str, Path],
-    src_file: Union[str, Path],
+    tmp_dir: PathType,
+    src_file: PathType,
     minify: bool,
     mpy_cross_binary: Union[str, Path, None],
 ) -> Path:
@@ -167,6 +170,11 @@ def _generate_dst_dirs(dst, src, src_dirs) -> list:
 
 
 def _sort_executers(executers):
+    """Sorts executers by monotonically increasing ``__belay__.id``.
+
+    This ensures that, when necessary, executers are called in the order they are defined.
+    """
+
     def get_key(x):
         try:
             return x.__wrapped__.__belay__.id
@@ -297,9 +305,27 @@ class Device(Registry):
                 executer,
             )
 
+        self.__pre_autoinit__()
+
         autoinit_executers = _sort_executers(autoinit_executers)
         for executer in autoinit_executers:
             executer()
+
+        self.__post_init__()
+
+    def __pre_autoinit__(self):
+        """Runs near the end of ``__init__``, but before methods marked with ``setup(autoinit=True)`` are invoked.
+
+        This would be a good location to call items like:
+            * ``self.sync(...)`` - Basic file sync
+            * ``self.sync_dependencies(...)`` - More advanced sync.
+              Recommended way of getting dependencies on-device.
+        """
+        pass
+
+    def __post_init__(self):
+        """Runs at the very end of ``__init__``."""
+        pass
 
     def _emitter_check(self):
         # Detect which emitters are available
@@ -420,7 +446,7 @@ class Device(Registry):
 
     def sync(
         self,
-        folder: Union[str, Path],
+        folder: PathType,
         dst: str = "/",
         keep: Union[None, list, str, bool] = None,
         ignore: Union[None, list, str] = None,
@@ -519,7 +545,7 @@ class Device(Registry):
                 progress_update(description="Creating remote directories...")
             self(f"__belay_mkdirs({repr(dst_dirs)})")
 
-        with tempfile.TemporaryDirectory() as tmp_dir, concurrent.futures.ThreadPoolExecutor() as executor:
+        with TemporaryDirectory() as tmp_dir, concurrent.futures.ThreadPoolExecutor() as executor:
             tmp_dir = Path(tmp_dir)
 
             def _preprocess_src_file_hash_helper(src_file):
@@ -555,6 +581,62 @@ class Device(Registry):
                 self._board.fs_put(src_file, dst_file)
                 if progress_update:
                     progress_update(advance=1)
+
+    def sync_dependencies(
+        self,
+        package: Union[ModuleType, str],
+        *subfolders: PathType,
+        dst="/lib",
+        **kwargs,
+    ):
+        """Convenience method for syncing dependencies bundled with package.
+
+        If using Belay's package manager feature, set ``dependencies_path``
+        to a folder *inside* your python package (e.g.
+        ``dependencies_path="mypackage/dependencies"``).
+
+        The following example will sync all the files/folders in
+        ``mypackage/dependencies/main`` to device's ``/lib``.
+
+        .. code-block:: python
+
+            import mypackage
+
+            device.sync_package(mypackage, "dependencies/main")
+
+        For intended use, ``sync_dependencies`` should be **only be called
+        once**. Multiple invocations overwrite/delete previous calls' contents.
+
+        .. code-block:: python
+
+            # Good
+            device.sync_package(mypackage, "dependencies/main", "dependencies/dev")
+
+            # Bad (deletes on-device files from "dependencies/main")
+            device.sync_package(mypackage, "dependencies/main")
+            device.sync_package(mypackage, "dependencies/dev")
+
+        Parameters
+        ----------
+        package: Union[ModuleType, str]
+            Either the imported package or the name of a package that
+            contains the data we would like to sync.
+        *subfolders
+            Subfolder(s) to combine and then sync to ``dst``.
+            Typically something like "dependencies/main"
+        dst: Union[str, Path]
+            On-device destination directory.
+            Defaults to ``/lib``.
+        **kwargs
+            Passed along to ``Device.sync``.
+        """
+        pkg_files = importlib.resources.files(package)
+        with TemporaryDirectory() as tmp_dir:
+            tmp_dir = Path(tmp_dir)
+            for subfolder in subfolders:
+                with importlib.resources.as_file(pkg_files / str(subfolder)) as f:
+                    shutil.copytree(f, tmp_dir, dirs_exist_ok=True)
+            self.sync(tmp_dir, dst=dst, **kwargs)
 
     def __enter__(self):
         return self
@@ -733,7 +815,7 @@ class Device(Registry):
 
     def _traceback_execute(
         self,
-        src_file: Union[str, Path],
+        src_file: PathType,
         src_lineno: int,
         name: str,
         cmd: str,
