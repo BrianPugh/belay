@@ -16,7 +16,7 @@ on:
 
 jobs:
   test:
-    timeout-minutes: 30
+    timeout-minutes: 40
     defaults:
       run:
         shell: bash
@@ -76,29 +76,41 @@ jobs:
         with:
           node-version: 16
 
-      - name: Cache Pi Pico MicroPython firmware
-        id: cached-pi-pico-micropython-firmware
+      - name: Cache Pi Pico MicroPython 1.17 firmware
+        id: cached-pi-pico-micropython-1-17-firmware
         uses: actions/cache@v3
         with:
           path: rp2040js/micropython-v1.17.uf2
           key: pi-pico-rp2040js/micropython-v1.17.uf2
 
-      - name: Download Pi Pico MicroPython firmware
-        if: steps.cached-pi-pico-micropython-firmware.outputs.cache-hit != 'true'
+      - name: Download Pi Pico MicroPython 1.17 firmware
+        if: steps.cached-pi-pico-micropython-1-17-firmware.outputs.cache-hit != 'true'
         run: |
           curl https://micropython.org/resources/firmware/rp2-pico-20210902-v1.17.uf2 -o rp2040js/micropython-v1.17.uf2
 
-      - name: Cache Pi Pico CircuitPython firmware
-        id: cached-pi-pico-circuitpython-firmware
+      - name: Cache Pi Pico CircuitPython 7.3.3 firmware
+        id: cached-pi-pico-circuitpython-7-3-3-firmware
         uses: actions/cache@v3
         with:
           path: rp2040js/circuitpython-v7.3.3.uf2
           key: pi-pico-rp2040js/circuitpython-v7.3.3.uf2
 
-      - name: Download Pi Pico CircuitPython firmware
-        if: steps.cached-pi-pico-circuitpython-firmware.outputs.cache-hit != 'true'
+      - name: Download Pi Pico CircuitPython 7.3.3 firmware
+        if: steps.cached-pi-pico-circuitpython-7-3-3-firmware.outputs.cache-hit != 'true'
         run: |
           curl https://downloads.circuitpython.org/bin/raspberry_pi_pico/en_US/adafruit-circuitpython-raspberry_pi_pico-en_US-7.3.3.uf2 -o rp2040js/circuitpython-v7.3.3.uf2
+
+      - name: Cache Pi Pico CircuitPython 8.0.0 firmware
+        id: cached-pi-pico-circuitpython-8-0-0-firmware
+        uses: actions/cache@v3
+        with:
+          path: rp2040js/circuitpython-v8.0.0.uf2
+          key: pi-pico-rp2040js/circuitpython-v8.0.0.uf2
+
+      - name: Download Pi Pico CircuitPython 8.0.0 firmware
+        if: steps.cached-pi-pico-circuitpython-8-0-0-firmware.outputs.cache-hit != 'true'
+        run: |
+          curl https://downloads.circuitpython.org/bin/raspberry_pi_pico/en_US/adafruit-circuitpython-raspberry_pi_pico-en_US-8.0.0.uf2 -o rp2040js/circuitpython-v8.0.0.uf2
 
       - name: Cache Node Modules
         id: cached-npm

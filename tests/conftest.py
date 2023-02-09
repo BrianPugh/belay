@@ -64,7 +64,13 @@ def cli_runner(mock_device):
     return run
 
 
-@pytest.fixture(params=["micropython-v1.17.uf2", "circuitpython-v7.3.3.uf2"])
+@pytest.fixture(
+    params=[
+        "micropython-v1.17.uf2",
+        "circuitpython-v7.3.3.uf2",
+        "circuitpython-v8.0.0.uf2",
+    ]
+)
 def emulate_command(request):
     return (
         f"exec:npm run --prefix rp2040js start:micropython -- --image={request.param}"
