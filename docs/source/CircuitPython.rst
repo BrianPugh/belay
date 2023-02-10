@@ -43,7 +43,7 @@ To revert this configuration, there are multiple options:
 
 Physical Configuration
 ^^^^^^^^^^^^^^^^^^^^^^
-If desired, storage mounting can be configured based on a physical pin state.
+Storage mounting can be configured based on a physical pin state.
 Adding the following contents to ``/boot.py`` will configure the system to:
 
 * Be in "normal" circuitpython mode if pin 14 is floating/high (due to
