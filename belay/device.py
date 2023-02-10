@@ -278,14 +278,6 @@ class Device(Registry):
             emitters=self._emitter_check(),
         )
 
-        if startup is None:
-            if self.implementation.name == "circuitpython":
-                self._exec_snippet("convenience_imports_circuitpython")
-            else:
-                self._exec_snippet("convenience_imports_micropython")
-        elif startup:
-            self(startup)
-
         # if subclassing Device, register methods decorated with
         # executer markers (e.g. ``Device.task``).
         autoinit_executers = []
@@ -306,6 +298,14 @@ class Device(Registry):
             )
 
         self.__pre_autoinit__()
+
+        if startup is None:
+            if self.implementation.name == "circuitpython":
+                self._exec_snippet("convenience_imports_circuitpython")
+            else:
+                self._exec_snippet("convenience_imports_micropython")
+        elif startup:
+            self(startup)
 
         autoinit_executers = _sort_executers(autoinit_executers)
         for executer in autoinit_executers:
