@@ -247,7 +247,7 @@ The decorated method must have no parameters, otherwise a ``ValueError`` will be
 
 The ``Device`` class also has some hook methods that can be implemented to give customization to the object initialization process:
 
-1. ``__pre_autoinit__`` - Called near the end of ``__init__``, but before methods marked with ``@Device.setup(autoinit=True)`` are invoked. This is a good location to sync additional micropython dependencies to device.
+1. ``__pre_autoinit__`` - Called near the end of ``__init__``, after convenience imports have been imported, but before methods marked with ``@Device.setup(autoinit=True)`` are invoked. This is a good location to sync additional micropython dependencies to device.
 
 2. ``__post_init__`` -  Called at the very end of ``__init__``. This is a good location to set custom object attributes.
 
