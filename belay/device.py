@@ -297,8 +297,6 @@ class Device(Registry):
                 executer,
             )
 
-        self.__pre_autoinit__()
-
         if startup is None:
             if self.implementation.name == "circuitpython":
                 self._exec_snippet("convenience_imports_circuitpython")
@@ -306,6 +304,8 @@ class Device(Registry):
                 self._exec_snippet("convenience_imports_micropython")
         elif startup:
             self(startup)
+
+        self.__pre_autoinit__()
 
         autoinit_executers = _sort_executers(autoinit_executers)
         for executer in autoinit_executers:
