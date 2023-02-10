@@ -1,3 +1,14 @@
-import os, time, analogio, board, digitalio
+import os, time, board, digitalio
 from time import sleep
-from busio import I2C, SPI
+try:
+    import analogio
+except ImportError:
+    pass
+try:
+    from busio import I2C
+except ImportError:
+    pass
+try:
+    from busio import SPI
+except ImportError:
+    pass
