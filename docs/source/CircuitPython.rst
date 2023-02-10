@@ -23,7 +23,15 @@ To revert this configuration, there are multiple options:
 1. Edit ``boot.py`` using Thonny_, then reboot. Thonny (like Belay), operates via the REPL,
    so it has write-access since it's operating through circuitpython.
 
-2. Using Belay in an interactive python prompt:
+2. Through circuitpython's REPL via an interactive shell, such as ``rshell`` or ``python -m serial.tools.miniterm``:
+
+.. code-block:: python
+
+   import os
+
+   os.remove("boot.py")
+
+3. Using Belay in an interactive python prompt on host:
 
 .. code-block:: python
 
