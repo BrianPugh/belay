@@ -19,6 +19,8 @@ class BaseModel(PydanticBaseModel):
 
 class DependencySourceConfig(BaseModel):
     uri: str
+    develop: bool = False  # If true, local dependency is in "editable" mode.
+
     rename_to_init: bool = False
 
 
@@ -68,6 +70,8 @@ def _dependencies_preprocessor(dependencies) -> dict[str, List[dict]]:
                     raise NotImplementedError
             group_value = group_value_out
         elif isinstance(group_value, dict):
+            group_value = group_value.copy()
+            group_value.setdefault("rename_to_init", True)
             group_value = [group_value]
         elif isinstance(group_value, DependencySourceConfig):
             # Nothing to do

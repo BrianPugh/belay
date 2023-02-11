@@ -8,7 +8,7 @@ from typing import List, Optional
 from rich.console import Console
 
 from belay.packagemanager.downloaders import download_uri
-from belay.packagemanager.models import GroupConfig
+from belay.packagemanager.models import DependencySourceConfig, GroupConfig
 from belay.packagemanager.sync import sync
 from belay.typing import PathType
 
@@ -57,11 +57,24 @@ class Group:
                 existing_dep.unlink()
 
     def copy_to(self, dst) -> None:
-        """Copy Dependencies folder to destination directory."""
+        """Copy Dependencies folder to destination directory to stage for installation."""
         if self.folder.exists():
+            # Bulk copy over the group contents
             shutil.copytree(self.folder, dst, dirs_exist_ok=True)
 
+        # Copy over any (& overwrite) any dependencies in ``develop`` mode.
+        for package_name, dependency in _walk_develop_dependencies(self.dependencies):
+            dst_package_folder = dst / package_name
+            _download_and_verify_dependency(dst_package_folder, dependency)
+
     def _download_package(self, package_name) -> bool:
+        """Download a single package.
+
+        Returns
+        -------
+        changed: bool
+            If existing files have changed after download.
+        """
         local_folder = self.folder / package_name
         local_folder.mkdir(exist_ok=True, parents=True)
 
@@ -69,13 +82,8 @@ class Group:
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_dir = Path(tmp_dir)
-            for src in dependencies:
-                out = download_uri(tmp_dir, src.uri)
-
-                if src.rename_to_init and out.is_file() and out.suffix == ".py":
-                    out.rename(out.parent / "__init__.py")
-
-            _verify_files(tmp_dir)
+            for dependency in dependencies:
+                _download_and_verify_dependency(tmp_dir, dependency)
             changed = sync(tmp_dir, local_folder)
 
         return changed
@@ -120,13 +128,50 @@ class Group:
                     log(f"{package_name}: No changes detected.")
 
 
-def _verify_files(folder: PathType):
+def _verify_files(path: PathType):
     """Sanity checks downloaded files.
 
-    Currently just checks if ".py" files are valid python code.
+    Performs the following checks:
+
+    * ".py" files are valid python code.
+
+    Parameters
+    ----------
+    path
+        Either a single file or a folder.
     """
-    folder = Path(folder)
-    for f in folder.rglob("*"):
+    path = Path(path)
+
+    if path.is_dir():
+        gen = path.rglob("*")
+    else:
+        gen = [path]
+
+    for f in gen:
         if f.suffix == ".py":
             code = f.read_text()
             ast.parse(code)
+
+
+def _walk_develop_dependencies(packages: dict):
+    for package_name, dependencies in packages.items():
+        for dependency in dependencies:
+            if dependency.develop:
+                yield package_name, dependency
+
+
+def _download_and_verify_dependency(
+    download_folder: PathType, dependency: DependencySourceConfig
+):
+    """Download and verify a dependency.
+
+    Parameters
+    ----------
+    download_folder
+        Destination directory for downloaded file(s).
+    """
+    out = download_uri(download_folder, dependency.uri)
+    if dependency.rename_to_init and out.is_file() and out.suffix == ".py":
+        out = out.rename(out.parent / "__init__.py")
+
+    _verify_files(out)
