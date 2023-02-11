@@ -36,21 +36,27 @@ This section contains a mapping of package names to URIs where they can be fetch
 There isn't a strong centralized micropython package repository, so Belay relies on directly specifying python file URLs.
 Belay supports several dependency values:
 
-1. A string to a local file/folder path.
+1. A string to a local file/folder path:
 
    .. code-block:: toml
 
       pathlib = "../micropython-lib/python-stdlib/pathlib/pathlib.py"
       os = "../micropython-lib/python-stdlib/os/os"
 
-2. A github link to a single file or a folder
+2. A github link to a single file or a folder:
 
    .. code-block:: toml
 
       pathlib = "https://github.com/micropython/micropython-lib/blob/master/python-stdlib/pathlib/pathlib.py"
       os = "https://github.com/micropython/micropython-lib/tree/master/python-stdlib/os/os"
 
-3. A list of any of the above if multiple files are required for a single package. This is most common for packages that have optional submodules.
+3. A dictionary with a detailed specification:
+
+   .. code-block:: toml
+
+      pathlib = {uri="../micropython-lib/python-stdlib/pathlib/pathlib.py", develop=true}
+
+4. A list of any of the above if multiple files are required for a single package:
 
    .. code-block:: toml
 
@@ -59,7 +65,17 @@ Belay supports several dependency values:
           "https://github.com/micropython/micropython-lib/blob/master/python-stdlib/os-path/os/path.py",
       ]
 
+   This is most common for packages that have optional submodules.
+
 Support for other types can be added. Please open up a github issue if Belay doesn't support a desired file source.
+
+If specifying a dependency via dictionary, the following fields are available:
+
+* ``uri`` - local or remote path to fetch data from. **Must** be provided.
+
+* ``develop`` - Dependency is in "editable" mode. The dependency source is directly used during ``belay install``.
+  Primarily used for a local dependency actively under development.
+  Defaults to ``False``.
 
 Groups
 ~~~~~~
