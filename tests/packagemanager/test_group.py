@@ -1,7 +1,7 @@
 import pytest
 
 import belay.packagemanager
-from belay.packagemanager import Group
+from belay.packagemanager.group import Group, _verify_files
 
 
 @pytest.fixture(autouse=True)
@@ -71,3 +71,17 @@ def test_group_clean(main_group):
 
     assert (main_group.folder / "foo").exists()
     assert not (main_group.folder / "baz").exists()
+
+
+def test_verify_files_micropython_viper(tmp_path):
+    code_path = tmp_path / "code.py"
+    code_path.write_text(
+        """
+@micropython.viper
+def foo(self, arg: int) -> int:
+    buf = ptr8(self.linebuf) # self.linebuf is a bytearray or bytes object
+    for x in range(20, 30):
+        bar = buf[x] # Access a data item through the pointer
+"""
+    )
+    _verify_files(code_path)
