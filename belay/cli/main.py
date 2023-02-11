@@ -20,7 +20,7 @@ from belay.cli.sync import sync
 from belay.cli.update import update
 from belay.project import load_groups
 
-app = typer.Typer(no_args_is_help=True)
+app = typer.Typer(no_args_is_help=True, pretty_exceptions_enable=False)
 app.add_typer(cache.app, name="cache")
 
 app.command()(clean)
