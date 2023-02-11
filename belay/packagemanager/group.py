@@ -120,16 +120,16 @@ class Group:
 
         def log(*args, **kwargs):
             if console:
-                console.log(*args, **kwargs)
+                console.print(*args, **kwargs)
 
         with cm:
             for package_name in packages:
-                log(f"{package_name}: Updating...")
+                log(f"  • {package_name}: Updating...", end=" ")
                 changed = self._download_package(package_name)
                 if changed:
-                    log(f"[bold green]{package_name}: Updated.")
+                    log(f"  • [bold green]{package_name}: Updated.")
                 else:
-                    log(f"{package_name}: No changes detected.")
+                    log(f"  • {package_name}: No changes detected.")
 
 
 def _verify_files(path: PathType):
