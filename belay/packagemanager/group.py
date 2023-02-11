@@ -8,7 +8,11 @@ from typing import List, Optional
 from rich.console import Console
 
 from belay.packagemanager.downloaders import download_uri
-from belay.packagemanager.models import DependencySourceConfig, GroupConfig
+from belay.packagemanager.models import (
+    DependencySourceConfig,
+    GroupConfig,
+    walk_dependencies,
+)
 from belay.packagemanager.sync import sync
 from belay.typing import PathType
 
@@ -154,10 +158,9 @@ def _verify_files(path: PathType):
 
 
 def _walk_develop_dependencies(packages: dict):
-    for package_name, dependencies in packages.items():
-        for dependency in dependencies:
-            if dependency.develop:
-                yield package_name, dependency
+    for package_name, dependency in walk_dependencies(packages):
+        if dependency.develop:
+            yield package_name, dependency
 
 
 def _download_and_verify_dependency(

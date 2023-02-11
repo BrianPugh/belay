@@ -84,6 +84,19 @@ def _dependencies_preprocessor(dependencies) -> dict[str, List[dict]]:
     return out
 
 
+def walk_dependencies(packages: dict):
+    """Walks over all package/dependency pairs.
+
+    Yields
+    ------
+    tuple
+        (package_name, dependency)
+    """
+    for package_name, dependencies in packages.items():
+        for dependency in dependencies:
+            yield package_name, dependency
+
+
 class GroupConfig(BaseModel):
     optional: bool = False
     dependencies: Dict[str, DependencyList] = {}
@@ -97,6 +110,18 @@ class GroupConfig(BaseModel):
     _v_dependencies_names = validator_reuse("dependencies")(
         _dependencies_name_validator
     )
+
+    @validator("dependencies")
+    def max_1_rename_to_init(packages: dict):
+        rename_to_init_count = {}
+        for package_name, dependency in walk_dependencies(packages):
+            rename_to_init_count.setdefault(package_name, 0)
+            rename_to_init_count[package_name] += dependency.rename_to_init
+            if rename_to_init_count[package_name] > 1:
+                raise ValueError(
+                    f'{package_name} has more than 1 dependency marked with "rename_to_init".'
+                )
+        return packages
 
 
 class BelayConfig(BaseModel):
