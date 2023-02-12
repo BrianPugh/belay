@@ -60,8 +60,10 @@ class Group:
             else:
                 existing_dep.unlink()
 
-    def copy_to(self, dst) -> None:
+    def copy_to(self, dst: PathType) -> None:
         """Copy Dependencies folder to destination directory to stage for installation."""
+        dst = Path(dst)
+
         if self.folder.exists():
             # Bulk copy over the group contents
             shutil.copytree(self.folder, dst, dirs_exist_ok=True)
