@@ -2,6 +2,7 @@ import os
 import shutil
 import subprocess  # nosec
 import sys
+from tempfile import TemporaryDirectory
 from typing import List
 
 import typer
@@ -39,12 +40,16 @@ def run_exec(command: List[str]):
     groups = load_groups()
     virtual_env = os.environ.copy()
     # Add all dependency groups to the micropython path.
-    virtual_env["MICROPYPATH"] = os.pathsep.join(str(g.folder) for g in groups)
-    return subprocess.run(  # nosec
-        command,
-        env=virtual_env,
-        check=True,
-    ).returncode
+    with TemporaryDirectory() as tmp_dir:
+        virtual_env["MICROPYPATH"] = tmp_dir
+        for group in groups:
+            group.copy_to(tmp_dir)
+
+        return subprocess.run(  # nosec
+            command,
+            env=virtual_env,
+            check=True,
+        ).returncode
 
 
 def _get(indexable, index, default=None):
