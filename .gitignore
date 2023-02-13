@@ -236,3 +236,5 @@ Temporary Items
 profile.json
 
 rp2040js/
+
+.vscode/
