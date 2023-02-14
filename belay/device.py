@@ -1,4 +1,5 @@
 import ast
+import atexit
 import concurrent.futures
 import importlib.resources
 import linecache
@@ -310,6 +311,8 @@ class Device(Registry):
         autoinit_executers = _sort_executers(autoinit_executers)
         for executer in autoinit_executers:
             executer()
+
+        atexit.register(self.close)
 
         self.__post_init__()
 
@@ -647,6 +650,8 @@ class Device(Registry):
     def close(self) -> None:
         """Close the connection to device."""
         # Invoke all teardown executers prior to closing out connection.
+        atexit.unregister(self.close)
+
         for executer in _sort_executers(self._belay_teardown._belay_executers):
             executer()
 
