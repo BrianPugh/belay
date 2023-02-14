@@ -17,14 +17,15 @@ device = belay.Device(args.port)
 def setup():
     import neopixel
 
+    # Configuration for a RP2040-ZERO board.
+    pixel = neopixel.NeoPixel(Pin(16), 1)
+
 
 # This sends the function's code over to the board.
 # Calling the local ``set_neopixel`` function will
 # execute it on-device.
 @device.task
 def set_neopixel(r, g, b):
-    # Configuration for a RP2040-ZERO board.
-    pixel = neopixel.NeoPixel(Pin(16), 1)
     pixel[0] = (r, g, b)
     pixel.write()
 
