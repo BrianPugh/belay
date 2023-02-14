@@ -747,7 +747,7 @@ class Device(Registry):
             Defaults to ``True``.
         """  # noqa: D400
         if f is None:
-            return wraps_partial(Device.setup, **kwargs)  # type: ignore[reportGeneralTypeIssues]
+            return wraps_partial(Device.teardown, **kwargs)  # type: ignore[reportGeneralTypeIssues]
 
         if signature(f).parameters:
             raise ValueError(
