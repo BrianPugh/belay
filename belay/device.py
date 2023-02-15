@@ -652,6 +652,8 @@ class Device(Registry):
         # Invoke all teardown executers prior to closing out connection.
         atexit.unregister(self.close)
 
+        self._board.cancel_running_program()
+
         for executer in _sort_executers(self._belay_teardown._belay_executers):
             executer()
 

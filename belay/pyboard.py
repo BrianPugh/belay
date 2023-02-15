@@ -402,13 +402,17 @@ class Pyboard:
                 time.sleep(0.01)
         return data
 
+    def cancel_running_program(self):
+        """Interrupts any running program."""
+        self.serial.write(b"\r\x03\x03")  # ctrl-C twice: interrupt any running program
+
     def enter_raw_repl(self, soft_reset=True):
         # flush input (without relying on serial.flushInput())
         n = self.serial.inWaiting()
         while n > 0:
             self.serial.read(n)
             n = self.serial.inWaiting()
-        self.serial.write(b"\r\x03\x03")  # ctrl-C twice: interrupt any running program
+        self.cancel_running_program()
         self.exit_raw_repl()  # if device is already in raw_repl, b'>>>' won't be printed.
         self.read_until(1, b">>>")
         self.serial.write(b"\r\x01")  # ctrl-A: enter raw REPL
