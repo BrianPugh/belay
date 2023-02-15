@@ -318,10 +318,10 @@ Belay aims to provide a more robust, friendly experience by the following:
 
 What limitations does Belay's package manager have?
 ---------------------------------------------------
-* Currently, only single-file dependencies are allowed.
-  Luckily, this appears to be most micropython packages.
+* Belay currently does not currently support manifest.py_, but that may
+  change in the future.
 
-* Dependencies are not recursively searched; if a dependency
+* Dependencies are not recursively searched/solved; if a dependency
   has it's own dependencies, you must add them yourself to your
   ``pyproject.toml``.
 
@@ -339,3 +339,6 @@ Cached dependencies are to be included in your git repo because:
 3. A lot of micropython libraries don't implement versioning, so more complicated
    dependency solving isn't feasible. Caching "known working" versions is the only
    convenient way of guaranteeing a repeatable deployment.
+
+
+.. _manifest.py: https://docs.micropython.org/en/latest/reference/manifest.html
