@@ -650,6 +650,10 @@ class Device(Registry):
     def close(self) -> None:
         """Close the connection to device."""
         # Invoke all teardown executers prior to closing out connection.
+        if self._board is None:
+            # Has already been closed
+            return
+
         atexit.unregister(self.close)
 
         self._board.cancel_running_program()
@@ -657,7 +661,8 @@ class Device(Registry):
         for executer in _sort_executers(self._belay_teardown._belay_executers):
             executer()
 
-        return self._board.close()
+        self._board.close()
+        self._board = None
 
     def reconnect(self, attempts: Optional[int] = None) -> None:
         """Reconnect to the device and replay the command history.
