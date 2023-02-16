@@ -16,7 +16,7 @@ on:
 
 jobs:
   test:
-    timeout-minutes: 40
+    timeout-minutes: 45
     defaults:
       run:
         shell: bash
@@ -31,7 +31,7 @@ jobs:
     env:
       OS: ${{ matrix.os }}
       PYTHON: ${{ matrix.python-version }}
-      BELAY_SLEEP_MULTIPLIER: 3.0
+      BELAY_SLEEP_MULTIPLIER: 2.5
 
     steps:
       - name: Set OS Environment Variables (Windows)

@@ -34,7 +34,7 @@ def _dependencies_name_validator(dependencies) -> dict:
     return dependencies
 
 
-def _dependencies_preprocessor(dependencies) -> dict[str, List[dict]]:
+def _dependencies_preprocessor(dependencies) -> Dict[str, List[dict]]:
     """Preprocess various dependencies based on dtype.
 
     * ``str`` -> single dependency that may get renamed to __init__.py, if appropriate.
