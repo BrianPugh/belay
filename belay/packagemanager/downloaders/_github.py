@@ -46,15 +46,12 @@ def github(dst: Path, uri: str):
         if (repo_folder / ".git").is_dir():
             # Already been cloned
             repo = git.Repo(repo_folder)
-            origin = repo.remote("origin")
-            origin.fetch()
+            repo.remotes.origin.pull()
         else:
             repo = git.Repo.clone_from(repo_url, repo_folder)
 
-        # Set to specified reference
-        commit = repo.rev_parse(ref)
-        repo.head.reference = commit
-        repo.head.reset(index=True, working_tree=True)
+        repo.git.clean("-xdf")
+        repo.git.checkout(ref)
 
         shutil.copytree(repo_folder / path, dst, dirs_exist_ok=True)
     else:
