@@ -178,8 +178,15 @@ To additionally sync a script to ``/main.py``, specify the script using the ``--
 
    belay install [PORT] --main main.py
 
+The output of the ``main`` script can be monitored after flashing by including the ``--follow`` flag.
+
+.. code-block:: bash
+
+   belay install [PORT] --main main.py --follow
+
 During development, it is often convenient to specify a script to run without actually syncing it to ``/main.py``.
 For this, specify the script using the ``--run`` option.
+The output will always be monitored.
 
 .. code-block:: bash
 
@@ -291,6 +298,13 @@ This confirmation prompt can be bypassed by specifying the ``--yes`` flag.
 
    belay cache clear --all --yes
 
+terminal
+--------
+Opens up an interactive terminal with the device.
+
+.. code-block:: bash
+
+   belay terminal [PORT]
 
 Q&A
 ^^^

@@ -11,9 +11,9 @@ class FeatureUnavailableError(BelayException):
 
 
 class SpecialFunctionNameError(BelayException):
-    """Reserved function name that may impact Belay functionality.
+    """Attempted to use a reserved Belay function name.
 
-    Currently limited to:
+    The following name rules are reserved:
 
         * Names that start and end with double underscore, ``__``.
 

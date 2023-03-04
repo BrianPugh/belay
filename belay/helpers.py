@@ -37,7 +37,7 @@ def list_devices() -> List[str]:
 
     Returns
     -------
-    list[str]
+    List[str]
         Available devices identifiers.
     """
     return [port.device for port in list_ports.comports()]

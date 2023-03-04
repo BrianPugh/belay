@@ -231,6 +231,10 @@ class MethodMetadata:
 class Device(Registry):
     """Belay interface into a micropython device.
 
+    Can be used as a context manager; calls ``self.close`` on exit.
+
+    Inherits from ``autoregistry.Registry`` for easy access to subclasses.
+
     Attributes
     ----------
     implementation: Implementation
@@ -649,7 +653,10 @@ class Device(Registry):
         self.close()
 
     def close(self) -> None:
-        """Close the connection to device."""
+        """Close the connection to device.
+
+        Automatically called on context manager exit.
+        """
         # Invoke all teardown executers prior to closing out connection.
         if self._board is None:
             # Has already been closed
@@ -827,7 +834,7 @@ class Device(Registry):
         return f
 
     def terminal(self, *, exit_char=chr(0x1D)):
-        """Start a blocking terminal over the serial port."""
+        """Start a blocking interactive terminal over the serial port."""
         self._board.exit_raw_repl()  # In case we were previously in raw repl mode.
         miniterm = Miniterm(self._board.serial)
         miniterm.set_rx_encoding("UTF-8")
