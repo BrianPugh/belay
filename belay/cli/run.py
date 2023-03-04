@@ -22,7 +22,6 @@ def run(
             belay run micropython -m unittest
 
     """
-    device = Device(port, password=password)
     content = file.read_text()
-    device(content)
-    device.close()
+    with Device(port, password=password) as device:
+        device(content)
