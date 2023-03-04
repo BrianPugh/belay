@@ -73,9 +73,11 @@ def install(
     if main:
         with Device(port, password=password) as device:
             device.sync(main, keep=True, mpy_cross_binary=mpy_cross_binary)
-            if follow and not run:
+            if not run:
+                # Reset device so ``main.py`` executes.
                 device.soft_reset()
-                device.terminal(exit_char=chr(0x03))  # ctrl-c to exit
+                if follow:
+                    device.terminal(exit_char=chr(0x03))  # ctrl-c to exit
 
     if run:
         run_cmd(port=port, file=run, password=password)
