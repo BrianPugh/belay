@@ -29,3 +29,4 @@ extend-immutable-calls =
     Arg
     Option
     Opt
+    chr

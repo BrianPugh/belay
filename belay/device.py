@@ -826,17 +826,27 @@ class Device(Registry):
         f.__belay__ = MethodMetadata(executer=ThreadExecuter, kwargs=kwargs)
         return f
 
-    def terminal(self):
+    def terminal(self, *, exit_char=chr(0x1D)):
         """Start a blocking terminal over the serial port."""
+        self._board.exit_raw_repl()  # In case we were previously in raw repl mode.
         miniterm = Miniterm(self._board.serial)
         miniterm.set_rx_encoding("UTF-8")
         miniterm.set_tx_encoding("UTF-8")
+        miniterm.exit_character = exit_char
         miniterm.start()
         try:
             miniterm.join(True)
         except KeyboardInterrupt:
             pass
         miniterm.join()
+
+    def soft_reset(self):
+        """Reset device, executing ``main.py`` if available."""
+        # When in Raw REPL, ctrl-d will perform a reset, but won't execute ``main.py``
+        # https://github.com/micropython/micropython/issues/2249
+        self._board.exit_raw_repl()
+        self._board.read_until(1, b">>>")
+        self._board.ctrl_d()
 
     def _traceback_execute(
         self,
