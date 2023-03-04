@@ -406,6 +406,10 @@ class Pyboard:
         """Interrupts any running program."""
         self.serial.write(b"\r\x03\x03")  # ctrl-C twice: interrupt any running program
 
+    def ctrl_d(self):
+        # Note: When in raw repl mode, a soft-reset will NOT execute ``main.py``.
+        self.serial.write(b"\x04")  # ctrl-D: soft reset
+
     def enter_raw_repl(self, soft_reset=True):
         # flush input (without relying on serial.flushInput())
         n = self.serial.inWaiting()
@@ -418,7 +422,7 @@ class Pyboard:
         self.serial.write(b"\r\x01")  # ctrl-A: enter raw REPL
         if soft_reset:
             self.read_until(1, b"raw REPL; CTRL-B to exit\r\n>")
-            self.serial.write(b"\x04")  # ctrl-D: soft reset
+            self.ctrl_d()
 
         self.read_until(1, b"raw REPL; CTRL-B to exit\r\n")
         self.in_raw_repl = True
