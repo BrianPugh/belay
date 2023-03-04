@@ -24,6 +24,9 @@ def install(
     with_groups: List[str] = Option(
         None, "--with", help="Include specified optional dependency group."
     ),
+    follow: bool = Option(
+        False, "--follow", "-f", help="Follow the stdout after upload."
+    ),
 ):
     """Sync dependencies and project itself to device."""
     if run and run.suffix != ".py":
@@ -70,6 +73,9 @@ def install(
     if main:
         with Device(port, password=password) as device:
             device.sync(main, keep=True, mpy_cross_binary=mpy_cross_binary)
+            if follow and not run:
+                device.soft_reset()
+                device.terminal(exit_char=chr(0x03))  # ctrl-c to exit
 
     if run:
         run_cmd(port=port, file=run, password=password)
