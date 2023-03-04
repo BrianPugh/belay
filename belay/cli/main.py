@@ -18,6 +18,7 @@ from belay.cli.install import install
 from belay.cli.new import new
 from belay.cli.run import run
 from belay.cli.sync import sync
+from belay.cli.terminal import terminal
 from belay.cli.update import update
 from belay.project import load_groups
 
@@ -32,6 +33,7 @@ app.command()(install)
 app.command()(new)
 app.command()(run)
 app.command()(sync)
+app.command()(terminal)
 app.command()(update)
 
 

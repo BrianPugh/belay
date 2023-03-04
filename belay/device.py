@@ -19,6 +19,7 @@ from typing import Callable, Optional, TextIO, Tuple, Union
 from autoregistry import Registry
 from pathspec import PathSpec
 from serial import SerialException
+from serial.tools.miniterm import Miniterm
 
 from ._minify import minify as minify_code
 from .exceptions import ConnectionLost, MaxHistoryLengthError
@@ -824,6 +825,18 @@ class Device(Registry):
             return wraps_partial(Device.task, **kwargs)  # type: ignore[reportGeneralTypeIssues]
         f.__belay__ = MethodMetadata(executer=ThreadExecuter, kwargs=kwargs)
         return f
+
+    def terminal(self):
+        """Start a blocking terminal over the serial port."""
+        miniterm = Miniterm(self._board.serial)
+        miniterm.set_rx_encoding("UTF-8")
+        miniterm.set_tx_encoding("UTF-8")
+        miniterm.start()
+        try:
+            miniterm.join(True)
+        except KeyboardInterrupt:
+            pass
+        miniterm.join()
 
     def _traceback_execute(
         self,
