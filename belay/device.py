@@ -426,7 +426,8 @@ class Device(Registry):
         def data_consumer(data):
             """Handle input data stream immediately."""
             nonlocal out
-            if data == b"\x04":
+            data = data.replace(b"\x04", b"")
+            if not data:
                 return
             data_consumer_buffer.append(data.decode())
             if b"\n" in data:

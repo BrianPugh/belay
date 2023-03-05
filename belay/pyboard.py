@@ -89,6 +89,10 @@ def stdout_write_bytes(b):
     stdout.flush()
 
 
+def _dummy_data_consumer(data):
+    pass
+
+
 class PyboardError(Exception):
     """An issue communicating with the board."""
 
@@ -231,9 +235,7 @@ class ProcessToSerial:
 
     @property
     def in_waiting(self):
-        if self.buf:
-            return 1
-        return 0
+        return len(self.buf)
 
 
 class ProcessPtyToTerminal:
@@ -316,6 +318,7 @@ class Pyboard:
             raise ValueError('"attempts" cannot be 0.')
         self.in_raw_repl = False
         self.use_raw_paste = True
+        self._serial_buf = bytearray()
         if device.startswith("exec:"):
             self.serial = ProcessToSerial(device[len("exec:") :])
         elif device.startswith("execpty:"):
@@ -371,28 +374,48 @@ class Pyboard:
         timeout: Union[None, float]
             Timeout in seconds.
             If None, no timeout.
+
+        Returns
+        -------
+        data: bytes
+            Data read up to, and including, ``ending``.
         """
-        data = self.serial.read(1)
-        if data_consumer:
-            data_consumer(data)
-        timeout_count = 0
-        while True:
-            if data.endswith(ending):
-                break
-            elif self.serial.in_waiting > 0:
-                new_data = self.serial.read(1)
-                if data_consumer:
-                    data_consumer(new_data)
-                data = data + new_data
-                timeout_count = 0
-            else:
-                timeout_count += 1
-                if timeout is not None and timeout_count >= 100 * timeout:
+        if data_consumer is None:
+            data_consumer = _dummy_data_consumer
+
+        i = self._serial_buf.find(ending)
+        if i >= 0:
+            out = self._serial_buf[: i + 1]
+            self._serial_buf = self._serial_buf[i + 1 :]
+            data_consumer(out)
+        else:
+            if timeout is None:
+                timeout = float("inf")
+            deadline = time.time() + timeout
+            while True:
+                i = max(1, min(2048, self.serial.in_waiting))
+                data = self.serial.read(i)
+
+                i = data.find(ending)
+                if i >= 0:
+                    data_consumer(data[: i + 1])
+
+                    out = self._serial_buf + data[: i + 1]
+                    self._serial_buf[:] = data[i + 1 :]
+
+                    break
+                else:
+                    data_consumer(data)
+                    self._serial_buf.extend(data)
+
+                if time.time() > deadline:
                     raise PyboardError(
-                        f"Timed out reading until {repr(ending)}\n    Received: {repr(data)}"
+                        f"Timed out reading until {repr(ending)}\n    Received: {repr(self._serial_buf)}"
                     )
+
                 time.sleep(0.01)
-        return data
+
+        return out
 
     def cancel_running_program(self):
         """Interrupts any running program."""
@@ -406,7 +429,6 @@ class Pyboard:
         # flush input (without relying on serial.flushInput())
         n = self.serial.in_waiting
         while n > 0:
-            self.serial.read(n)
             n = self.serial.in_waiting
         self.cancel_running_program()
         self.exit_raw_repl()  # if device is already in raw_repl, b'>>>' won't be printed.
