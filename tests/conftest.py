@@ -16,6 +16,7 @@ class MockDevice:
     def __init__(self, mocker):
         self.mocker = mocker
         self.inst = mocker.MagicMock()
+        self.inst.__enter__.return_value = self.inst  # Support context manager use.
         self.cls = None
 
     def patch(self, target: str):
