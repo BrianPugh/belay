@@ -14,12 +14,13 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from threading import Lock
 from types import ModuleType
-from typing import Callable, Optional, TextIO, Tuple, Union
+from typing import Callable, Optional, TextIO, Tuple, TypeVar, Union, overload
 
 from autoregistry import Registry
 from pathspec import PathSpec
 from serial import SerialException
 from serial.tools.miniterm import Miniterm
+from typing_extensions import ParamSpec
 
 from ._minify import minify as minify_code
 from .exceptions import ConnectionLost, MaxHistoryLengthError
@@ -36,6 +37,9 @@ from .inspect import isexpression
 from .pyboard import Pyboard, PyboardError, PyboardException
 from .typing import BelayReturn, PathType
 from .webrepl import WebreplToSerial
+
+P = ParamSpec("P")
+R = TypeVar("R")
 
 
 class NotBelayResponse(Exception):
@@ -699,8 +703,22 @@ class Device(Registry):
         for cmd in self._cmd_history:
             self(cmd, record=False)
 
+    @overload
     @staticmethod
-    def setup(f=None, *, autoinit=False, **kwargs) -> Callable:
+    def setup(f: Callable[P, R]) -> Callable[P, R]:
+        ...
+
+    @overload
+    @staticmethod
+    def setup(
+        *, autoinit=False, **kwargs
+    ) -> Callable[[Callable[P, R]], Callable[P, R]]:
+        ...
+
+    @staticmethod
+    def setup(
+        f: Optional[Callable[P, R]] = None, autoinit=False, **kwargs
+    ) -> Union[Callable[[Callable[P, R]], Callable[P, R]], Callable[P, R]]:
         """setup(f, *, minify=True, register=True, record=True)
 
         Decorator that executes function's body in a global-context on-device when called.
@@ -741,8 +759,20 @@ class Device(Registry):
         )
         return f
 
+    @overload
     @staticmethod
-    def teardown(f=None, **kwargs) -> Callable:
+    def teardown(f: Callable[P, R]) -> Callable[P, R]:
+        ...
+
+    @overload
+    @staticmethod
+    def teardown(**kwargs) -> Callable[[Callable[P, R]], Callable[P, R]]:
+        ...
+
+    @staticmethod
+    def teardown(
+        f: Optional[Callable[P, R]] = None, **kwargs
+    ) -> Union[Callable[[Callable[P, R]], Callable[P, R]], Callable[P, R]]:
         """teardown(f, *, minify=True, register=True, record=True)
 
         Decorator that executes function's body in a global-context on-device
@@ -777,8 +807,20 @@ class Device(Registry):
         f.__belay__ = MethodMetadata(executer=TeardownExecuter, kwargs=kwargs)
         return f
 
+    @overload
     @staticmethod
-    def task(f=None, **kwargs) -> Callable:
+    def task(f: Callable[P, R]) -> Callable[P, R]:
+        ...
+
+    @overload
+    @staticmethod
+    def task(**kwargs) -> Callable[[Callable[P, R]], Callable[P, R]]:
+        ...
+
+    @staticmethod
+    def task(
+        f: Optional[Callable[P, R]] = None, **kwargs
+    ) -> Union[Callable[[Callable[P, R]], Callable[P, R]], Callable[P, R]]:
         """task(f, *, minify=True, register=True, record=False)
 
         Decorator that send code to device that executes when decorated function is called on-host.
@@ -807,7 +849,20 @@ class Device(Registry):
         return f
 
     @staticmethod
-    def thread(f=None, **kwargs) -> Callable:
+    @overload
+    @staticmethod
+    def thread(f: Callable[P, R]) -> Callable[P, R]:
+        ...
+
+    @overload
+    @staticmethod
+    def thread(**kwargs) -> Callable[[Callable[P, R]], Callable[P, R]]:
+        ...
+
+    @staticmethod
+    def thread(
+        f: Optional[Callable[P, R]] = None, **kwargs
+    ) -> Union[Callable[[Callable[P, R]], Callable[P, R]], Callable[P, R]]:
         """thread(f, *, minify=True, register=True, record=True)
 
         Decorator that send code to device that spawns a thread when executed.
