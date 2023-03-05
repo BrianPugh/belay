@@ -1,15 +1,19 @@
 import inspect
 from abc import abstractmethod
 from functools import wraps
-from typing import Callable, Optional
+from typing import Callable, Optional, TypeVar, Union, overload
 
 from autoregistry import Registry
+from typing_extensions import ParamSpec
 
 from ._minify import minify as _minify
 from .exceptions import FeatureUnavailableError, SpecialFunctionNameError
 from .helpers import random_python_identifier, wraps_partial
 from .inspect import getsource
 from .typing import BelayCallable
+
+P = ParamSpec("P")  # requires python >= 3.10
+R = TypeVar("R")
 
 
 class Executer(Registry, suffix="Executer"):
@@ -39,14 +43,28 @@ class Executer(Registry, suffix="Executer"):
 
 
 class _GlobalExecuter(Executer, skip=True):
+    @overload
+    def __call__(self, f: Callable[P, R]) -> Callable[P, R]:
+        ...
+
+    @overload
     def __call__(
         self,
-        f: Optional[BelayCallable] = None,
         *,
         minify: bool = True,
         register: bool = True,
-        record: bool = True,
-    ):
+        record: bool = False,
+    ) -> Callable[[Callable[P, R]], Callable[P, R]]:
+        ...
+
+    def __call__(
+        self,
+        f: Optional[Callable[P, R]] = None,
+        *,
+        minify: bool = True,
+        register: bool = True,
+        record: bool = False,
+    ) -> Union[Callable[[Callable[P, R]], Callable[P, R]], Callable[P, R]]:
         if f is None:
             return wraps_partial(self, minify=minify, register=register, record=record)
         if inspect.isgeneratorfunction(f):
@@ -90,14 +108,28 @@ class TeardownExecuter(_GlobalExecuter):
 
 
 class TaskExecuter(Executer):
+    @overload
+    def __call__(self, f: Callable[P, R]) -> Callable[P, R]:
+        ...
+
+    @overload
     def __call__(
         self,
-        f: Optional[BelayCallable] = None,
         *,
         minify: bool = True,
         register: bool = True,
         record: bool = False,
-    ):
+    ) -> Callable[[Callable[P, R]], Callable[P, R]]:
+        ...
+
+    def __call__(
+        self,
+        f: Optional[Callable[P, R]] = None,
+        *,
+        minify: bool = True,
+        register: bool = True,
+        record: bool = False,
+    ) -> Union[Callable[[Callable[P, R]], Callable[P, R]], Callable[P, R]]:
         """See ``Device.task``."""
         if f is None:
             return wraps_partial(self, minify=minify, register=register, record=record)
@@ -155,14 +187,28 @@ class TaskExecuter(Executer):
 
 
 class ThreadExecuter(Executer):
+    @overload
+    def __call__(self, f: Callable[P, R]) -> Callable[P, R]:
+        ...
+
+    @overload
     def __call__(
         self,
-        f: Optional[Callable[..., None]] = None,
         *,
         minify: bool = True,
         register: bool = True,
-        record: bool = True,
-    ) -> Callable[..., None]:
+        record: bool = False,
+    ) -> Callable[[Callable[P, R]], Callable[P, R]]:
+        ...
+
+    def __call__(
+        self,
+        f: Optional[Callable[P, R]] = None,
+        *,
+        minify: bool = True,
+        register: bool = True,
+        record: bool = False,
+    ) -> Union[Callable[[Callable[P, R]], Callable[P, R]], Callable[P, R]]:
         """See ``Device.thread``."""
         if f is None:
             return wraps_partial(self, minify=minify, register=register, record=record)
