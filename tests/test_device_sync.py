@@ -22,7 +22,7 @@ def __belay_ilistdir(x):
 @pytest.fixture
 def mock_pyboard(mocker):
     def mock_init(self, *args, **kwargs):
-        self.serial = None
+        self.serial = mocker.MagicMock()
 
     exec_side_effect = [b'_BELAYR("micropython", (1, 19, 1), "rp2")\r\n'] * 100
 
