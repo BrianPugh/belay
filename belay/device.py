@@ -719,9 +719,7 @@ class Device(Registry):
     def setup(
         f: Optional[Callable[P, R]] = None, autoinit=False, **kwargs
     ) -> Union[Callable[[Callable[P, R]], Callable[P, R]], Callable[P, R]]:
-        """setup(f, *, minify=True, register=True, record=True)
-
-        Decorator that executes function's body in a global-context on-device when called.
+        """Execute decorated function's body in a global-context on-device when called.
 
         Function arguments are also set in the global context.
 
@@ -773,10 +771,7 @@ class Device(Registry):
     def teardown(
         f: Optional[Callable[P, R]] = None, **kwargs
     ) -> Union[Callable[[Callable[P, R]], Callable[P, R]], Callable[P, R]]:
-        """teardown(f, *, minify=True, register=True, record=True)
-
-        Decorator that executes function's body in a global-context on-device
-        when ``device.close()`` is called.
+        """Executes decorated function's body in a global-context on-device when ``device.close()`` is called.
 
         Function arguments are also set in the global context.
 
@@ -821,9 +816,10 @@ class Device(Registry):
     def task(
         f: Optional[Callable[P, R]] = None, **kwargs
     ) -> Union[Callable[[Callable[P, R]], Callable[P, R]], Callable[P, R]]:
-        """task(f, *, minify=True, register=True, record=False)
+        """Execute decorated function on-device.
 
-        Decorator that send code to device that executes when decorated function is called on-host.
+        Sends source code to device at decoration time.
+        Execution sends involves much smaller overhead.
 
         Can either be used as a staticmethod ``@Device.task`` for marking methods in a subclass of ``Device``, or as a standard method ``@device.task`` for marking functions to a specific ``Device`` instance.
 
@@ -863,9 +859,7 @@ class Device(Registry):
     def thread(
         f: Optional[Callable[P, R]] = None, **kwargs
     ) -> Union[Callable[[Callable[P, R]], Callable[P, R]], Callable[P, R]]:
-        """thread(f, *, minify=True, register=True, record=True)
-
-        Decorator that send code to device that spawns a thread when executed.
+        """Spawn on-device thread that executes decorated function.
 
         Can either be used as a staticmethod ``@Device.thread`` for marking methods in a subclass of ``Device``, or as a standard method ``@device.thread`` for marking functions to a specific ``Device`` instance.
 
