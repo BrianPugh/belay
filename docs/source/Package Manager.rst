@@ -173,13 +173,22 @@ Syncs the project and dependencies to device.
    belay install [PORT]
 
 To additionally sync a script to ``/main.py``, specify the script using the ``--main`` option.
+After flashing, the device will be reset and the ``main`` script will execute.
 
 .. code-block:: bash
 
    belay install [PORT] --main main.py
 
+The output of the ``main`` script can be monitored after flashing by including the ``--follow`` flag.
+Cancel the running script and exit the monitor via ``ctrl-c``.
+
+.. code-block:: bash
+
+   belay install [PORT] --main main.py --follow
+
 During development, it is often convenient to specify a script to run without actually syncing it to ``/main.py``.
 For this, specify the script using the ``--run`` option.
+The output will always be monitored.
 
 .. code-block:: bash
 
@@ -291,6 +300,14 @@ This confirmation prompt can be bypassed by specifying the ``--yes`` flag.
 
    belay cache clear --all --yes
 
+terminal
+--------
+Opens up an interactive terminal with the device.
+Press ``ctrl-]`` to exit the terminal.
+
+.. code-block:: bash
+
+   belay terminal [PORT]
 
 Q&A
 ^^^

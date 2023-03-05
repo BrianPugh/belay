@@ -1,13 +1,15 @@
+import shutil
+from functools import partial
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import List, Optional
 
+from rich.progress import Progress
 from typer import Argument, Option
 
 from belay import Device
 from belay.cli.common import help_password, help_port
-from belay.cli.run import run as run_cmd
-from belay.cli.sync import sync
+from belay.cli.sync import sync_device as _sync_device
 from belay.project import find_project_folder, load_groups, load_pyproject
 
 
@@ -24,6 +26,9 @@ def install(
     with_groups: List[str] = Option(
         None, "--with", help="Include specified optional dependency group."
     ),
+    follow: bool = Option(
+        False, "--follow", "-f", help="Follow the stdout after upload."
+    ),
 ):
     """Sync dependencies and project itself to device."""
     if run and run.suffix != ".py":
@@ -36,40 +41,66 @@ def install(
     project_package = config.name
     groups = load_groups()
 
-    with TemporaryDirectory() as tmp_dir:
-        # Aggregate dependencies to an intermediate temporary directory.
-        tmp_dir = Path(tmp_dir)
-
-        for group in groups:
-            if group.optional and group.name not in with_groups:
-                continue
-            group.copy_to(tmp_dir)
-
-        sync(
-            port=port,
-            folder=tmp_dir,
-            dst="/lib",
-            password=password,
-            keep=None,
-            ignore=None,
+    with Device(port, password=password) as device:
+        sync_device = partial(
+            _sync_device,
+            device,
             mpy_cross_binary=mpy_cross_binary,
         )
 
-    if project_package:
-        project_package = Path(project_package)
-        sync(
-            port=port,
-            folder=project_folder / project_package,
-            dst=f"/{project_package.name}",
-            password=password,
-            keep=None,
-            ignore=None,
-            mpy_cross_binary=mpy_cross_binary,
-        )
+        with TemporaryDirectory() as tmp_dir, Progress() as progress:
+            tmp_dir = Path(tmp_dir)
 
-    if main:
-        with Device(port, password=password) as device:
-            device.sync(main, keep=True, mpy_cross_binary=mpy_cross_binary)
+            # Add all tasks to progress bar
+            tasks = {}
 
-    if run:
-        run_cmd(port=port, file=run, password=password)
+            def create_task(key, task_description):
+                task_id = progress.add_task(task_description)
+
+                def progress_update(description=None, **kwargs):
+                    if description:
+                        description = task_description + description
+                    progress.update(task_id, description=description, **kwargs)
+
+                tasks[key] = progress_update
+
+            create_task("dependencies", "Dependencies: ")
+            if project_package:
+                create_task("project_package", f"{project_package}: ")
+            if main:
+                create_task("main", "main: ")
+
+            # Aggregate dependencies to an intermediate temporary directory.
+            for group in groups:
+                if group.optional and group.name not in with_groups:
+                    continue
+                group.copy_to(tmp_dir)
+
+            sync_device(
+                tmp_dir,
+                dst="/lib",
+                progress_update=tasks["dependencies"],
+            )
+
+            if project_package:
+                sync_device(
+                    folder=project_folder / project_package,
+                    dst=f"/{project_package}",
+                    progress_update=tasks["project_package"],
+                )
+
+            if main:
+                # Copy provided main to temporary directory in case it's not named main.py
+                main_tmp = tmp_dir / "main.py"
+                shutil.copy(main, main_tmp)
+                sync_device(main_tmp, progress_update=tasks["main"])
+
+        if run:
+            content = run.read_text()
+            device(content)
+            return
+
+        # Reset device so ``main.py`` has a chance to execute.
+        device.soft_reset()
+        if follow:
+            device.terminal(exit_char=chr(0x03))  # ctrl-c to exit

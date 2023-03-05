@@ -7,35 +7,42 @@ from belay.cli import app
 cli_runner = CliRunner()
 
 
-def test_install_no_pkg(mocker):
+def test_install_no_pkg(tmp_path, mocker, mock_device):
     toml = {}
+    main_py = tmp_path / "main.py"
+    main_py.write_text("foo = 1")
 
     mock_load_toml = mocker.patch("belay.project.load_toml", return_value=toml)
-    mock_sync = mocker.patch("belay.cli.install.sync")
-    mock_run = mocker.patch("belay.cli.install.run_cmd")
+    mock_device.patch("belay.cli.install.Device")
 
     result = cli_runner.invoke(
-        app, ["install", "/dev/ttyUSB0", "--password", "password", "--run", "main.py"]
+        app,
+        [
+            "install",
+            "/dev/ttyUSB0",
+            "--password",
+            "password",
+            "--run",
+            str(main_py),
+        ],
+        catch_exceptions=False,
     )
 
     assert result.exit_code == 0
+
     mock_load_toml.assert_called_once()
-    mock_sync.assert_called_once_with(
-        port="/dev/ttyUSB0",
-        folder=mocker.ANY,
-        dst="/lib",
-        password="password",
-        keep=None,
-        ignore=None,
+    mock_device.cls.assert_called_once_with("/dev/ttyUSB0", password="password")
+    mock_device.inst.sync.assert_called_once_with(  # Dependencies sync
+        mocker.ANY,
+        progress_update=mocker.ANY,
         mpy_cross_binary=None,
+        dst="/lib",
     )
 
-    mock_run.assert_called_once_with(
-        port="/dev/ttyUSB0", password="password", file=Path("main.py")
-    )
+    mock_device.inst.assert_called_once_with("foo = 1")
 
 
-def test_install_basic(tmp_path, mocker):
+def test_install_basic(tmp_path, mocker, mock_device):
     dependencies_folder = tmp_path / ".belay" / "dependencies"
 
     toml = {"name": "my_pkg_name"}
@@ -45,29 +52,30 @@ def test_install_basic(tmp_path, mocker):
         "belay.project.find_dependencies_folder", return_value=dependencies_folder
     )
     mocker.patch("belay.cli.install.find_project_folder", return_value=Path())
-    mock_sync = mocker.patch("belay.cli.install.sync")
+    mock_device.patch("belay.cli.install.Device")
 
     result = cli_runner.invoke(
-        app, ["install", "/dev/ttyUSB0", "--password", "password"]
+        app,
+        ["install", "/dev/ttyUSB0", "--password", "password"],
+        catch_exceptions=False,
     )
-
     assert result.exit_code == 0
+
     mock_load_toml.assert_called_once()
-    mock_sync.assert_any_call(
-        port="/dev/ttyUSB0",
-        folder=mocker.ANY,
-        dst="/lib",
-        password="password",
-        keep=None,
-        ignore=None,
-        mpy_cross_binary=None,
-    )
-    mock_sync.assert_any_call(
-        port="/dev/ttyUSB0",
-        folder=Path("my_pkg_name"),
-        dst="/my_pkg_name",
-        password="password",
-        keep=None,
-        ignore=None,
-        mpy_cross_binary=None,
+    mock_device.cls.assert_called_once_with("/dev/ttyUSB0", password="password")
+    mock_device.inst.sync.assert_has_calls(
+        [
+            mocker.call(
+                mocker.ANY,
+                progress_update=mocker.ANY,
+                mpy_cross_binary=None,
+                dst="/lib",
+            ),
+            mocker.call(
+                mocker.ANY,
+                progress_update=mocker.ANY,
+                mpy_cross_binary=None,
+                dst="/my_pkg_name",
+            ),
+        ]
     )

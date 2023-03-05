@@ -1,3 +1,4 @@
+from contextlib import nullcontext
 from functools import partial
 from pathlib import Path
 from typing import List, Optional
@@ -7,6 +8,12 @@ from typer import Argument, Option
 
 from belay import Device
 from belay.cli.common import help_password, help_port
+
+
+def sync_device(device, folder, progress_update, **kwargs):
+
+    device.sync(folder, progress_update=progress_update, **kwargs)
+    progress_update(description="Complete.")
 
 
 def sync(
@@ -25,21 +32,18 @@ def sync(
     keep = keep if keep else None
     ignore = ignore if ignore else None
 
-    with Progress() as progress:
+    with Device(port, password=password) as device, Progress() as progress:
         task_id = progress.add_task("")
-        progress_update = partial(progress.update, task_id)
-        progress_update(description=f"Connecting to {port}")
-        device = Device(port, password=password)
-        progress_update(description=f"Connected to {port}.")
 
-        device.sync(
+        def progress_update(description=None, **kwargs):
+            return progress.update(task_id, description=description, **kwargs)
+
+        sync_device(
+            device,
             folder,
+            progress_update,
             dst=dst,
             keep=keep,
             ignore=ignore,
             mpy_cross_binary=mpy_cross_binary,
-            progress_update=progress_update,
         )
-
-        progress_update(description="Sync complete.")
-        device.close()

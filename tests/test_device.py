@@ -9,7 +9,7 @@ def mock_pyboard(mocker):
     exec_side_effect = [b'_BELAYR("micropython", (1, 19, 1), "rp2")\r\n'] * 100
 
     def mock_init(self, *args, **kwargs):
-        self.serial = None
+        self.serial = mocker.MagicMock()
 
     def mock_exec(cmd, data_consumer=None):
         data = exec_side_effect.pop()
@@ -24,8 +24,8 @@ def mock_pyboard(mocker):
 
 @pytest.fixture
 def mock_device(mock_pyboard):
-    device = belay.Device()
-    return device
+    with belay.Device() as device:
+        yield device
 
 
 def test_device_init(mock_device):
