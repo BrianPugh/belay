@@ -38,7 +38,7 @@ from .pyboard import Pyboard, PyboardError, PyboardException
 from .typing import BelayReturn, PathType
 from .webrepl import WebreplToSerial
 
-P = ParamSpec("P")  # requires python >= 3.10
+P = ParamSpec("P")
 R = TypeVar("R")
 
 

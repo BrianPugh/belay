@@ -12,7 +12,7 @@ from .helpers import random_python_identifier, wraps_partial
 from .inspect import getsource
 from .typing import BelayCallable
 
-P = ParamSpec("P")  # requires python >= 3.10
+P = ParamSpec("P")
 R = TypeVar("R")
 
 
