@@ -1,3 +1,4 @@
+import shutil
 from functools import partial
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -89,15 +90,17 @@ def install(
                 )
 
             if main:
-                sync_device(
-                    main, dst="/main.py", keep=True, progress_update=tasks["main"]
-                )
+                # Copy provided main to temporary directory in case it's not named main.py
+                main_tmp = tmp_dir / "main.py"
+                shutil.copy(main, main_tmp)
+                sync_device(main_tmp, progress_update=tasks["main"])
 
         if run:
             content = run.read_text()
             device(content)
-        else:
-            # Reset device so ``main.py`` has a chance to execute.
-            device.soft_reset()
-            if follow:
-                device.terminal(exit_char=chr(0x03))  # ctrl-c to exit
+            return
+
+        # Reset device so ``main.py`` has a chance to execute.
+        device.soft_reset()
+        if follow:
+            device.terminal(exit_char=chr(0x03))  # ctrl-c to exit
