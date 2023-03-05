@@ -11,7 +11,7 @@ device = belay.Device(args.port)
 
 
 @device.task
-def read_temperature():
+def read_temperature() -> float:
     # ADC4 is attached to an internal temperature sensor
     sensor_temp = ADC(4)
     reading = sensor_temp.read_u16()
