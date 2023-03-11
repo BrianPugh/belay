@@ -29,9 +29,8 @@ typer = {extras = ["all"], version = "^0.6"}
 pathspec = "*"
 tomli = "^2.0.1"
 autoregistry = "^0.8.2"
-fsspec = "^2022.11.0"
+fsspec = {version = "^2022.11.0", extras = ["http"]}
 requests = "^2.28.1"
-aiohttp = "^3.8.3"
 gitpython = "^3.1.30"
 pydantic = "^1.10.4"
 typing-extensions = "^4.5.0"

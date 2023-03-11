@@ -1,12 +1,13 @@
 repos:
   - repo: https://github.com/codespell-project/codespell
-    rev: v2.1.0
+    rev: v2.2.4
     hooks:
       - id: codespell
+        exclude: ^(poetry.lock)
         args: ["-L", "ser,"]
 
   - repo: https://github.com/PyCQA/bandit.git
-    rev: 1.7.4
+    rev: 1.7.5
     hooks:
       - id: bandit
         exclude: ^(belay/pyboard.py)
@@ -27,7 +28,7 @@ repos:
         exclude: ^(belay/snippets/)
 
   - repo: https://github.com/psf/black
-    rev: 22.3.0
+    rev: 23.1.0
     hooks:
       - id: black
         args:
@@ -38,18 +39,18 @@ repos:
         exclude: ^(belay/snippets/)
 
   - repo: https://github.com/asottile/blacken-docs
-    rev: v1.12.1
+    rev: 1.13.0
     hooks:
       - id: blacken-docs
         exclude: ^(docs/source/How Belay Works.rst)
 
   - repo: https://github.com/kynan/nbstripout
-    rev: 0.5.0
+    rev: 0.6.1
     hooks:
       - id: nbstripout
 
   - repo: https://github.com/nbQA-dev/nbQA
-    rev: 1.3.1
+    rev: 1.6.3
     hooks:
       - id: nbqa-isort
         args: ["--profile=black"]
@@ -63,7 +64,7 @@ repos:
       - id: nbqa-flake8
 
   - repo: https://github.com/pre-commit/pygrep-hooks
-    rev: v1.9.0
+    rev: v1.10.0
     hooks:
       - id: python-check-blanket-noqa
       - id: python-check-mock-methods
@@ -75,7 +76,7 @@ repos:
         types: [text]
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.2.0
+    rev: v4.4.0
     hooks:
       - id: check-added-large-files
       - id: check-ast
@@ -102,12 +103,12 @@ repos:
         exclude: \.(html|svg)$
 
   - repo: https://github.com/asottile/setup-cfg-fmt
-    rev: v1.20.1
+    rev: v2.2.0
     hooks:
       - id: setup-cfg-fmt
 
   - repo: https://github.com/PyCQA/flake8
-    rev: 4.0.1
+    rev: 6.0.0
     hooks:
       - id: flake8
         exclude: ^(examples/|belay/snippets/|belay/pyboard.py)
@@ -118,3 +119,13 @@ repos:
           - flake8-docstrings
           - flake8-implicit-str-concat
           - flake8-use-pathlib
+
+  - repo: https://github.com/fredrikaverpil/creosote.git
+    rev: v2.3.5
+    hooks:
+      - id: creosote
+        args:
+          - "--venv=.venv"
+          - "--paths=belay"
+          - "--deps-file=pyproject.toml"
+          - "--sections=tool.poetry.dependencies"
