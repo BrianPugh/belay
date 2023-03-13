@@ -33,6 +33,30 @@ def test_classes_basic(emulate_command):
         assert 84 == device.get_times_bar(2)
 
 
+def test_classes_setup_arguments(emulate_command):
+    class MyDevice(Device, skip=True):
+        @Device.setup
+        def setup1(baz=1):
+            foo = 11  # noqa: F841
+            bar = 41  # noqa: F841
+
+        @Device.setup()
+        def setup2(baz=2):
+            foo = 12  # noqa: F841
+            bar = 42  # noqa: F841
+
+    with MyDevice(emulate_command) as device:
+        device.setup1(baz=111)
+        assert device("foo") == 11
+        assert device("bar") == 41
+        assert device("baz") == 111
+
+        device.setup2(baz=222)
+        assert device("foo") == 12
+        assert device("bar") == 42
+        assert device("baz") == 222
+
+
 def test_classes_setup_autoinit(emulate_command):
     class MyDevice(Device, skip=True):
         @Device.setup(autoinit=True)
