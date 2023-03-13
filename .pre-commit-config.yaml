@@ -121,7 +121,7 @@ repos:
           - flake8-use-pathlib
 
   - repo: https://github.com/fredrikaverpil/creosote.git
-    rev: v2.3.5
+    rev: v2.3.7
     hooks:
       - id: creosote
         args:
