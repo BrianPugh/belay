@@ -1,6 +1,7 @@
 import pytest
 
 import belay
+from belay import Device
 
 
 def test_setup_basic(emulated_device):
@@ -77,3 +78,24 @@ def test_teardown(emulated_device, mocker):
     emulated_device.close()
 
     mock_teardown.assert_called_once()
+
+
+def test_classdecorator_setup():
+    @Device.setup
+    def foo1():
+        pass
+
+    @Device.setup()
+    def foo2():
+        pass
+
+    @Device.setup(autoinit=True)
+    def foo3():
+        pass
+
+    with pytest.raises(ValueError):
+        # Provided an arg with autoinit=True is not allowed.
+
+        @Device.setup(autoinit=True)
+        def foo(arg1=1):
+            pass

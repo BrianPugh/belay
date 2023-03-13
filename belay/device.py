@@ -745,7 +745,7 @@ class Device(Registry):
         """  # noqa: D400
         if f is None:
             return wraps_partial(Device.setup, autoinit=autoinit, **kwargs)  # type: ignore[reportGeneralTypeIssues]
-        if signature(f).parameters:
+        if signature(f).parameters and autoinit:
             raise ValueError(
                 f"Method {f} decorated with "
                 '"@Device.setup(autoinit=True)" '
