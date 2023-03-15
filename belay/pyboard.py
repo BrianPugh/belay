@@ -107,7 +107,7 @@ class PyboardError(Exception):
     """An issue communicating with the board."""
 
 
-class PyboardException(Exception):
+class PyboardException(Exception):  # noqa: N818
     """Uncaught exception from the device."""
 
     def __str__(self):
@@ -172,7 +172,8 @@ class TelnetToSerial:
         self.tn.write(data)
         return len(data)
 
-    def inWaiting(self):
+    @property
+    def in_waiting(self):
         n_waiting = len(self.fifo)
         if not n_waiting:
             data = self.tn.read_eager()
@@ -242,7 +243,8 @@ class ProcessToSerial:
         self.subp.stdin.write(data)
         return len(data)
 
-    def inWaiting(self):
+    @property
+    def in_waiting(self):
         if self.buf:
             return 1
         return 0
@@ -291,8 +293,9 @@ class ProcessPtyToTerminal:
     def write(self, data):
         return self.ser.write(data)
 
-    def inWaiting(self):
-        return self.ser.inWaiting()
+    @property
+    def in_waiting(self):
+        return self.ser.in_waiting
 
 
 class Pyboard:
@@ -388,7 +391,7 @@ class Pyboard:
         while True:
             if data.endswith(ending):
                 break
-            elif self.serial.inWaiting() > 0:
+            elif self.serial.in_waiting > 0:
                 new_data = self.serial.read(1)
                 if data_consumer:
                     data_consumer(new_data)
@@ -413,10 +416,10 @@ class Pyboard:
 
     def enter_raw_repl(self, soft_reset=True):
         # flush input (without relying on serial.flushInput())
-        n = self.serial.inWaiting()
+        n = self.serial.in_waiting
         while n > 0:
             self.serial.read(n)
-            n = self.serial.inWaiting()
+            n = self.serial.in_waiting
         self.cancel_running_program()
         self.exit_raw_repl()  # if device is already in raw_repl, b'>>>' won't be printed.
         self.read_until(1, b">>>")
@@ -453,7 +456,7 @@ class Pyboard:
         # Write out the command_bytes data.
         i = 0
         while i < len(command_bytes):
-            while window_remain == 0 or self.serial.inWaiting():
+            while window_remain == 0 or self.serial.in_waiting:
                 data = self.serial.read(1)
                 if data == b"\x01":
                     # Device indicated that a new window of data can be sent.
