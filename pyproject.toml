@@ -42,7 +42,6 @@ sphinx_rtd_theme = "~1.0.0"
 [tool.poetry.group.dev.dependencies]
 black = "22.3.0"
 coverage = {extras = ["toml"], version = "^5.1"}
-flake8 = "^4.0.1"
 poetry-dynamic-versioning = "^0.16.0"
 pre_commit = "^2.16.0"
 pytest = "^7.2.0"
@@ -92,11 +91,6 @@ exclude_lines = [
     "@device.task",
     "@self.thread",
     "@device.thread",
-]
-
-[tool.bandit]
-exclude_dirs = [
-    "tests",
 ]
 
 [tool.pytest.ini_options]
