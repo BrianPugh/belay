@@ -14,7 +14,7 @@ from belay.typing import PathType
 downloaders = Registry()
 
 
-class NonMatchingURI(Exception):
+class NonMatchingURI(Exception):  # noqa: N818
     """Provided URI does not match downloading function."""
 
 

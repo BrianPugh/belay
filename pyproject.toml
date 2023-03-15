@@ -161,6 +161,7 @@ line-length = 88  # Must agree with Black
 
 [tool.ruff.flake8-bugbear]
 extend-immutable-calls = [
+    "chr",
     "typer.Argument",
     "typer.Option",
 ]
@@ -190,4 +191,6 @@ staticmethod-decorators = [
     "belay.Device.task",
     "belay.Device.teardown",
     "belay.Device.thread",
+    "pydantic.validator",
+    "pydantic.root_validator",
 ]

@@ -23,7 +23,7 @@ from serial.tools.miniterm import Miniterm
 from typing_extensions import ParamSpec
 
 from ._minify import minify as minify_code
-from .exceptions import ConnectionLost, MaxHistoryLengthError
+from .exceptions import ConnectionLost, InternalError, MaxHistoryLengthError
 from .executers import (
     Executer,
     SetupExecuter,
@@ -42,13 +42,13 @@ P = ParamSpec("P")
 R = TypeVar("R")
 
 
-class NotBelayResponse(Exception):
+class NotBelayResponseError(Exception):
     """Parsed response wasn't for Belay."""
 
 
 def _parse_belay_response(line):
     if not line.startswith("_BELAY"):
-        raise NotBelayResponse
+        raise NotBelayResponseError
     line = line[6:]
     code, line = line[0], line[1:]
 
@@ -112,7 +112,7 @@ def _preprocess_keep(
     elif isinstance(keep, bool):
         keep = []
     else:
-        raise ValueError
+        raise TypeError
     keep = [(dst / Path(x)).as_posix() for x in keep]
     return keep
 
@@ -125,7 +125,7 @@ def _preprocess_ignore(ignore: Union[None, str, list, tuple]) -> list:
     elif isinstance(ignore, (list, tuple)):
         ignore = list(ignore)
     else:
-        raise ValueError
+        raise TypeError
     return ignore
 
 
@@ -346,7 +346,7 @@ class Device(Registry):
             self._exec_snippet("emitter_check")
         except PyboardException as e:
             if "invalid micropython decorator" not in str(e):
-                raise e
+                raise
             # Get line of exception
             line_e = int(re.findall(r"line (\d+)", str(e))[-1])
             if line_e == 1:
@@ -358,7 +358,7 @@ class Device(Registry):
                     # viper is not available
                     pass
                 else:
-                    raise Exception(f"Unknown emitter line {line_e}.")
+                    raise InternalError(f"Unknown emitter line {line_e}.") from e
         else:
             emitters.append("native")
             emitters.append("viper")
@@ -440,19 +440,19 @@ class Device(Registry):
 
                 try:
                     out = _parse_belay_response(line)
-                except NotBelayResponse:
+                except NotBelayResponseError:
                     if stream_out:
                         stream_out.write(line)
 
         try:
             self._board.exec(cmd, data_consumer=data_consumer)
-        except (SerialException, ConnectionResetError):
+        except (SerialException, ConnectionResetError) as e:
             # Board probably disconnected.
             if self.attempts:
                 self.reconnect()
                 self._board.exec(cmd, data_consumer=data_consumer_buffer)
             else:
-                raise ConnectionLost
+                raise ConnectionLost from e
 
         return out
 
@@ -575,7 +575,7 @@ class Device(Registry):
             dst_hashes = self(f"__belay_hfs({repr(dst_files)})")
 
             if len(dst_hashes) != len(dst_files):
-                raise Exception
+                raise InternalError
 
             puts = []
             for (src_file, src_hash), dst_file, dst_hash in zip(

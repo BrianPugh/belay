@@ -323,7 +323,8 @@ class WebreplToSerial:
             data += bytes([self.fifo.popleft()])
         return data
 
-    def inWaiting(self):
+    @property
+    def in_waiting(self):
         if self.s is None or self.ws is None:
             raise WebsocketClosedError
 

@@ -19,7 +19,7 @@ _pat_no_decorators = re.compile(
 )
 
 
-class _NoAction(Exception):
+class _NoAction(Exception):  # noqa: N818
     pass
 
 
@@ -87,7 +87,7 @@ def getsource(f, *, strip_signature=False) -> Tuple[str, int, str]:
     """
     src_file = inspect.getsourcefile(f)
     if src_file is None:
-        raise Exception(f"Unable to get source file for {f}.")
+        raise FileNotFoundError(f"Unable to get source file for {f}.")
     lines, src_lineno = inspect.getsourcelines(f)
 
     offset = 0
