@@ -155,6 +155,7 @@ ignore = [
     "E402",
     "E501",
     "F401",
+    "TRY003",  # Avoid specifying messages outside exception class; overly strict, especially for ValueError
 ]
 line-length = 88  # Must agree with Black
 
@@ -177,7 +178,16 @@ convention = "numpy"
     "D105",
     "D106",
     "D107",
-    "S101",
-    "S102",
-    "PGH001",
+    "S101",  # use of "assert"
+    "S102",  # use of "exec"
+    "S106",  # possible hardcoded password.
+    "PGH001",  # use of "eval"
+]
+
+[tool.ruff.pep8-naming]
+staticmethod-decorators = [
+    "belay.Device.setup",
+    "belay.Device.task",
+    "belay.Device.teardown",
+    "belay.Device.thread",
 ]

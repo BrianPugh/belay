@@ -76,6 +76,7 @@ import signal
 import subprocess
 import sys
 import time
+from pathlib import Path
 from threading import Lock, Thread
 
 from .webrepl import WebreplToSerial
@@ -184,7 +185,7 @@ class TelnetToSerial:
 
 
 class ProcessToSerial:
-    "Execute a process and emulate serial connection using its stdin/stdout."
+    """Execute a process and emulate serial connection using its stdin/stdout."""
 
     def __init__(self, cmd):
         import subprocess
@@ -203,7 +204,7 @@ class ProcessToSerial:
         self.lock = Lock()
 
         def process_output():
-            assert self.subp.stdout is not None
+            assert self.subp.stdout is not None  # noqa: S101
             while True:
                 out = self.subp.stdout.read(1)
                 if out == "" and self.subp.poll() is not None:
@@ -251,9 +252,9 @@ class ProcessToSerial:
 
 
 class ProcessPtyToTerminal:
-    """Execute a process which creates a PTY and prints slave PTY as
-    first line of its output, and emulate serial connection using
-    this PTY.
+    """Creates a PTY process and prints slave PTY as first line of its output.
+
+    Emulates serial connection using this PTY.
     """
 
     def __init__(self, cmd):
@@ -304,11 +305,12 @@ class Pyboard:
         device: str,
         baudrate: int = 115200,
         user: str = "micro",
-        password: str = "python",
+        password: str = "python",  # noqa: S107
         attempts: int = 1,
         exclusive: bool = True,
     ):
-        """
+        """Micropython REPL compatibility class.
+
         Parameters
         ----------
         device: str
@@ -374,7 +376,8 @@ class Pyboard:
         atexit.unregister(self.close)
 
     def read_until(self, min_num_bytes, ending, timeout=10, data_consumer=None):
-        """
+        """Read bytes until a specified ending pattern is reached.
+
         Parameters
         ----------
         data_consumer: Callable
@@ -534,8 +537,7 @@ class Pyboard:
         return ret
 
     def execfile(self, filename):
-        with open(filename, "rb") as f:
-            pyfile = f.read()
+        pyfile = Path(filename).read_bytes()
         return self.exec(pyfile)
 
     def get_time(self):
@@ -558,49 +560,53 @@ class Pyboard:
         self.exec(cmd, data_consumer=stdout_write_bytes)
 
     def fs_get(self, src, dest, chunk_size=256, progress_callback=None):
+        dest = Path(dest)
+        written = 0
         if progress_callback:
             src_size = int(self.exec("import os\nprint(os.stat('%s')[6])" % src))
-            written = 0
         self.exec("f=open('%s','rb')\nr=f.read" % src)
-        with open(dest, "wb") as f:
+        with dest.open("wb") as f:
             while True:
                 data = bytearray()
                 self.exec(
-                    "print(r(%u))" % chunk_size, data_consumer=lambda d: data.extend(d)
+                    "print(r(%u))" % chunk_size,
+                    data_consumer=lambda d: data.extend(d),  # noqa: B023
                 )
-                assert data.endswith(b"\r\n\x04")
+                if not data.endswith(b"\r\n\x04"):
+                    raise PyboardError
+
                 try:
                     data = ast.literal_eval(str(data[:-3], "ascii"))
-                    if not isinstance(data, bytes):
-                        raise ValueError("Not bytes")
-                except (UnicodeError, ValueError) as e:
-                    raise PyboardError(
-                        "fs_get: Could not interpret received data: %s" % str(e)
-                    )
+                except Exception as e:
+                    raise PyboardError from e
+
+                if not isinstance(data, bytes):
+                    raise PyboardError
+
                 if not data:
                     break
                 f.write(data)
+                written += len(data)
                 if progress_callback:
-                    written += len(data)
                     progress_callback(written, src_size)
         self.exec("f.close()")
 
     def fs_put(self, src, dest, chunk_size=256, progress_callback=None):
-        if progress_callback:
-            src_size = os.path.getsize(src)
-            written = 0
+        src = Path(src)
+        written = 0
+        src_size = src.stat().st_size
         self.exec("f=open('%s','wb')\nw=f.write" % dest)
-        with open(src, "rb") as f:
+        with src.open("rb") as f:
             while True:
                 data = f.read(chunk_size)
                 if not data:
                     break
+                written += len(data)
                 if sys.version_info < (3,):
                     self.exec("w(b" + repr(data) + ")")
                 else:
                     self.exec("w(" + repr(data) + ")")
                 if progress_callback:
-                    written += len(data)
                     progress_callback(written, src_size)
         self.exec("f.close()")
 
