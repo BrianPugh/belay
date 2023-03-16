@@ -431,14 +431,16 @@ class Device(Registry):
                 return
             data_consumer_buffer.append(data.decode())
             if b"\n" in data:
-                line = "".join(data_consumer_buffer)
+                lines = "".join(data_consumer_buffer).split("\n")
                 data_consumer_buffer.clear()
-
-                try:
-                    out = _parse_belay_response(line)
-                except NotBelayResponseError:
-                    if stream_out:
-                        stream_out.write(line)
+                for line in lines:
+                    if not line:
+                        continue
+                    try:
+                        out = _parse_belay_response(line)
+                    except NotBelayResponseError:
+                        if stream_out:
+                            stream_out.write(line + "\n")
 
         try:
             self._board.exec(cmd, data_consumer=data_consumer)
