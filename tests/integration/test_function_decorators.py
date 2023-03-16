@@ -12,7 +12,7 @@ def test_setup_basic(emulated_device):
     setup({"bar": 25})
 
     assert {"bar": 25} == emulated_device("config")
-    assert 25 == emulated_device("foo")
+    assert emulated_device("foo") == 25
 
 
 def test_task_basic(emulated_device, mocker):
@@ -22,7 +22,7 @@ def test_task_basic(emulated_device, mocker):
     def foo(val):
         return 2 * val
 
-    assert 10 == foo(5)
+    assert foo(5) == 10
 
     spy_parse_belay_response.assert_called_once_with("_BELAYR10\r\n")
 

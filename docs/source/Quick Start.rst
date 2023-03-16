@@ -2,7 +2,7 @@ Quick Start
 ===========
 
 Belay is a library that makes it quick and easy to interact with hardware via a MicroPython-compatible microcontroller.
-Belay has a single imporant class, ``Device``:
+Belay has a single important class, ``Device``:
 
 .. code-block:: python
 

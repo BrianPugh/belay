@@ -26,7 +26,7 @@
 # THE SOFTWARE.
 
 """
-pyboard interface
+pyboard interface.
 
 This module provides the Pyboard class, used to communicate with and
 control a MicroPython device over a communication channel. Both real
@@ -50,21 +50,6 @@ Then:
     pyb.exec('import pyb')
     pyb.exec('pyb.LED(1).on()')
     pyb.exit_raw_repl()
-
-Note: if using Python2 then pyb.exec must be written as pyb.exec_.
-To run a script from the local machine on the board and print out the results:
-
-    import pyboard
-    pyboard.execfile('test.py', device='/dev/ttyACM0')
-
-This script can also be run directly.  To execute a local script, use:
-
-    ./pyboard.py test.py
-
-Or:
-
-    python pyboard.py test.py
-
 """
 
 import ast
@@ -76,6 +61,7 @@ import signal
 import subprocess
 import sys
 import time
+from pathlib import Path
 from threading import Lock, Thread
 
 from .webrepl import WebreplToSerial
@@ -107,7 +93,7 @@ class PyboardError(Exception):
     """An issue communicating with the board."""
 
 
-class PyboardException(Exception):
+class PyboardException(Exception):  # noqa: N818
     """Uncaught exception from the device."""
 
     def __str__(self):
@@ -138,7 +124,7 @@ class TelnetToSerial:
                     self.fifo = deque()
                     return
 
-        raise PyboardError("Failed to establish a telnet connection with the board")
+        raise PyboardError("Failed to establish a telnet connection with the board.")
 
     def __del__(self):
         self.close()
@@ -172,7 +158,8 @@ class TelnetToSerial:
         self.tn.write(data)
         return len(data)
 
-    def inWaiting(self):
+    @property
+    def in_waiting(self):
         n_waiting = len(self.fifo)
         if not n_waiting:
             data = self.tn.read_eager()
@@ -183,12 +170,12 @@ class TelnetToSerial:
 
 
 class ProcessToSerial:
-    "Execute a process and emulate serial connection using its stdin/stdout."
+    """Execute a process and emulate serial connection using its stdin/stdout."""
 
     def __init__(self, cmd):
         import subprocess
 
-        self.subp = subp = subprocess.Popen(
+        self.subp = subprocess.Popen(
             cmd,
             bufsize=0,
             shell=True,
@@ -202,7 +189,7 @@ class ProcessToSerial:
         self.lock = Lock()
 
         def process_output():
-            assert self.subp.stdout is not None
+            assert self.subp.stdout is not None  # noqa: S101
             while True:
                 out = self.subp.stdout.read(1)
                 if out == "" and self.subp.poll() is not None:
@@ -242,16 +229,18 @@ class ProcessToSerial:
         self.subp.stdin.write(data)
         return len(data)
 
-    def inWaiting(self):
+    @property
+    def in_waiting(self):
         if self.buf:
             return 1
         return 0
 
 
 class ProcessPtyToTerminal:
-    """Execute a process which creates a PTY and prints slave PTY as
-    first line of its output, and emulate serial connection using
-    this PTY."""
+    """Creates a PTY process and prints slave PTY as first line of its output.
+
+    Emulates serial connection using this PTY.
+    """
 
     def __init__(self, cmd):
         import re
@@ -290,8 +279,9 @@ class ProcessPtyToTerminal:
     def write(self, data):
         return self.ser.write(data)
 
-    def inWaiting(self):
-        return self.ser.inWaiting()
+    @property
+    def in_waiting(self):
+        return self.ser.in_waiting
 
 
 class Pyboard:
@@ -300,11 +290,12 @@ class Pyboard:
         device: str,
         baudrate: int = 115200,
         user: str = "micro",
-        password: str = "python",
+        password: str = "python",  # noqa: S107
         attempts: int = 1,
         exclusive: bool = True,
     ):
-        """
+        """Micropython REPL compatibility class.
+
         Parameters
         ----------
         device: str
@@ -351,7 +342,7 @@ class Pyboard:
                 try:
                     self.serial = serial.Serial(device, **serial_kwargs)
                     break
-                except (OSError, IOError):  # Py2 and Py3 have different errors
+                except OSError:
                     pass
 
                 if attempt_count == attempts:
@@ -370,7 +361,8 @@ class Pyboard:
         atexit.unregister(self.close)
 
     def read_until(self, min_num_bytes, ending, timeout=10, data_consumer=None):
-        """
+        """Read bytes until a specified ending pattern is reached.
+
         Parameters
         ----------
         data_consumer: Callable
@@ -387,7 +379,7 @@ class Pyboard:
         while True:
             if data.endswith(ending):
                 break
-            elif self.serial.inWaiting() > 0:
+            elif self.serial.in_waiting > 0:
                 new_data = self.serial.read(1)
                 if data_consumer:
                     data_consumer(new_data)
@@ -412,10 +404,10 @@ class Pyboard:
 
     def enter_raw_repl(self, soft_reset=True):
         # flush input (without relying on serial.flushInput())
-        n = self.serial.inWaiting()
+        n = self.serial.in_waiting
         while n > 0:
             self.serial.read(n)
-            n = self.serial.inWaiting()
+            n = self.serial.in_waiting
         self.cancel_running_program()
         self.exit_raw_repl()  # if device is already in raw_repl, b'>>>' won't be printed.
         self.read_until(1, b">>>")
@@ -452,7 +444,7 @@ class Pyboard:
         # Write out the command_bytes data.
         i = 0
         while i < len(command_bytes):
-            while window_remain == 0 or self.serial.inWaiting():
+            while window_remain == 0 or self.serial.in_waiting:
                 data = self.serial.read(1)
                 if data == b"\x01":
                     # Device indicated that a new window of data can be sent.
@@ -463,9 +455,7 @@ class Pyboard:
                     return
                 else:
                     # Unexpected data from device.
-                    raise PyboardError(
-                        "unexpected read during raw paste: {}".format(data)
-                    )
+                    raise PyboardError(f"unexpected read during raw paste: {data}")
             # Send out as much data as possible that fits within the allowed window.
             b = command_bytes[i : min(i + window_remain, len(command_bytes))]
             self.serial.write(b)
@@ -519,7 +509,7 @@ class Pyboard:
         return self.follow(timeout, data_consumer)
 
     def eval(self, expression):
-        ret = self.exec("print({})".format(expression))
+        ret = self.exec(f"print({expression})")
         ret = ret.strip()
         return ret
 
@@ -530,8 +520,7 @@ class Pyboard:
         return ret
 
     def execfile(self, filename):
-        with open(filename, "rb") as f:
-            pyfile = f.read()
+        pyfile = Path(filename).read_bytes()
         return self.exec(pyfile)
 
     def get_time(self):
@@ -554,49 +543,50 @@ class Pyboard:
         self.exec(cmd, data_consumer=stdout_write_bytes)
 
     def fs_get(self, src, dest, chunk_size=256, progress_callback=None):
+        dest = Path(dest)
+        written = 0
         if progress_callback:
             src_size = int(self.exec("import os\nprint(os.stat('%s')[6])" % src))
-            written = 0
         self.exec("f=open('%s','rb')\nr=f.read" % src)
-        with open(dest, "wb") as f:
+        with dest.open("wb") as f:
             while True:
                 data = bytearray()
                 self.exec(
-                    "print(r(%u))" % chunk_size, data_consumer=lambda d: data.extend(d)
+                    "print(r(%u))" % chunk_size,
+                    data_consumer=lambda d: data.extend(d),  # noqa: B023
                 )
-                assert data.endswith(b"\r\n\x04")
+                if not data.endswith(b"\r\n\x04"):
+                    raise PyboardError
+
                 try:
                     data = ast.literal_eval(str(data[:-3], "ascii"))
-                    if not isinstance(data, bytes):
-                        raise ValueError("Not bytes")
-                except (UnicodeError, ValueError) as e:
-                    raise PyboardError(
-                        "fs_get: Could not interpret received data: %s" % str(e)
-                    )
+                except Exception as e:
+                    raise PyboardError from e
+
+                if not isinstance(data, bytes):
+                    raise PyboardError
+
                 if not data:
                     break
                 f.write(data)
+                written += len(data)
                 if progress_callback:
-                    written += len(data)
                     progress_callback(written, src_size)
         self.exec("f.close()")
 
     def fs_put(self, src, dest, chunk_size=256, progress_callback=None):
-        if progress_callback:
-            src_size = os.path.getsize(src)
-            written = 0
+        src = Path(src)
+        written = 0
+        src_size = src.stat().st_size
         self.exec("f=open('%s','wb')\nw=f.write" % dest)
-        with open(src, "rb") as f:
+        with src.open("rb") as f:
             while True:
                 data = f.read(chunk_size)
                 if not data:
                     break
-                if sys.version_info < (3,):
-                    self.exec("w(b" + repr(data) + ")")
-                else:
-                    self.exec("w(" + repr(data) + ")")
+                written += len(data)
+                self.exec("w(" + repr(data) + ")")
                 if progress_callback:
-                    written += len(data)
                     progress_callback(written, src_size)
         self.exec("f.close()")
 
@@ -608,266 +598,3 @@ class Pyboard:
 
     def fs_rm(self, src):
         self.exec("import uos\nuos.remove('%s')" % src)
-
-
-def execfile(
-    filename, device="/dev/ttyACM0", baudrate=115200, user="micro", password="python"
-):
-    pyb = Pyboard(device, baudrate, user, password)
-    pyb.enter_raw_repl()
-    output = pyb.execfile(filename)
-    stdout_write_bytes(output)
-    pyb.exit_raw_repl()
-    pyb.close()
-
-
-def filesystem_command(pyb, args, progress_callback=None, verbose=False):
-    def fname_remote(src):
-        if src.startswith(":"):
-            src = src[1:]
-        return src
-
-    def fname_cp_dest(src, dest):
-        src = src.rsplit("/", 1)[-1]
-        if dest is None or dest == "":
-            dest = src
-        elif dest == ".":
-            dest = "./" + src
-        elif dest.endswith("/"):
-            dest += src
-        return dest
-
-    cmd = args[0]
-    args = args[1:]
-    try:
-        if cmd == "cp":
-            srcs = args[:-1]
-            dest = args[-1]
-            if srcs[0].startswith("./") or dest.startswith(":"):
-                op = pyb.fs_put
-                fmt = "cp %s :%s"
-                dest = fname_remote(dest)
-            else:
-                op = pyb.fs_get
-                fmt = "cp :%s %s"
-            for src in srcs:
-                src = fname_remote(src)
-                dest2 = fname_cp_dest(src, dest)
-                if verbose:
-                    print(fmt % (src, dest2))
-                op(src, dest2, progress_callback=progress_callback)
-        else:
-            op = {
-                "ls": pyb.fs_ls,
-                "cat": pyb.fs_cat,
-                "mkdir": pyb.fs_mkdir,
-                "rmdir": pyb.fs_rmdir,
-                "rm": pyb.fs_rm,
-            }[cmd]
-            if cmd == "ls" and not args:
-                args = [""]
-            for src in args:
-                src = fname_remote(src)
-                if verbose:
-                    print("%s :%s" % (cmd, src))
-                op(src)
-    except PyboardError as er:
-        print(str(er.args[2], "ascii"))
-        pyb.exit_raw_repl()
-        pyb.close()
-        sys.exit(1)
-
-
-_injected_import_hook_code = """\
-import uos, uio
-class _FS:
-  class File(uio.IOBase):
-    def __init__(self):
-      self.off = 0
-    def ioctl(self, request, arg):
-      return 0
-    def readinto(self, buf):
-      buf[:] = memoryview(_injected_buf)[self.off:self.off + len(buf)]
-      self.off += len(buf)
-      return len(buf)
-  mount = umount = chdir = lambda *args: None
-  def stat(self, path):
-    if path == '_injected.mpy':
-      return tuple(0 for _ in range(10))
-    else:
-      raise OSError(-2) # ENOENT
-  def open(self, path, mode):
-    return self.File()
-uos.mount(_FS(), '/_')
-uos.chdir('/_')
-from _injected import *
-uos.umount('/_')
-del _injected_buf, _FS
-"""
-
-
-def main():
-    import argparse
-
-    cmd_parser = argparse.ArgumentParser(description="Run scripts on the pyboard.")
-    cmd_parser.add_argument(
-        "-d",
-        "--device",
-        default=os.environ.get("PYBOARD_DEVICE", "/dev/ttyACM0"),
-        help="the serial device or the IP address of the pyboard",
-    )
-    cmd_parser.add_argument(
-        "-b",
-        "--baudrate",
-        default=os.environ.get("PYBOARD_BAUDRATE", "115200"),
-        help="the baud rate of the serial device",
-    )
-    cmd_parser.add_argument(
-        "-u", "--user", default="micro", help="the telnet login username"
-    )
-    cmd_parser.add_argument(
-        "-p", "--password", default="python", help="the telnet login password"
-    )
-    cmd_parser.add_argument("-c", "--command", help="program passed in as string")
-    cmd_parser.add_argument(
-        "-w",
-        "--wait",
-        default=0,
-        type=int,
-        help="seconds to wait for USB connected board to become available",
-    )
-    group = cmd_parser.add_mutually_exclusive_group()
-    group.add_argument(
-        "--soft-reset",
-        default=True,
-        action="store_true",
-        help="Whether to perform a soft reset when connecting to the board [default]",
-    )
-    group.add_argument(
-        "--no-soft-reset",
-        action="store_false",
-        dest="soft_reset",
-    )
-    group = cmd_parser.add_mutually_exclusive_group()
-    group.add_argument(
-        "--follow",
-        action="store_true",
-        default=None,
-        help="follow the output after running the scripts [default if no scripts given]",
-    )
-    group.add_argument(
-        "--no-follow",
-        action="store_false",
-        dest="follow",
-    )
-    group = cmd_parser.add_mutually_exclusive_group()
-    group.add_argument(
-        "--exclusive",
-        action="store_true",
-        default=True,
-        help="Open the serial device for exclusive access [default]",
-    )
-    group.add_argument(
-        "--no-exclusive",
-        action="store_false",
-        dest="exclusive",
-    )
-    cmd_parser.add_argument(
-        "-f",
-        "--filesystem",
-        action="store_true",
-        help="perform a filesystem action: "
-        "cp local :device | cp :device local | cat path | ls [path] | rm path | mkdir path | rmdir path",
-    )
-    cmd_parser.add_argument("files", nargs="*", help="input files")
-    args = cmd_parser.parse_args()
-
-    # open the connection to the pyboard
-    try:
-        pyb = Pyboard(
-            args.device,
-            args.baudrate,
-            args.user,
-            args.password,
-            args.wait,
-            args.exclusive,
-        )
-    except PyboardError as er:
-        print(er)
-        sys.exit(1)
-
-    # run any command or file(s)
-    if args.command is not None or args.filesystem or len(args.files):
-        # we must enter raw-REPL mode to execute commands
-        # this will do a soft-reset of the board
-        try:
-            pyb.enter_raw_repl(args.soft_reset)
-        except PyboardError as er:
-            print(er)
-            pyb.close()
-            sys.exit(1)
-
-        def execbuffer(buf):
-            try:
-                if args.follow is None or args.follow:
-                    ret, ret_err = pyb.exec_raw(
-                        buf, timeout=None, data_consumer=stdout_write_bytes
-                    )
-                else:
-                    pyb.exec_raw_no_follow(buf)
-                    ret_err = None
-            except PyboardError as er:
-                print(er)
-                pyb.close()
-                sys.exit(1)
-            except KeyboardInterrupt:
-                sys.exit(1)
-            if ret_err:
-                pyb.exit_raw_repl()
-                pyb.close()
-                stdout_write_bytes(ret_err)
-                sys.exit(1)
-
-        # do filesystem commands, if given
-        if args.filesystem:
-            filesystem_command(pyb, args.files, verbose=True)
-            del args.files[:]
-
-        # run the command, if given
-        if args.command is not None:
-            execbuffer(args.command.encode("utf-8"))
-
-        # run any files
-        for filename in args.files:
-            with open(filename, "rb") as f:
-                pyfile = f.read()
-                if filename.endswith(".mpy") and pyfile[0] == ord("M"):
-                    pyb.exec("_injected_buf=" + repr(pyfile))
-                    pyfile = _injected_import_hook_code
-                execbuffer(pyfile)
-
-        # exiting raw-REPL just drops to friendly-REPL mode
-        pyb.exit_raw_repl()
-
-    # if asked explicitly, or no files given, then follow the output
-    if args.follow or (
-        args.command is None and not args.filesystem and len(args.files) == 0
-    ):
-        try:
-            ret, ret_err = pyb.follow(timeout=None, data_consumer=stdout_write_bytes)
-        except PyboardError as er:
-            print(er)
-            sys.exit(1)
-        except KeyboardInterrupt:
-            sys.exit(1)
-        if ret_err:
-            pyb.close()
-            stdout_write_bytes(ret_err)
-            sys.exit(1)
-
-    # close the connection to the pyboard
-    pyb.close()
-
-
-if __name__ == "__main__":
-    main()

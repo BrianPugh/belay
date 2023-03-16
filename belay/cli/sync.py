@@ -11,7 +11,6 @@ from belay.cli.common import help_password, help_port
 
 
 def sync_device(device, folder, progress_update, **kwargs):
-
     device.sync(folder, progress_update=progress_update, **kwargs)
     progress_update(description="Complete.")
 

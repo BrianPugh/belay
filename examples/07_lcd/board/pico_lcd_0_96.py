@@ -13,7 +13,6 @@ BLACK = 0x0000
 
 class LCD_0inch96(framebuf.FrameBuffer):
     def __init__(self):
-
         self.width = 160
         self.height = 80
 
@@ -179,7 +178,6 @@ class LCD_0inch96(framebuf.FrameBuffer):
         self.write_cmd(0x2C)
 
     def display(self):
-
         self.SetWindows(0, 0, self.width - 1, self.height - 1)
         self.dc(1)
         self.cs(0)
@@ -188,7 +186,6 @@ class LCD_0inch96(framebuf.FrameBuffer):
 
 
 if __name__ == "__main__":
-
     lcd = LCD_0inch96()
     lcd.fill(BLACK)
     lcd.text("Hello pico!", 35, 15, GREEN)

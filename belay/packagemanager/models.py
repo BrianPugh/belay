@@ -61,7 +61,7 @@ def _dependencies_preprocessor(dependencies) -> Dict[str, List[dict]]:
                         }
                     )
                 elif isinstance(elem, list):
-                    raise ValueError(
+                    raise TypeError(
                         "Cannot have double nested lists in dependency specification."
                     )
                 elif isinstance(elem, (dict, DependencySourceConfig)):
@@ -77,7 +77,7 @@ def _dependencies_preprocessor(dependencies) -> Dict[str, List[dict]]:
             # Nothing to do
             pass
         else:
-            raise ValueError
+            raise TypeError
 
         out[group_name] = group_value
 

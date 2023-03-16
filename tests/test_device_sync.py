@@ -15,7 +15,7 @@ def uint(x):
 
 def __belay_ilistdir(x):
     for name in os.listdir(x):
-        stat = os.stat(x + "/" + name)  # noqa: PL116
+        stat = os.stat(x + "/" + name)  # noqa: PTH116
         yield (name, stat.st_mode, stat.st_ino)
 
 
@@ -346,7 +346,7 @@ def test_preprocess_keep_bool_false():
 
 
 def test_preprocess_keep_invalid_dtype(tmp_path):
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         belay.device._preprocess_keep(5, "")
 
 
@@ -366,7 +366,7 @@ def test_preprocess_ignore_str():
 
 
 def test_preprocess_ignore_invalid_dtype():
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         belay.device._preprocess_ignore(5)
 
 

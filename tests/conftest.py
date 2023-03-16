@@ -41,7 +41,7 @@ def cache_clear():
 
 @pytest.fixture(autouse=True)
 def restore_cwd():
-    cwd = os.getcwd()  # noqa: PL109
+    cwd = Path.cwd()
     yield
     os.chdir(cwd)
 

@@ -123,9 +123,9 @@ def test_parse_belay_response_stop_iteration():
 
 def test_parse_belay_response_r():
     assert [1, 2, 3] == belay.device._parse_belay_response("_BELAYR[1,2,3]")
-    assert 1 == belay.device._parse_belay_response("_BELAYR1")
-    assert 1.23 == belay.device._parse_belay_response("_BELAYR1.23")
-    assert "a" == belay.device._parse_belay_response("_BELAYR'a'")
+    assert belay.device._parse_belay_response("_BELAYR1") == 1
+    assert belay.device._parse_belay_response("_BELAYR1.23") == 1.23
+    assert belay.device._parse_belay_response("_BELAYR'a'") == "a"
     assert {1} == belay.device._parse_belay_response("_BELAYR{1}")
-    assert b"foo" == belay.device._parse_belay_response("_BELAYRb'foo'")
+    assert belay.device._parse_belay_response("_BELAYRb'foo'") == b"foo"
     assert belay.device._parse_belay_response("_BELAYRFalse") is False

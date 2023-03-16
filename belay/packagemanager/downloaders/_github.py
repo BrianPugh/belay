@@ -28,7 +28,7 @@ def github(dst: Path, uri: str):
         f"https://raw.githubusercontent.com/{org}/{repo}/{ref}/{path}"
     )
 
-    r = requests.get(githubusercontent_url)
+    r = requests.get(githubusercontent_url, timeout=10.0)
 
     if r.status_code == 200:
         # Provided URI is a single file.

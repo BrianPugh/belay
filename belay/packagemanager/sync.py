@@ -1,3 +1,4 @@
+import contextlib
 import hashlib
 import shutil
 from pathlib import Path
@@ -67,10 +68,7 @@ def sync(src_folder: PathType, dst_folder: PathType) -> bool:
 
     # Remove all empty dst directories.
     for folder in dst_subfolders:
-        try:
+        with contextlib.suppress(OSError):
             folder.rmdir()
-        except OSError:
-            # Folder was not empty.
-            pass
 
     return changed

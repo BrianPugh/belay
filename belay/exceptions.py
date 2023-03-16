@@ -1,4 +1,4 @@
-class BelayException(Exception):
+class BelayException(Exception):  # noqa: N818
     """Root Belay exception class."""
 
 
@@ -25,5 +25,9 @@ class MaxHistoryLengthError(BelayException):
     """Too many commands were given."""
 
 
-class ConnectionLost(BelayException):
+class ConnectionLost(BelayException):  # noqa: N818
     """Lost connection to device."""
+
+
+class InternalError(BelayException):
+    """Internal to Belay logic error."""

@@ -29,9 +29,8 @@ typer = {extras = ["all"], version = "^0.6"}
 pathspec = "*"
 tomli = "^2.0.1"
 autoregistry = "^0.8.2"
-fsspec = "^2022.11.0"
+fsspec = {version = "^2022.11.0", extras = ["http"]}
 requests = "^2.28.1"
-aiohttp = "^3.8.3"
 gitpython = "^3.1.30"
 pydantic = "^1.10.4"
 typing-extensions = "^4.5.0"
@@ -43,7 +42,6 @@ sphinx_rtd_theme = "~1.0.0"
 [tool.poetry.group.dev.dependencies]
 black = "22.3.0"
 coverage = {extras = ["toml"], version = "^5.1"}
-flake8 = "^4.0.1"
 poetry-dynamic-versioning = "^0.16.0"
 pre_commit = "^2.16.0"
 pytest = "^7.2.0"
@@ -95,14 +93,101 @@ exclude_lines = [
     "@device.thread",
 ]
 
-[tool.bandit]
-exclude_dirs = [
-    "tests",
-]
-
 [tool.pytest.ini_options]
 addopts = "--import-mode=importlib"
 norecursedirs = "integration"
 markers = [
     "network: mark a test that requires network access.",
+]
+
+[tool.ruff]
+target-version = 'py38'
+select = [
+    "B",  # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "D",  # pydocstyle
+    "E",  # Error
+    "F",  # pyflakes
+    "I",  # isort
+    "ISC", # flake8-implicit-str-concat
+    "N",  # pep8-naming
+    "PGH",  # pygrep-hooks
+    "PTH", # flake8-use-pathlib
+    "Q",  # flake8-quotes
+    "S",  # bandit
+    "SIM",  # flake8-simplify
+    "TRY",  # tryceratops
+    "UP",  # pyupgrade
+    "W",  # Warning
+    "YTT", # flake8-2020
+]
+
+exclude = [
+    "migrations",
+    "__pycache__",
+    "manage.py",
+    "settings.py",
+    "env",
+    ".env",
+    "venv",
+    ".venv",
+    "examples/",
+    "belay/snippets/",
+    "tests/test_inspect.py",
+    "tests/integration/test_function_decorators_exception.py",
+]
+
+ignore = [
+    "B905",  # zip strict=True; remove once python <3.10 support is dropped.
+    "D100",
+    "D101",
+    "D102",
+    "D103",
+    "D104",
+    "D105",
+    "D106",
+    "D107",
+    "D200",
+    "D401",
+    "E402",
+    "E501",
+    "F401",
+    "TRY003",  # Avoid specifying messages outside exception class; overly strict, especially for ValueError
+]
+line-length = 88  # Must agree with Black
+
+[tool.ruff.flake8-bugbear]
+extend-immutable-calls = [
+    "chr",
+    "typer.Argument",
+    "typer.Option",
+]
+
+[tool.ruff.pydocstyle]
+convention = "numpy"
+
+[tool.ruff.per-file-ignores]
+"tests/*.py" = [
+    "D100",
+    "D101",
+    "D102",
+    "D103",
+    "D104",
+    "D105",
+    "D106",
+    "D107",
+    "S101",  # use of "assert"
+    "S102",  # use of "exec"
+    "S106",  # possible hardcoded password.
+    "PGH001",  # use of "eval"
+]
+
+[tool.ruff.pep8-naming]
+staticmethod-decorators = [
+    "belay.Device.setup",
+    "belay.Device.task",
+    "belay.Device.teardown",
+    "belay.Device.thread",
+    "pydantic.validator",
+    "pydantic.root_validator",
 ]

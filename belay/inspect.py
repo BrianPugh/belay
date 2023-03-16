@@ -19,7 +19,7 @@ _pat_no_decorators = re.compile(
 )
 
 
-class _NoAction(Exception):
+class _NoAction(Exception):  # noqa: N818
     pass
 
 
@@ -38,11 +38,10 @@ def _dedent_tokenizer(code):
                 # No action to perform
                 raise _NoAction
             indent_to_remove = string
-        if start_col == 0:
-            if token_type == INDENT:
-                if not string.startswith(indent_to_remove):
-                    raise IndentationError
-                string = string[len(indent_to_remove) :]
+        if start_col == 0 and token_type == INDENT:
+            if not string.startswith(indent_to_remove):
+                raise IndentationError
+            string = string[len(indent_to_remove) :]
         yield token_type, string
 
 
@@ -87,7 +86,7 @@ def getsource(f, *, strip_signature=False) -> Tuple[str, int, str]:
     """
     src_file = inspect.getsourcefile(f)
     if src_file is None:
-        raise Exception(f"Unable to get source file for {f}.")
+        raise FileNotFoundError(f"Unable to get source file for {f}.")
     lines, src_lineno = inspect.getsourcelines(f)
 
     offset = 0
