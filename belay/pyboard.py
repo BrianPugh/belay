@@ -189,7 +189,7 @@ class ProcessToSerial:
         )
         time.sleep(0.5)
 
-        self.buf = b""
+        self.buf = bytearray()
         self.lock = Lock()
 
         def process_output():
@@ -220,7 +220,7 @@ class ProcessToSerial:
 
     def read(self, size=1):
         while len(self.buf) < size:
-            # let the reading thread do its thing.
+            # yield to the reading threads
             time.sleep(0.0001)
 
         with self.lock:
