@@ -335,7 +335,7 @@ class WebreplToSerial:
                 n_waiting = len(self.s.recv(1024, socket.MSG_PEEK))
             except BlockingIOError:
                 pass
-            except socket.error as e:
+            except OSError as e:
                 if e == errno.EAGAIN or e == errno.EWOULDBLOCK:
                     pass
                 else:

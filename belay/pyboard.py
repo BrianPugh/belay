@@ -357,7 +357,7 @@ class Pyboard:
                 try:
                     self.serial = serial.Serial(device, **serial_kwargs)
                     break
-                except (OSError, IOError):  # Py2 and Py3 have different errors
+                except OSError:
                     pass
 
                 if attempt_count == attempts:
@@ -470,9 +470,7 @@ class Pyboard:
                     return
                 else:
                     # Unexpected data from device.
-                    raise PyboardError(
-                        "unexpected read during raw paste: {}".format(data)
-                    )
+                    raise PyboardError(f"unexpected read during raw paste: {data}")
             # Send out as much data as possible that fits within the allowed window.
             b = command_bytes[i : min(i + window_remain, len(command_bytes))]
             self.serial.write(b)
@@ -526,7 +524,7 @@ class Pyboard:
         return self.follow(timeout, data_consumer)
 
     def eval(self, expression):
-        ret = self.exec("print({})".format(expression))
+        ret = self.exec(f"print({expression})")
         ret = ret.strip()
         return ret
 
@@ -602,10 +600,7 @@ class Pyboard:
                 if not data:
                     break
                 written += len(data)
-                if sys.version_info < (3,):
-                    self.exec("w(b" + repr(data) + ")")
-                else:
-                    self.exec("w(" + repr(data) + ")")
+                self.exec("w(" + repr(data) + ")")
                 if progress_callback:
                     progress_callback(written, src_size)
         self.exec("f.close()")

@@ -117,6 +117,7 @@ select = [
     "S",  # bandit
     "SIM",  # flake8-simplify
     "TRY",  # tryceratops
+    "UP",  # pyupgrade
     "W",  # Warning
     "YTT", # flake8-2020
 ]
