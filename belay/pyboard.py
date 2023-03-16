@@ -196,9 +196,9 @@ class ProcessToSerial:
             assert self.subp.stdout is not None  # noqa: S101
             while True:
                 out = self.subp.stdout.read(1)
-                if out == "" and self.subp.poll() is not None:
+                if out == b"" and self.subp.poll() is not None:
                     break
-                if out != "":
+                if out != b"":
                     with self.lock:
                         self.buf += out
 
@@ -429,6 +429,7 @@ class Pyboard:
         # flush input (without relying on serial.flushInput())
         n = self.serial.in_waiting
         while n > 0:
+            self.serial.read(n)
             n = self.serial.in_waiting
         self.cancel_running_program()
         self.exit_raw_repl()  # if device is already in raw_repl, b'>>>' won't be printed.
