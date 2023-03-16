@@ -50,21 +50,6 @@ Then:
     pyb.exec('import pyb')
     pyb.exec('pyb.LED(1).on()')
     pyb.exit_raw_repl()
-
-Note: if using Python2 then pyb.exec must be written as pyb.exec_.
-To run a script from the local machine on the board and print out the results:
-
-    import pyboard
-    pyboard.execfile('test.py', device='/dev/ttyACM0')
-
-This script can also be run directly.  To execute a local script, use:
-
-    ./pyboard.py test.py
-
-Or:
-
-    python pyboard.py test.py
-
 """
 
 import ast
