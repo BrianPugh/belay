@@ -421,7 +421,7 @@ class Device(Registry):
             self._cmd_history.append(cmd)
 
         out = None
-        data_consumer_buffer = []
+        data_consumer_buffer = bytearray()
 
         def data_consumer(data):
             """Handle input data stream immediately."""
@@ -429,18 +429,19 @@ class Device(Registry):
             data = data.replace(b"\x04", b"")
             if not data:
                 return
-            data_consumer_buffer.append(data.decode())
+            data_consumer_buffer.extend(data)
             if b"\n" in data:
-                lines = "".join(data_consumer_buffer).split("\n")
+                lines = "".join(data_consumer_buffer.decode()).split("\n")
                 data_consumer_buffer.clear()
                 for line in lines:
                     if not line:
                         continue
+                    line += "\n"
                     try:
                         out = _parse_belay_response(line)
                     except NotBelayResponseError:
                         if stream_out:
-                            stream_out.write(line + "\n")
+                            stream_out.write(line)
 
         try:
             self._board.exec(cmd, data_consumer=data_consumer)
