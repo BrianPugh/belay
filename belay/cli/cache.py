@@ -1,9 +1,8 @@
 import builtins
+import contextlib
 
-try:
+with contextlib.suppress(ImportError):
     import readline
-except ImportError:
-    pass
 import shutil
 
 import typer

@@ -148,10 +148,7 @@ def _verify_files(path: PathType):
     """
     path = Path(path)
 
-    if path.is_dir():
-        gen = path.rglob("*")
-    else:
-        gen = [path]
+    gen = path.rglob("*") if path.is_dir() else [path]
 
     for f in gen:
         if f.suffix == ".py":

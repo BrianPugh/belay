@@ -38,11 +38,10 @@ def _dedent_tokenizer(code):
                 # No action to perform
                 raise _NoAction
             indent_to_remove = string
-        if start_col == 0:
-            if token_type == INDENT:
-                if not string.startswith(indent_to_remove):
-                    raise IndentationError
-                string = string[len(indent_to_remove) :]
+        if start_col == 0 and token_type == INDENT:
+            if not string.startswith(indent_to_remove):
+                raise IndentationError
+            string = string[len(indent_to_remove) :]
         yield token_type, string
 
 

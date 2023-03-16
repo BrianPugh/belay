@@ -26,11 +26,11 @@ def test_classes_basic(emulate_command):
 
         device.setup()
 
-        assert 10 == device.get_times_foo(1)
-        assert 20 == device.get_times_foo(2)
+        assert device.get_times_foo(1) == 10
+        assert device.get_times_foo(2) == 20
 
-        assert 42 == device.get_times_bar(1)
-        assert 84 == device.get_times_bar(2)
+        assert device.get_times_bar(1) == 42
+        assert device.get_times_bar(2) == 84
 
 
 def test_classes_setup_autoinit(emulate_command):

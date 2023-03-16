@@ -1,6 +1,7 @@
 import ast
 import atexit
 import concurrent.futures
+import contextlib
 import importlib.resources
 import linecache
 import math
@@ -101,10 +102,7 @@ def _preprocess_keep(
     dst: str,
 ) -> list:
     if keep is None:
-        if dst == "/":
-            keep = ["boot.py", "webrepl_cfg.py", "lib"]
-        else:
-            keep = []
+        keep = ["boot.py", "webrepl_cfg.py", "lib"] if dst == "/" else []
     elif isinstance(keep, str):
         keep = [keep]
     elif isinstance(keep, (list, tuple)):
@@ -368,10 +366,7 @@ class Device(Registry):
 
     def _connect_to_board(self, **kwargs):
         self._board = Pyboard(**kwargs)
-        if isinstance(self._board.serial, WebreplToSerial):
-            soft_reset = False
-        else:
-            soft_reset = True
+        soft_reset = not isinstance(self._board.serial, WebreplToSerial)
         self._board.enter_raw_repl(soft_reset=soft_reset)
 
     def _exec_snippet(self, *names: str) -> BelayReturn:
@@ -890,10 +885,8 @@ class Device(Registry):
         miniterm.set_tx_encoding("UTF-8")
         miniterm.exit_character = exit_char
         miniterm.start()
-        try:
+        with contextlib.suppress(KeyboardInterrupt):
             miniterm.join(True)
-        except KeyboardInterrupt:
-            pass
         miniterm.join()
 
     def soft_reset(self):
