@@ -383,10 +383,11 @@ class Pyboard:
         if data_consumer is None:
             data_consumer = _dummy_data_consumer
 
-        i = self._serial_buf.find(ending)
-        if i >= 0:
-            out = self._serial_buf[: i + 1]
-            self._serial_buf = self._serial_buf[i + 1 :]
+        ending_index = self._serial_buf.find(ending)
+        if ending_index >= 0:
+            ending_index += 1
+            out = self._serial_buf[:ending_index]
+            self._serial_buf[:] = self._serial_buf[ending_index:]
             data_consumer(out)
             return out
 
@@ -394,16 +395,19 @@ class Pyboard:
             timeout = float("inf")
         deadline = time.time() + timeout
         while True:
-            i = max(1, min(2048, self.serial.in_waiting))
-            data = self.serial.read(i)
+            if not self.serial.in_waiting:
+                time.sleep(0.01)
+                continue
 
-            i = data.find(ending)
-            if i >= 0:
-                data_consumer(data[: i + 1])
+            n_bytes = min(2048, self.serial.in_waiting)
+            data = self.serial.read(n_bytes)
 
-                out = self._serial_buf + data[: i + 1]
-                self._serial_buf[:] = data[i + 1 :]
-
+            ending_index = data.find(ending)
+            if ending_index >= 0:
+                ending_index += 1
+                data_consumer(data[:ending_index])
+                out = self._serial_buf + data[:ending_index]
+                self._serial_buf[:] = data[ending_index:]
                 break
             else:
                 data_consumer(data)
@@ -413,8 +417,6 @@ class Pyboard:
                 raise PyboardError(
                     f"Timed out reading until {repr(ending)}\n    Received: {repr(self._serial_buf)}"
                 )
-
-            time.sleep(0.01)
 
         return out
 
