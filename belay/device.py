@@ -420,19 +420,20 @@ class Device(Registry):
         ):
             self._cmd_history.append(cmd)
 
-        out = None
-        data_consumer_buffer = []
+        out = None  # Used to store the parsed response object.
+        data_consumer_buffer = bytearray()
 
         def data_consumer(data):
             """Handle input data stream immediately."""
             nonlocal out
-            if data == b"\x04":
+            data = data.replace(b"\x04", b"")
+            if not data:
                 return
-            data_consumer_buffer.append(data.decode())
-            if b"\n" in data:
-                line = "".join(data_consumer_buffer)
-                data_consumer_buffer.clear()
-
+            data_consumer_buffer.extend(data)
+            while (i := data_consumer_buffer.find(b"\n")) >= 0:
+                i += 1
+                line = data_consumer_buffer[:i].decode()
+                data_consumer_buffer[:] = data_consumer_buffer[i:]
                 try:
                     out = _parse_belay_response(line)
                 except NotBelayResponseError:

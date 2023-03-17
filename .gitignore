@@ -238,3 +238,4 @@ profile.json
 rp2040js/
 
 .vscode/
+*.lprof

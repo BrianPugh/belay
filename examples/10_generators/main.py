@@ -24,7 +24,6 @@ def count():
 @device.task
 def communicate(x):
     new_val = yield "Device: " + str(x)
-    print(new_val)
     new_val = yield "Device: " + str(new_val)
     new_val = yield "Device: " + str(new_val)
 

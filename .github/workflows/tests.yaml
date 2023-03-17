@@ -31,7 +31,6 @@ jobs:
     env:
       OS: ${{ matrix.os }}
       PYTHON: ${{ matrix.python-version }}
-      BELAY_SLEEP_MULTIPLIER: 2.5
 
     steps:
       - name: Set OS Environment Variables (Windows)

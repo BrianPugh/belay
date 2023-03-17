@@ -89,6 +89,10 @@ def stdout_write_bytes(b):
     stdout.flush()
 
 
+def _dummy_data_consumer(data):
+    pass
+
+
 class PyboardError(Exception):
     """An issue communicating with the board."""
 
@@ -185,28 +189,22 @@ class ProcessToSerial:
         )
         time.sleep(0.5)
 
-        self.buf = b""
+        self.buf = bytearray()
         self.lock = Lock()
 
         def process_output():
             assert self.subp.stdout is not None  # noqa: S101
             while True:
                 out = self.subp.stdout.read(1)
-                if out == "" and self.subp.poll() is not None:
-                    break
-                if out != "":
+                if out:
                     with self.lock:
-                        self.buf += out
+                        self.buf.extend(out)
+                elif self.subp.poll() is not None:
+                    break
 
         thread = Thread(target=process_output)
         thread.daemon = True
         thread.start()
-
-        sleep_multiplier = float(os.environ.get("BELAY_SLEEP_MULTIPLIER", 1.0))
-        time.sleep(5.0 * sleep_multiplier)  # Give process a chance to boot up.
-        if platform.system() == "Windows":
-            # Windows needs more time
-            time.sleep(6.0 * sleep_multiplier)
 
         atexit.register(self.close)
 
@@ -216,12 +214,12 @@ class ProcessToSerial:
 
     def read(self, size=1):
         while len(self.buf) < size:
-            # let the reading thread do its thing.
+            # yield to the reading threads
             time.sleep(0.0001)
 
         with self.lock:
             data = self.buf[:size]
-            self.buf = self.buf[size:]
+            self.buf[:] = self.buf[size:]
 
         return data
 
@@ -231,9 +229,7 @@ class ProcessToSerial:
 
     @property
     def in_waiting(self):
-        if self.buf:
-            return 1
-        return 0
+        return len(self.buf)
 
 
 class ProcessPtyToTerminal:
@@ -316,6 +312,8 @@ class Pyboard:
             raise ValueError('"attempts" cannot be 0.')
         self.in_raw_repl = False
         self.use_raw_paste = True
+        self._consumed_buf = bytearray()
+        self._unconsumed_buf = bytearray()
         if device.startswith("exec:"):
             self.serial = ProcessToSerial(device[len("exec:") :])
         elif device.startswith("execpty:"):
@@ -363,6 +361,9 @@ class Pyboard:
     def read_until(self, ending, timeout=10, data_consumer=None):
         """Read bytes until a specified ending pattern is reached.
 
+        warning: in Belay, ``data_consumer`` may raise an exception; so make sure
+        internal buffers are correct prior to calling ``data_consumer``.
+
         Parameters
         ----------
         data_consumer: Callable
@@ -371,28 +372,70 @@ class Pyboard:
         timeout: Union[None, float]
             Timeout in seconds.
             If None, no timeout.
+
+        Returns
+        -------
+        data: bytes
+            Data read up to, and including, ``ending``.
         """
-        data = self.serial.read(1)
-        if data_consumer:
-            data_consumer(data)
-        timeout_count = 0
-        while True:
-            if data.endswith(ending):
-                break
-            elif self.serial.in_waiting > 0:
-                new_data = self.serial.read(1)
-                if data_consumer:
-                    data_consumer(new_data)
-                data = data + new_data
-                timeout_count = 0
-            else:
-                timeout_count += 1
-                if timeout is not None and timeout_count >= 100 * timeout:
+        if data_consumer is None:
+            data_consumer = _dummy_data_consumer
+
+        if timeout is None:
+            timeout = float("inf")
+        deadline = time.time() + timeout
+
+        def find(buf):
+            # slice up to this index
+            index = buf.find(ending)
+            if index >= 0:
+                index += len(ending)
+            return index
+
+        while True:  # loop until ``ending`` is found, or timeout
+            ending_index = find(self._unconsumed_buf)
+            if ending_index > 0:
+                data_for_consumer = self._unconsumed_buf[:ending_index]
+                self._unconsumed_buf[:] = self._unconsumed_buf[ending_index:]
+                out = self._consumed_buf + data_for_consumer
+                self._consumed_buf.clear()
+                data_consumer(data_for_consumer)
+                return out
+            elif self._unconsumed_buf:
+                # consume the unconsumed buffer
+                og_consumed_buf_len = len(self._consumed_buf)
+                self._consumed_buf.extend(self._unconsumed_buf)
+
+                if (ending_index := find(self._consumed_buf)) > 0:
+                    # The ``ending`` was split across the buffers
+                    out = self._consumed_buf[:ending_index]
+                    self._unconsumed_buf[:] = self._consumed_buf[ending_index:]
+                    data_for_consumer = self._consumed_buf[
+                        og_consumed_buf_len:ending_index
+                    ]
+                    self._consumed_buf.clear()
+                    data_consumer(data_for_consumer)
+                    return out
+
+                # ``ending`` has still not been found.
+                data_for_consumer = self._unconsumed_buf.copy()
+                self._unconsumed_buf.clear()
+                data_consumer(data_for_consumer)
+
+            while not self._unconsumed_buf:
+                # loop until new data has arrived.
+                if time.time() > deadline:
                     raise PyboardError(
-                        f"Timed out reading until {repr(ending)}\n    Received: {repr(data)}"
+                        f"Timed out reading until {repr(ending)}\n"
+                        f"    Received: {repr(self._consumed_buf)}"
                     )
-                time.sleep(0.01)
-        return data
+
+                if not self.serial.in_waiting:
+                    time.sleep(0.001)
+
+                if self.serial.in_waiting:
+                    n_bytes = min(2048, self.serial.in_waiting)
+                    self._unconsumed_buf.extend(self.serial.read(n_bytes))
 
     def cancel_running_program(self):
         """Interrupts any running program."""
