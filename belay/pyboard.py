@@ -217,7 +217,7 @@ class ProcessToSerial:
     def read(self, size=1):
         while len(self.buf) < size:
             # let the reading thread do its thing.
-            time.sleep(0.5)
+            time.sleep(0.0001)
 
         with self.lock:
             data = self.buf[:size]
