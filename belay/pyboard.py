@@ -207,10 +207,10 @@ class ProcessToSerial:
         thread.start()
 
         sleep_multiplier = float(os.environ.get("BELAY_SLEEP_MULTIPLIER", 1.0))
-        time.sleep(4.0 * sleep_multiplier)  # Give process a chance to boot up.
+        time.sleep(3.0 * sleep_multiplier)  # Give process a chance to boot up.
         if platform.system() == "Windows":
             # Windows needs more time
-            time.sleep(4.0 * sleep_multiplier)
+            time.sleep(3.0 * sleep_multiplier)
 
         atexit.register(self.close)
 
