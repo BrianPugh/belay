@@ -430,18 +430,15 @@ class Device(Registry):
             if not data:
                 return
             data_consumer_buffer.extend(data)
-            if b"\n" in data:
-                lines = "".join(data_consumer_buffer.decode()).split("\n")
-                data_consumer_buffer.clear()
-                for line in lines:
-                    if not line:
-                        continue
-                    line += "\n"
-                    try:
-                        out = _parse_belay_response(line)
-                    except NotBelayResponseError:
-                        if stream_out:
-                            stream_out.write(line)
+            while (i := data_consumer_buffer.find(b"\n")) >= 0:
+                i += 1
+                line = data_consumer_buffer[:i].decode()
+                data_consumer_buffer[:] = data_consumer_buffer[i:]
+                try:
+                    out = _parse_belay_response(line)
+                except NotBelayResponseError:
+                    if stream_out:
+                        stream_out.write(line)
 
         try:
             self._board.exec(cmd, data_consumer=data_consumer)

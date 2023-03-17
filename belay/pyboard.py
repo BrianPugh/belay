@@ -196,21 +196,21 @@ class ProcessToSerial:
             assert self.subp.stdout is not None  # noqa: S101
             while True:
                 out = self.subp.stdout.read(1)
-                if out == b"" and self.subp.poll() is not None:
-                    break
-                if out != b"":
+                if out:
                     with self.lock:
-                        self.buf += out
+                        self.buf.extend(out)
+                elif self.subp.poll() is not None:
+                    break
 
         thread = Thread(target=process_output)
         thread.daemon = True
         thread.start()
 
         sleep_multiplier = float(os.environ.get("BELAY_SLEEP_MULTIPLIER", 1.0))
-        time.sleep(3.0 * sleep_multiplier)  # Give process a chance to boot up.
+        time.sleep(5.0 * sleep_multiplier)  # Give process a chance to boot up.
         if platform.system() == "Windows":
             # Windows needs more time
-            time.sleep(3.0 * sleep_multiplier)
+            time.sleep(6.0 * sleep_multiplier)
 
         atexit.register(self.close)
 
@@ -388,32 +388,33 @@ class Pyboard:
             out = self._serial_buf[: i + 1]
             self._serial_buf = self._serial_buf[i + 1 :]
             data_consumer(out)
-        else:
-            if timeout is None:
-                timeout = float("inf")
-            deadline = time.time() + timeout
-            while True:
-                i = max(1, min(2048, self.serial.in_waiting))
-                data = self.serial.read(i)
+            return out
 
-                i = data.find(ending)
-                if i >= 0:
-                    data_consumer(data[: i + 1])
+        if timeout is None:
+            timeout = float("inf")
+        deadline = time.time() + timeout
+        while True:
+            i = max(1, min(2048, self.serial.in_waiting))
+            data = self.serial.read(i)
 
-                    out = self._serial_buf + data[: i + 1]
-                    self._serial_buf[:] = data[i + 1 :]
+            i = data.find(ending)
+            if i >= 0:
+                data_consumer(data[: i + 1])
 
-                    break
-                else:
-                    data_consumer(data)
-                    self._serial_buf.extend(data)
+                out = self._serial_buf + data[: i + 1]
+                self._serial_buf[:] = data[i + 1 :]
 
-                if time.time() > deadline:
-                    raise PyboardError(
-                        f"Timed out reading until {repr(ending)}\n    Received: {repr(self._serial_buf)}"
-                    )
+                break
+            else:
+                data_consumer(data)
+                self._serial_buf.extend(data)
 
-                time.sleep(0.01)
+            if time.time() > deadline:
+                raise PyboardError(
+                    f"Timed out reading until {repr(ending)}\n    Received: {repr(self._serial_buf)}"
+                )
+
+            time.sleep(0.01)
 
         return out
 
