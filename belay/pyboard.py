@@ -318,7 +318,8 @@ class Pyboard:
             raise ValueError('"attempts" cannot be 0.')
         self.in_raw_repl = False
         self.use_raw_paste = True
-        self._serial_buf = bytearray()
+        self._consumed_buf = bytearray()
+        self._unconsumed_buf = bytearray()
         if device.startswith("exec:"):
             self.serial = ProcessToSerial(device[len("exec:") :])
         elif device.startswith("execpty:"):
@@ -390,38 +391,43 @@ class Pyboard:
             timeout = float("inf")
         deadline = time.time() + timeout
 
+        def find(buf):
+            return buf.find(ending) + 1
+
         while True:
-            ending_index = self._serial_buf.find(ending)
-            if ending_index >= 0:
-                ending_index += 1
-                out = self._serial_buf[:ending_index]
-                self._serial_buf[:] = self._serial_buf[ending_index:]
-                data_consumer(out)
+            if (ending_index := find(self._consumed_buf)) > 0:
+                # Handles the case where ``ending`` is larger than incoming buffer.
+                out = self._consumed_buf[:ending_index]
+                self._consumed_buf[:] = self._consumed_buf[ending_index:]
+                # Don't call data_consumer here; it's already been consumed.
                 return out
+
+            ending_index = find(self._unconsumed_buf)
+            if ending_index > 0:
+                data_for_consumer = self._unconsumed_buf[:ending_index]
+                self._unconsumed_buf[:] = self._unconsumed_buf[ending_index:]
+                out = self._consumed_buf + data_for_consumer
+                self._consumed_buf.clear()
+                data_consumer(data_for_consumer)
+                return out
+            elif self._unconsumed_buf:
+                # consume the buffer
+                data_for_consumer = self._unconsumed_buf.copy()
+                self._consumed_buf.extend(self._unconsumed_buf)
+                self._unconsumed_buf.clear()
+                data_consumer(data_for_consumer)
 
             if time.time() > deadline:
                 raise PyboardError(
-                    f"Timed out reading until {repr(ending)}\n    Received: {repr(self._serial_buf)}"
+                    f"Timed out reading until {repr(ending)}\n    Received: {repr(self._consumed_buf)}"
                 )
 
             if not self.serial.in_waiting:
-                time.sleep(0.01)
+                time.sleep(0.001)
                 continue
 
             n_bytes = min(2048, self.serial.in_waiting)
-            data = self.serial.read(n_bytes)
-
-            ending_index = data.find(ending)
-            if ending_index >= 0:
-                ending_index += 1
-                data_for_consumer = data[:ending_index]
-                out = self._serial_buf + data[:ending_index]
-                self._serial_buf[:] = data[ending_index:]
-                data_consumer(data_for_consumer)
-                return out
-
-            self._serial_buf.extend(data)
-            data_consumer(data)
+            self._unconsumed_buf.extend(self.serial.read(n_bytes))
 
     def cancel_running_program(self):
         """Interrupts any running program."""
