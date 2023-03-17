@@ -395,6 +395,11 @@ class Pyboard:
             timeout = float("inf")
         deadline = time.time() + timeout
         while True:
+            if time.time() > deadline:
+                raise PyboardError(
+                    f"Timed out reading until {repr(ending)}\n    Received: {repr(self._serial_buf)}"
+                )
+
             if not self.serial.in_waiting:
                 time.sleep(0.01)
                 continue
@@ -408,17 +413,10 @@ class Pyboard:
                 data_consumer(data[:ending_index])
                 out = self._serial_buf + data[:ending_index]
                 self._serial_buf[:] = data[ending_index:]
-                break
-            else:
-                data_consumer(data)
-                self._serial_buf.extend(data)
+                return out
 
-            if time.time() > deadline:
-                raise PyboardError(
-                    f"Timed out reading until {repr(ending)}\n    Received: {repr(self._serial_buf)}"
-                )
-
-        return out
+            data_consumer(data)
+            self._serial_buf.extend(data)
 
     def cancel_running_program(self):
         """Interrupts any running program."""

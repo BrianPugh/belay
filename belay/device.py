@@ -420,7 +420,7 @@ class Device(Registry):
         ):
             self._cmd_history.append(cmd)
 
-        out = None
+        out = None  # Used to store the parsed response object.
         data_consumer_buffer = bytearray()
 
         def data_consumer(data):
