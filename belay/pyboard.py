@@ -366,6 +366,9 @@ class Pyboard:
     def read_until(self, ending, timeout=10, data_consumer=None):
         """Read bytes until a specified ending pattern is reached.
 
+        warning: in Belay, ``data_consumer`` may raise an exception; so make sure
+        internal buffers are correct prior to calling ``data_consumer``.
+
         Parameters
         ----------
         data_consumer: Callable
@@ -410,13 +413,14 @@ class Pyboard:
             ending_index = data.find(ending)
             if ending_index >= 0:
                 ending_index += 1
-                data_consumer(data[:ending_index])
+                data_for_consumer = data[:ending_index]
                 out = self._serial_buf + data[:ending_index]
                 self._serial_buf[:] = data[ending_index:]
+                data_consumer(data_for_consumer)
                 return out
 
-            data_consumer(data)
             self._serial_buf.extend(data)
+            data_consumer(data)
 
     def cancel_running_program(self):
         """Interrupts any running program."""
