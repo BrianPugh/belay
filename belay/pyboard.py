@@ -225,7 +225,7 @@ class ProcessToSerial:
 
         with self.lock:
             data = self.buf[:size]
-            self.buf = self.buf[size:]
+            self.buf[:] = self.buf[size:]
 
         return data
 
@@ -386,18 +386,19 @@ class Pyboard:
         if data_consumer is None:
             data_consumer = _dummy_data_consumer
 
-        ending_index = self._serial_buf.find(ending)
-        if ending_index >= 0:
-            ending_index += 1
-            out = self._serial_buf[:ending_index]
-            self._serial_buf[:] = self._serial_buf[ending_index:]
-            data_consumer(out)
-            return out
-
         if timeout is None:
             timeout = float("inf")
         deadline = time.time() + timeout
+
         while True:
+            ending_index = self._serial_buf.find(ending)
+            if ending_index >= 0:
+                ending_index += 1
+                out = self._serial_buf[:ending_index]
+                self._serial_buf[:] = self._serial_buf[ending_index:]
+                data_consumer(out)
+                return out
+
             if time.time() > deadline:
                 raise PyboardError(
                     f"Timed out reading until {repr(ending)}\n    Received: {repr(self._serial_buf)}"
