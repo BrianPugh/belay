@@ -445,7 +445,7 @@ class Device(Registry):
             # Board probably disconnected.
             if self.attempts:
                 self.reconnect()
-                self._board.exec(cmd, data_consumer=data_consumer_buffer)
+                self._board.exec(cmd, data_consumer=data_consumer)
             else:
                 raise ConnectionLost from e
 
