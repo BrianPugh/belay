@@ -392,16 +392,13 @@ class Pyboard:
         deadline = time.time() + timeout
 
         def find(buf):
-            return buf.find(ending) + 1
+            # slice up to this index
+            index = buf.find(ending)
+            if index >= 0:
+                index += len(ending)
+            return index
 
-        while True:
-            if (ending_index := find(self._consumed_buf)) > 0:
-                # Handles the case where ``ending`` is larger than incoming buffer.
-                out = self._consumed_buf[:ending_index]
-                self._consumed_buf[:] = self._consumed_buf[ending_index:]
-                # Don't call data_consumer here; it's already been consumed.
-                return out
-
+        while True:  # loop until ``ending`` is found, or timeout
             ending_index = find(self._unconsumed_buf)
             if ending_index > 0:
                 data_for_consumer = self._unconsumed_buf[:ending_index]
@@ -411,23 +408,40 @@ class Pyboard:
                 data_consumer(data_for_consumer)
                 return out
             elif self._unconsumed_buf:
-                # consume the buffer
-                data_for_consumer = self._unconsumed_buf.copy()
+                # consume the unconsumed buffer
+                og_consumed_buf_len = len(self._consumed_buf)
                 self._consumed_buf.extend(self._unconsumed_buf)
+
+                if (ending_index := find(self._consumed_buf)) > 0:
+                    # The ``ending`` was split across the buffers
+                    out = self._consumed_buf[:ending_index]
+                    self._unconsumed_buf[:] = self._consumed_buf[ending_index:]
+                    data_for_consumer = self._consumed_buf[
+                        og_consumed_buf_len:ending_index
+                    ]
+                    self._consumed_buf.clear()
+                    data_consumer(data_for_consumer)
+                    return out
+
+                # ``ending`` has still not been found.
+                data_for_consumer = self._unconsumed_buf.copy()
                 self._unconsumed_buf.clear()
                 data_consumer(data_for_consumer)
 
-            if time.time() > deadline:
-                raise PyboardError(
-                    f"Timed out reading until {repr(ending)}\n    Received: {repr(self._consumed_buf)}"
-                )
+            while not self._unconsumed_buf:
+                # loop until new data has arrived.
+                if time.time() > deadline:
+                    raise PyboardError(
+                        f"Timed out reading until {repr(ending)}\n"
+                        f"    Received: {repr(self._consumed_buf)}"
+                    )
 
-            if not self.serial.in_waiting:
-                time.sleep(0.001)
-                continue
+                if not self.serial.in_waiting:
+                    time.sleep(0.001)
 
-            n_bytes = min(2048, self.serial.in_waiting)
-            self._unconsumed_buf.extend(self.serial.read(n_bytes))
+                if self.serial.in_waiting:
+                    n_bytes = min(2048, self.serial.in_waiting)
+                    self._unconsumed_buf.extend(self.serial.read(n_bytes))
 
     def cancel_running_program(self):
         """Interrupts any running program."""
