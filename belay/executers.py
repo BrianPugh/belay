@@ -53,7 +53,7 @@ class _GlobalExecuter(Executer, skip=True):
         *,
         minify: bool = True,
         register: bool = True,
-        record: bool = False,
+        record: bool = True,
     ) -> Callable[[Callable[P, R]], Callable[P, R]]:
         ...
 
@@ -63,7 +63,7 @@ class _GlobalExecuter(Executer, skip=True):
         *,
         minify: bool = True,
         register: bool = True,
-        record: bool = False,
+        record: bool = True,
     ) -> Union[Callable[[Callable[P, R]], Callable[P, R]], Callable[P, R]]:
         if f is None:
             return wraps_partial(self, minify=minify, register=register, record=record)
@@ -197,7 +197,7 @@ class ThreadExecuter(Executer):
         *,
         minify: bool = True,
         register: bool = True,
-        record: bool = False,
+        record: bool = True,
     ) -> Callable[[Callable[P, R]], Callable[P, R]]:
         ...
 
@@ -207,7 +207,7 @@ class ThreadExecuter(Executer):
         *,
         minify: bool = True,
         register: bool = True,
-        record: bool = False,
+        record: bool = True,
     ) -> Union[Callable[[Callable[P, R]], Callable[P, R]], Callable[P, R]]:
         """See ``Device.thread``."""
         if f is None:
