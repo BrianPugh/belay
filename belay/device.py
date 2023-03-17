@@ -894,7 +894,7 @@ class Device(Registry):
         # When in Raw REPL, ctrl-d will perform a reset, but won't execute ``main.py``
         # https://github.com/micropython/micropython/issues/2249
         self._board.exit_raw_repl()
-        self._board.read_until(1, b">>>")
+        self._board.read_until(b">>>")
         self._board.ctrl_d()
 
     def _traceback_execute(
