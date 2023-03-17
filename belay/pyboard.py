@@ -360,7 +360,7 @@ class Pyboard:
         self.serial = None
         atexit.unregister(self.close)
 
-    def read_until(self, min_num_bytes, ending, timeout=10, data_consumer=None):
+    def read_until(self, ending, timeout=10, data_consumer=None):
         """Read bytes until a specified ending pattern is reached.
 
         Parameters
@@ -372,7 +372,7 @@ class Pyboard:
             Timeout in seconds.
             If None, no timeout.
         """
-        data = self.serial.read(min_num_bytes)
+        data = self.serial.read(1)
         if data_consumer:
             data_consumer(data)
         timeout_count = 0
@@ -410,13 +410,13 @@ class Pyboard:
             n = self.serial.in_waiting
         self.cancel_running_program()
         self.exit_raw_repl()  # if device is already in raw_repl, b'>>>' won't be printed.
-        self.read_until(1, b">>>")
+        self.read_until(b">>>")
         self.serial.write(b"\r\x01")  # ctrl-A: enter raw REPL
         if soft_reset:
-            self.read_until(1, b"raw REPL; CTRL-B to exit\r\n>")
+            self.read_until(b"raw REPL; CTRL-B to exit\r\n>")
             self.ctrl_d()
 
-        self.read_until(1, b"raw REPL; CTRL-B to exit\r\n")
+        self.read_until(b"raw REPL; CTRL-B to exit\r\n")
         self.in_raw_repl = True
 
     def exit_raw_repl(self):
@@ -425,11 +425,11 @@ class Pyboard:
 
     def follow(self, timeout, data_consumer=None):
         # wait for normal output (first EOF reception)
-        data = self.read_until(1, b"\x04", timeout=timeout, data_consumer=data_consumer)
+        data = self.read_until(b"\x04", timeout=timeout, data_consumer=data_consumer)
         data = data[:-1]
 
         # wait for error output
-        data_err = self.read_until(1, b"\x04", timeout=timeout)
+        data_err = self.read_until(b"\x04", timeout=timeout)
         data_err = data_err[:-1]
 
         # return normal and error output
@@ -466,7 +466,7 @@ class Pyboard:
         self.serial.write(b"\x04")
 
         # Wait for device to acknowledge end of data.
-        self.read_until(1, b"\x04")
+        self.read_until(b"\x04")
 
     def exec_raw_no_follow(self, command):
         if isinstance(command, bytes):
@@ -475,7 +475,7 @@ class Pyboard:
             command_bytes = bytes(command, encoding="utf8")
 
         # check we have a prompt
-        self.read_until(1, b">")
+        self.read_until(b">")
 
         if self.use_raw_paste:
             # Try to enter raw-paste mode.
@@ -489,7 +489,7 @@ class Pyboard:
                 return self.raw_paste_write(command_bytes)
             else:
                 # Device doesn't support raw-paste, fall back to normal raw REPL.
-                self.read_until(1, b"w REPL; CTRL-B to exit\r\n>")
+                self.read_until(b"w REPL; CTRL-B to exit\r\n>")
             # Don't try to use raw-paste mode again for this connection.
             self.use_raw_paste = False
 
