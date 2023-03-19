@@ -1,15 +1,27 @@
 """Pydantic models for validation Belay configuration.
 """
 
+import re
 from functools import partial
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 from pydantic import BaseModel as PydanticBaseModel
 from pydantic import validator
 
 validator_reuse = partial(validator, allow_reuse=True)
 prevalidator_reuse = partial(validator_reuse, pre=True)
+
+
+def _is_git_like(uri):
+    try:
+        regex = _is_git_like.regex
+    except AttributeError:
+        regex = _is_git_like.regex = re.compile(
+            r"^((http|git|ssh|http(s)?):\/\/)?([\w\.@\:/\-~]+)\.git(\/)?"
+        )
+    match = regex.match(uri)
+    return bool(match)
 
 
 class BaseModel(PydanticBaseModel):
