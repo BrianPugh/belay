@@ -8,9 +8,7 @@ import requests
 from .common import NonMatchingURI, downloaders
 
 
-@downloaders
-def github(dst: Path, uri: str):
-    """Download a file or folder from github."""
+def _parse_github_url(uri):
     # Single File Website; e.g.:
     #     https://github.com/BrianPugh/belay/blob/main/belay/__init__.py
     match = re.search(r"github\.com/(.+?)/(.+?)/blob/(.+?)/(.*)", uri)
@@ -22,7 +20,15 @@ def github(dst: Path, uri: str):
         match = re.search(r"raw\.githubusercontent\.com/(.+?)/(.+?)/(.+?)/(.*)", uri)
     if not match:
         raise NonMatchingURI
+
     org, repo, ref, path = match.groups()
+    return org, repo, ref, path
+
+
+@downloaders
+def github(dst: Path, uri: str):
+    """Download a file or folder from github."""
+    org, repo, ref, path = _parse_github_url(uri)
 
     githubusercontent_url = (
         f"https://raw.githubusercontent.com/{org}/{repo}/{ref}/{path}"

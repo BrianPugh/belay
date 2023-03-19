@@ -1,6 +1,34 @@
 import pytest
 
 from belay.packagemanager import downloaders
+from belay.packagemanager.downloaders._github import _parse_github_url
+
+
+def test_parse_github_url_single_file():
+    assert _parse_github_url(
+        "https://github.com/BrianPugh/belay/blob/main/belay/__init__.py"
+    ) == ("BrianPugh", "belay", "main", "belay/__init__.py")
+
+
+def test_parse_github_url_subfolder():
+    assert _parse_github_url("https://github.com/BrianPugh/belay/blob/main/docs/") == (
+        "BrianPugh",
+        "belay",
+        "main",
+        "docs/",
+    )
+    assert _parse_github_url("https://github.com/BrianPugh/belay/blob/main/docs") == (
+        "BrianPugh",
+        "belay",
+        "main",
+        "docs",
+    )
+
+
+def test_parse_github_url_githubusercontent():
+    assert _parse_github_url(
+        "https://raw.githubusercontent.com/BrianPugh/belay/main/belay/__init__.py"
+    ) == ("BrianPugh", "belay", "main", "belay/__init__.py")
 
 
 @pytest.mark.network
