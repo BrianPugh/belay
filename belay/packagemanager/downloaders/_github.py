@@ -45,7 +45,7 @@ def github(dst: Path, uri: str):
         from belay.project import find_cache_folder
 
         repo_url = f"https://github.com/{org}/{repo}.git"
-        repo_folder = find_cache_folder() / f"git-github-{org}-{repo}"
+        repo_folder = find_cache_folder() / f"github-{org}-{repo}"
         repo_folder.mkdir(exist_ok=True, parents=True)
 
         # Check if we have already cloned
