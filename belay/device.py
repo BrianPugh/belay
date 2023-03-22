@@ -35,7 +35,7 @@ from .executers import (
 from .hash import fnv1a
 from .helpers import read_snippet, wraps_partial
 from .inspect import isexpression
-from .pyboard import Pyboard, PyboardError, PyboardException
+from .pyboard import Pyboard, PyboardError, PyboardException, stdout_write_bytes
 from .typing import BelayReturn, PathType
 from .webrepl import WebreplToSerial
 
@@ -670,6 +670,7 @@ class Device(Registry):
         atexit.unregister(self.close)
 
         self._board.cancel_running_program()
+        self._board.follow(3, stdout_write_bytes)
 
         for executer in _sort_executers(self._belay_teardown._belay_executers):
             executer()
