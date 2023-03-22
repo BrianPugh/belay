@@ -47,6 +47,29 @@ class NotBelayResponseError(Exception):
     """Parsed response wasn't for Belay."""
 
 
+class BelayResponseConsumer:
+    def __init__(self, device, stream_out=None):
+        self.device = device
+        self.out = None
+        self.buf = bytearray()
+        self.stream_out = stream_out
+
+    def __call__(self, data):
+        data = data.replace(b"\x04", b"")
+        if not data:
+            return
+        self.buf.extend(data)
+        while (i := self.buf.find(b"\n")) >= 0:
+            i += 1
+            line = self.buf[:i].decode()
+            self.buf[:] = self.buf[i:]
+            try:
+                self.out = _parse_belay_response(line)
+            except NotBelayResponseError:
+                if self.stream_out:
+                    self.stream_out.write(line)
+
+
 def _parse_belay_response(line):
     if not line.startswith("_BELAY"):
         raise NotBelayResponseError
@@ -420,25 +443,7 @@ class Device(Registry):
         ):
             self._cmd_history.append(cmd)
 
-        out = None  # Used to store the parsed response object.
-        data_consumer_buffer = bytearray()
-
-        def data_consumer(data):
-            """Handle input data stream immediately."""
-            nonlocal out
-            data = data.replace(b"\x04", b"")
-            if not data:
-                return
-            data_consumer_buffer.extend(data)
-            while (i := data_consumer_buffer.find(b"\n")) >= 0:
-                i += 1
-                line = data_consumer_buffer[:i].decode()
-                data_consumer_buffer[:] = data_consumer_buffer[i:]
-                try:
-                    out = _parse_belay_response(line)
-                except NotBelayResponseError:
-                    if stream_out:
-                        stream_out.write(line)
+        data_consumer = BelayResponseConsumer(self, stream_out=stream_out)
 
         try:
             self._board.exec(cmd, data_consumer=data_consumer)
@@ -450,7 +455,7 @@ class Device(Registry):
             else:
                 raise ConnectionLost from e
 
-        return out
+        return data_consumer.out
 
     def sync(
         self,
