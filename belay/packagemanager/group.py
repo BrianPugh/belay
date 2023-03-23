@@ -61,7 +61,10 @@ class Group:
                 existing_dep.unlink()
 
     def copy_to(self, dst: PathType) -> None:
-        """Copy Dependencies folder to destination directory to stage for installation."""
+        """Copy Dependencies folder to destination directory.
+
+        Used to stage files for sync/installation.
+        """
         dst = Path(dst)
 
         if self.folder.exists():
@@ -71,6 +74,7 @@ class Group:
         # Copy over any (& overwrite) any dependencies in ``develop`` mode.
         for package_name, dependency in _walk_develop_dependencies(self.dependencies):
             dst_package_folder = dst / package_name
+            dst_package_folder.mkdir(parents=True, exist_ok=True)
             _download_and_verify_dependency(dst_package_folder, dependency)
 
     def _download_package(self, package_name) -> bool:
