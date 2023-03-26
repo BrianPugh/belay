@@ -103,4 +103,4 @@ def install(
         # Reset device so ``main.py`` has a chance to execute.
         device.soft_reset()
         if follow:
-            device.terminal(exit_char=chr(0x03))  # ctrl-c to exit
+            device.terminal()
