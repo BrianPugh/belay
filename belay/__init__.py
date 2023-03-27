@@ -3,13 +3,16 @@ __version__ = "0.0.0"
 
 __all__ = [
     "AuthenticationError",
+    "ConnectionFailedError",
     "ConnectionLost",
     "Device",
+    "DeviceNotFoundError",
     "FeatureUnavailableError",
     "Implementation",
     "MaxHistoryLengthError",
     "PyboardException",
     "SpecialFunctionNameError",
+    "UsbSpecifier",
     "list_devices",
     "minify",
 ]
@@ -17,10 +20,13 @@ from ._minify import minify
 from .device import Device, Implementation
 from .exceptions import (
     AuthenticationError,
+    ConnectionFailedError,
     ConnectionLost,
+    DeviceNotFoundError,
     FeatureUnavailableError,
     MaxHistoryLengthError,
     SpecialFunctionNameError,
 )
 from .helpers import list_devices
 from .pyboard import PyboardException
+from .usb_specifier import UsbSpecifier

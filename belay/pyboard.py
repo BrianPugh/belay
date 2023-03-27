@@ -63,7 +63,10 @@ import sys
 import time
 from pathlib import Path
 from threading import Lock, Thread
+from typing import Union
 
+from .exceptions import BelayException, ConnectionFailedError, DeviceNotFoundError
+from .usb_specifier import UsbSpecifier
 from .webrepl import WebreplToSerial
 
 try:
@@ -93,12 +96,12 @@ def _dummy_data_consumer(data):
     pass
 
 
-class PyboardError(Exception):
-    """An issue communicating with the board."""
+class PyboardError(BelayException):
+    """An issue communicating with the board or parsing board response."""
 
 
-class PyboardException(Exception):  # noqa: N818
-    """Uncaught exception from the device."""
+class PyboardException(BelayException):  # noqa: N818
+    """Uncaught exception from user code on the device."""
 
     def __str__(self):
         return "\n\n" + self.args[0]
@@ -128,7 +131,9 @@ class TelnetToSerial:
                     self.fifo = deque()
                     return
 
-        raise PyboardError("Failed to establish a telnet connection with the board.")
+        raise ConnectionFailedError(
+            "Failed to establish a telnet connection with the board."
+        )
 
     def __del__(self):
         self.close()
@@ -283,7 +288,7 @@ class ProcessPtyToTerminal:
 class Pyboard:
     def __init__(
         self,
-        device: str,
+        device: Union[str, UsbSpecifier],
         baudrate: int = 115200,
         user: str = "micro",
         password: str = "python",  # noqa: S107
@@ -314,6 +319,10 @@ class Pyboard:
         self.use_raw_paste = True
         self._consumed_buf = bytearray()
         self._unconsumed_buf = bytearray()
+
+        if isinstance(device, UsbSpecifier):
+            device = device.to_port()
+
         if device.startswith("exec:"):
             self.serial = ProcessToSerial(device[len("exec:") :])
         elif device.startswith("execpty:"):
@@ -344,7 +353,7 @@ class Pyboard:
                     pass
 
                 if attempt_count == attempts:
-                    raise PyboardError("failed to access " + device)
+                    raise ConnectionFailedError
 
                 time.sleep(1.0)
 
