@@ -131,9 +131,7 @@ class TelnetToSerial:
                     self.fifo = deque()
                     return
 
-        raise ConnectionFailedError(
-            "Failed to establish a telnet connection with the board."
-        )
+        raise ConnectionFailedError
 
     def __del__(self):
         self.close()

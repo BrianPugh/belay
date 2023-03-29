@@ -9,6 +9,7 @@ __all__ = [
     "DeviceNotFoundError",
     "FeatureUnavailableError",
     "Implementation",
+    "InsufficientSpecifierError",
     "MaxHistoryLengthError",
     "PyboardException",
     "SpecialFunctionNameError",
@@ -24,6 +25,7 @@ from .exceptions import (
     ConnectionLost,
     DeviceNotFoundError,
     FeatureUnavailableError,
+    InsufficientSpecifierError,
     MaxHistoryLengthError,
     SpecialFunctionNameError,
 )

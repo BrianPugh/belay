@@ -4,7 +4,7 @@ from typing import Optional
 import pytest
 
 from belay import UsbSpecifier
-from belay.exceptions import DeviceNotFoundError
+from belay.exceptions import DeviceNotFoundError, InsufficientSpecifierError
 
 
 @dataclass
@@ -61,5 +61,5 @@ def test_usb_specifier_no_matches(mock_comports):
 
 
 def test_usb_specifier_multiple_matches(mock_comports):
-    with pytest.raises(DeviceNotFoundError):
+    with pytest.raises(InsufficientSpecifierError):
         UsbSpecifier(manufacturer="Belay Industries").to_port()

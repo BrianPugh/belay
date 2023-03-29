@@ -3,7 +3,7 @@ from typing import Dict, Optional
 from pydantic import BaseModel
 from serial.tools.list_ports import comports
 
-from .exceptions import DeviceNotFoundError
+from .exceptions import DeviceNotFoundError, InsufficientSpecifierError
 
 
 def _normalize(val):
@@ -46,6 +46,6 @@ class UsbSpecifier(BaseModel):
             message = "Multiple potential devices found:\n" + "\n".join(
                 f"    {vars(x)}" for x in possible_matches
             )
-            raise DeviceNotFoundError(message)
+            raise InsufficientSpecifierError(message)
 
         return possible_matches[0].device

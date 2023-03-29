@@ -29,6 +29,10 @@ class DeviceNotFoundError(BelayException):
     """Unable to find specified device."""
 
 
+class InsufficientSpecifierError(BelayException):
+    """Specifier wasn't unique enough to determine a single device."""
+
+
 class ConnectionFailedError(BelayException):
     """Unable to connect to specified device."""
 
