@@ -32,6 +32,7 @@ class UsbSpecifier(BaseModel):
     serial_number: Optional[str] = None
     manufacturer: Optional[str] = None
     product: Optional[str] = None
+    location: Optional[str] = None
 
     def to_port(self) -> str:
         spec = self.dict(exclude_none=True)
