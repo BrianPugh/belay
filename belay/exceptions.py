@@ -25,7 +25,19 @@ class MaxHistoryLengthError(BelayException):
     """Too many commands were given."""
 
 
-class ConnectionLost(BelayException):  # noqa: N818
+class DeviceNotFoundError(BelayException):
+    """Unable to find specified device."""
+
+
+class InsufficientSpecifierError(BelayException):
+    """Specifier wasn't unique enough to determine a single device."""
+
+
+class ConnectionFailedError(BelayException):
+    """Unable to connect to specified device."""
+
+
+class ConnectionLost(ConnectionFailedError):  # noqa: N818
     """Lost connection to device."""
 
 

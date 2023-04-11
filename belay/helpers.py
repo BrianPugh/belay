@@ -6,6 +6,8 @@ from typing import List
 
 from serial.tools import list_ports
 
+from belay.usb_specifier import UsbSpecifier
+
 from . import snippets
 
 _python_identifier_chars = (
@@ -28,16 +30,23 @@ def read_snippet(name):
     return importlib.resources.files(snippets).joinpath(resource).read_text()
 
 
-def list_devices() -> List[str]:
+def list_devices() -> List[UsbSpecifier]:
     """Lists available device ports.
-
-    For example::
-
-        ['/dev/cu.usbmodem1143401', '/dev/cu.usbmodem113101']
 
     Returns
     -------
-    List[str]
+    List[UsbSpecifier]
         Available devices identifiers.
     """
-    return [port.device for port in list_ports.comports()]
+    return [
+        UsbSpecifier(
+            vid=port.vid,
+            pid=port.pid,
+            serial_number=port.serial_number,
+            manufacturer=port.manufacturer,
+            product=port.product,
+            location=port.location,
+            device=port.device,
+        )
+        for port in list_ports.comports()
+    ]
