@@ -30,6 +30,6 @@ from .exceptions import (
     MaxHistoryLengthError,
     SpecialFunctionNameError,
 )
-from .helpers import list_devices, list_usb_specifiers
+from .helpers import list_devices
 from .pyboard import PyboardException
 from .usb_specifier import UsbSpecifier

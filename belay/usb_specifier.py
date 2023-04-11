@@ -27,6 +27,8 @@ def _dict_is_subset(subset: Dict, superset: Dict) -> bool:
 
 
 class UsbSpecifier(BaseModel):
+    """Usb port metadata."""
+
     vid: Optional[int] = None
     pid: Optional[int] = None
     serial_number: Optional[str] = None

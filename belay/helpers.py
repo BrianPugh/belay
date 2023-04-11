@@ -30,22 +30,7 @@ def read_snippet(name):
     return importlib.resources.files(snippets).joinpath(resource).read_text()
 
 
-def list_devices() -> List[str]:
-    """Lists available device ports.
-
-    For example::
-
-        ['/dev/cu.usbmodem1143401', '/dev/cu.usbmodem113101']
-
-    Returns
-    -------
-    List[str]
-        Available devices identifiers.
-    """
-    return [port.device for port in list_ports.comports()]
-
-
-def list_usb_specifiers() -> List[UsbSpecifier]:
+def list_devices() -> List[UsbSpecifier]:
     """Lists available device ports.
 
     Returns
