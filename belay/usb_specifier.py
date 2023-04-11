@@ -1,6 +1,6 @@
 from typing import Dict, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from serial.tools.list_ports import comports
 
 from .exceptions import DeviceNotFoundError, InsufficientSpecifierError
@@ -34,7 +34,12 @@ class UsbSpecifier(BaseModel):
     product: Optional[str] = None
     location: Optional[str] = None
 
+    device: Optional[str] = Field(None, exclude=True)
+
     def to_port(self) -> str:
+        if self.device:
+            return self.device
+
         spec = self.dict(exclude_none=True)
         possible_matches = []
 

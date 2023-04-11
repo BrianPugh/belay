@@ -61,6 +61,7 @@ def list_usb_specifiers() -> List[UsbSpecifier]:
             manufacturer=port.manufacturer,
             product=port.product,
             location=port.location,
+            device=port.device,
         )
         for port in list_ports.comports()
     ]
