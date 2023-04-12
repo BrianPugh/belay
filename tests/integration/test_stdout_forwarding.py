@@ -10,7 +10,7 @@ class StreamOut:
 
 
 def test_print_basic(emulated_device, mocker):
-    spy_parse_belay_response = mocker.spy(belay.device, "_parse_belay_response")
+    spy_parse_belay_response = mocker.spy(belay.device, "parse_belay_response")
 
     @emulated_device.task
     def foo():

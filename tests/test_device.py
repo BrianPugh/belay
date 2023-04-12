@@ -113,19 +113,19 @@ def test_device_traceback_execute(mocker, mock_device, tmp_path):
 
 def test_parse_belay_response_unknown():
     with pytest.raises(ValueError):
-        belay.device._parse_belay_response("_BELAYA")
+        belay.device.parse_belay_response("_BELAYA")
 
 
 def test_parse_belay_response_stop_iteration():
     with pytest.raises(StopIteration):
-        belay.device._parse_belay_response("_BELAYS")
+        belay.device.parse_belay_response("_BELAYS")
 
 
 def test_parse_belay_response_r():
-    assert [1, 2, 3] == belay.device._parse_belay_response("_BELAYR[1,2,3]")
-    assert belay.device._parse_belay_response("_BELAYR1") == 1
-    assert belay.device._parse_belay_response("_BELAYR1.23") == 1.23
-    assert belay.device._parse_belay_response("_BELAYR'a'") == "a"
-    assert {1} == belay.device._parse_belay_response("_BELAYR{1}")
-    assert belay.device._parse_belay_response("_BELAYRb'foo'") == b"foo"
-    assert belay.device._parse_belay_response("_BELAYRFalse") is False
+    assert [1, 2, 3] == belay.device.parse_belay_response("_BELAYR[1,2,3]")
+    assert belay.device.parse_belay_response("_BELAYR1") == 1
+    assert belay.device.parse_belay_response("_BELAYR1.23") == 1.23
+    assert belay.device.parse_belay_response("_BELAYR'a'") == "a"
+    assert {1} == belay.device.parse_belay_response("_BELAYR{1}")
+    assert belay.device.parse_belay_response("_BELAYRb'foo'") == b"foo"
+    assert belay.device.parse_belay_response("_BELAYRFalse") is False

@@ -4,27 +4,35 @@ import concurrent.futures
 import contextlib
 import importlib.resources
 import linecache
-import math
 import re
 import shutil
-import subprocess  # nosec
 import sys
-from dataclasses import dataclass
 from inspect import signature
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from threading import Lock
 from types import ModuleType
-from typing import Callable, Optional, TextIO, Tuple, TypeVar, Union, overload
+from typing import Callable, Optional, TextIO, TypeVar, Union, overload
 
-from autoregistry import Registry
-from pathspec import PathSpec
 from serial import SerialException
 from serial.tools.miniterm import Miniterm
 from typing_extensions import ParamSpec
 
 from ._minify import minify as minify_code
-from .exceptions import ConnectionLost, InternalError, MaxHistoryLengthError
+from .device_meta import DeviceMeta
+from .device_support import Implementation, MethodMetadata, sort_executers
+from .device_sync_support import (
+    discover_files_dirs,
+    generate_dst_dirs,
+    preprocess_ignore,
+    preprocess_keep,
+    preprocess_src_file_hash,
+)
+from .exceptions import (
+    ConnectionLost,
+    InternalError,
+    MaxHistoryLengthError,
+    NotBelayResponseError,
+)
 from .executers import (
     Executer,
     SetupExecuter,
@@ -32,7 +40,6 @@ from .executers import (
     TeardownExecuter,
     ThreadExecuter,
 )
-from .hash import fnv1a
 from .helpers import read_snippet, wraps_partial
 from .inspect import isexpression
 from .pyboard import Pyboard, PyboardError, PyboardException
@@ -43,11 +50,7 @@ P = ParamSpec("P")
 R = TypeVar("R")
 
 
-class NotBelayResponseError(Exception):
-    """Parsed response wasn't for Belay."""
-
-
-def _parse_belay_response(line):
+def parse_belay_response(line):
     if not line.startswith("_BELAY"):
         raise NotBelayResponseError
     line = line[6:]
@@ -63,174 +66,7 @@ def _parse_belay_response(line):
         raise ValueError(f'Received unknown code: "{code}"')
 
 
-def _discover_files_dirs(
-    remote_dir: str,
-    local_file_or_folder: Path,
-    ignore: Optional[list] = None,
-):
-    src_objects = []
-    if local_file_or_folder.is_dir():
-        if ignore is None:
-            ignore = []
-        ignore_spec = PathSpec.from_lines("gitwildmatch", ignore)
-        for src_object in local_file_or_folder.rglob("*"):
-            if ignore_spec.match_file(str(src_object)):
-                continue
-            src_objects.append(src_object)
-        # Sort so that folder creation comes before file sending.
-        src_objects.sort()
-
-        src_files, src_dirs = [], []
-        for src_object in src_objects:
-            if src_object.is_dir():
-                src_dirs.append(src_object)
-            else:
-                src_files.append(src_object)
-        dst_files = [
-            remote_dir / src.relative_to(local_file_or_folder) for src in src_files
-        ]
-    else:
-        src_files = [local_file_or_folder]
-        src_dirs = []
-        dst_files = [Path(remote_dir) / local_file_or_folder.name]
-
-    return src_files, src_dirs, dst_files
-
-
-def _preprocess_keep(
-    keep: Union[None, list, str, bool],
-    dst: str,
-) -> list:
-    if keep is None:
-        keep = ["boot.py", "webrepl_cfg.py", "lib"] if dst == "/" else []
-    elif isinstance(keep, str):
-        keep = [keep]
-    elif isinstance(keep, (list, tuple)):
-        pass
-    elif isinstance(keep, bool):
-        keep = []
-    else:
-        raise TypeError
-    keep = [(dst / Path(x)).as_posix() for x in keep]
-    return keep
-
-
-def _preprocess_ignore(ignore: Union[None, str, list, tuple]) -> list:
-    if ignore is None:
-        ignore = ["*.pyc", "__pycache__", ".DS_Store", ".pytest_cache"]
-    elif isinstance(ignore, str):
-        ignore = [ignore]
-    elif isinstance(ignore, (list, tuple)):
-        ignore = list(ignore)
-    else:
-        raise TypeError
-    return ignore
-
-
-def _preprocess_src_file(
-    tmp_dir: PathType,
-    src_file: PathType,
-    minify: bool,
-    mpy_cross_binary: Union[str, Path, None],
-) -> Path:
-    tmp_dir = Path(tmp_dir)
-    src_file = Path(src_file)
-
-    if src_file.is_absolute():
-        transformed = tmp_dir / src_file.relative_to(tmp_dir.anchor)
-    else:
-        transformed = tmp_dir / src_file
-    transformed.parent.mkdir(parents=True, exist_ok=True)
-
-    if src_file.suffix == ".py":
-        if mpy_cross_binary:
-            transformed = transformed.with_suffix(".mpy")
-            subprocess.check_output(  # nosec
-                [mpy_cross_binary, "-o", transformed, src_file]
-            )
-            return transformed
-        elif minify:
-            minified = minify_code(src_file.read_text())
-            transformed.write_text(minified)
-            return transformed
-
-    return src_file
-
-
-def _preprocess_src_file_hash(*args, **kwargs):
-    src_file = _preprocess_src_file(*args, **kwargs)
-    src_hash = fnv1a(src_file)
-    return src_file, src_hash
-
-
-def _generate_dst_dirs(dst, src, src_dirs) -> list:
-    dst_dirs = [(dst / x.relative_to(src)).as_posix() for x in src_dirs]
-    # Add all directories leading up to ``dst``.
-    dst_prefix_tokens = dst.split("/")
-    for i in range(2, len(dst_prefix_tokens) + (dst[-1] != "/")):
-        dst_dirs.append("/".join(dst_prefix_tokens[:i]))
-    dst_dirs.sort()
-    return dst_dirs
-
-
-def _sort_executers(executers):
-    """Sorts executers by monotonically increasing ``__belay__.id``.
-
-    This ensures that, when necessary, executers are called in the order they are defined.
-    """
-
-    def get_key(x):
-        try:
-            return x.__wrapped__.__belay__.id
-        except AttributeError:
-            return math.inf
-
-    return sorted(executers, key=get_key)
-
-
-@dataclass
-class Implementation:
-    """Implementation dataclass detailing the device.
-
-    Parameters
-    ----------
-    name: str
-        Type of python running on device.
-        One of ``{"micropython", "circuitpython"}``.
-    version: Tuple[int, int, int]
-        ``(major, minor, patch)`` Semantic versioning of device's firmware.
-    platform: str
-        Board identifier. May not be consistent from MicroPython to CircuitPython.
-        e.g. The Pi Pico is "rp2" in MicroPython, but "RP2040"  in CircuitPython.
-    emitters: tuple[str]
-        Tuple of available emitters on-device ``{"native", "viper"}``.
-    """
-
-    name: str
-    version: Tuple[int, int, int]
-    platform: str
-    emitters: Tuple[str]
-
-
-_method_metadata_counter_lock = Lock()
-_method_metadata_counter = 0
-
-
-@dataclass
-class MethodMetadata:
-    executer: Callable
-    kwargs: dict
-    autoinit: bool = False  # Only applies to ``SetupExecuter``.
-    id: int = -1  # monotonically increasing global identifier.
-
-    def __post_init__(self):
-        global _method_metadata_counter
-        with _method_metadata_counter_lock:
-            self.id = _method_metadata_counter
-            _method_metadata_counter += 1
-
-
-class Device(Registry):
+class Device(metaclass=DeviceMeta):
     """Belay interface into a micropython device.
 
     Can be used as a context manager; calls ``self.close`` on exit.
@@ -315,7 +151,7 @@ class Device(Registry):
 
         self.__pre_autoinit__()
 
-        autoinit_executers = _sort_executers(autoinit_executers)
+        autoinit_executers = sort_executers(autoinit_executers)
         for executer in autoinit_executers:
             executer()
 
@@ -435,7 +271,7 @@ class Device(Registry):
                 line = data_consumer_buffer[:i].decode()
                 data_consumer_buffer[:] = data_consumer_buffer[i:]
                 try:
-                    out = _parse_belay_response(line)
+                    out = parse_belay_response(line)
                 except NotBelayResponseError:
                     if stream_out:
                         stream_out.write(line)
@@ -527,10 +363,10 @@ class Device(Registry):
         # Remove the keep files from the on-device ``all_files`` set
         # so they don't get deleted.
         keep_all = folder.is_file() or keep is True
-        keep = _preprocess_keep(keep, dst)
-        ignore = _preprocess_ignore(ignore)
+        keep = preprocess_keep(keep, dst)
+        ignore = preprocess_ignore(ignore)
 
-        src_files, src_dirs, dst_files = _discover_files_dirs(dst, folder, ignore)
+        src_files, src_dirs, dst_files = discover_files_dirs(dst, folder, ignore)
 
         if mpy_cross_binary:
             dst_files = [
@@ -538,7 +374,7 @@ class Device(Registry):
                 for dst_file in dst_files
             ]
         dst_files = [dst_file.as_posix() for dst_file in dst_files]
-        dst_dirs = _generate_dst_dirs(dst, folder, src_dirs)
+        dst_dirs = generate_dst_dirs(dst, folder, src_dirs)
 
         if keep_all:
             self("del __belay_del_fs")
@@ -557,7 +393,7 @@ class Device(Registry):
             tmp_dir = Path(tmp_dir)
 
             def _preprocess_src_file_hash_helper(src_file):
-                return _preprocess_src_file_hash(
+                return preprocess_src_file_hash(
                     tmp_dir, src_file, minify, mpy_cross_binary
                 )
 
@@ -666,7 +502,7 @@ class Device(Registry):
 
         self._board.cancel_running_program()
 
-        for executer in _sort_executers(self._belay_teardown._belay_executers):
+        for executer in sort_executers(self._belay_teardown._belay_executers):
             executer()
 
         self._board.close()
@@ -713,7 +549,10 @@ class Device(Registry):
 
     @staticmethod
     def setup(
-        f: Optional[Callable[P, R]] = None, autoinit=False, **kwargs
+        f: Optional[Callable[P, R]] = None,
+        autoinit=False,
+        implementation=None,
+        **kwargs,
     ) -> Union[Callable[[Callable[P, R]], Callable[P, R]], Callable[P, R]]:
         """Execute decorated function's body in a global-context on-device when called.
 

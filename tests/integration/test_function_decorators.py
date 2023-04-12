@@ -16,7 +16,7 @@ def test_setup_basic(emulated_device):
 
 
 def test_task_basic(emulated_device, mocker):
-    spy_parse_belay_response = mocker.spy(belay.device, "_parse_belay_response")
+    spy_parse_belay_response = mocker.spy(belay.device, "parse_belay_response")
 
     @emulated_device.task
     def foo(val):
@@ -28,7 +28,7 @@ def test_task_basic(emulated_device, mocker):
 
 
 def test_task_generators_basic(emulated_device, mocker):
-    spy_parse_belay_response = mocker.spy(belay.device, "_parse_belay_response")
+    spy_parse_belay_response = mocker.spy(belay.device, "parse_belay_response")
 
     @emulated_device.task
     def my_gen(val):
