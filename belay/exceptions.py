@@ -43,3 +43,7 @@ class ConnectionLost(ConnectionFailedError):  # noqa: N818
 
 class InternalError(BelayException):
     """Internal to Belay logic error."""
+
+
+class NotBelayResponseError(Exception):
+    """Parsed response wasn't for Belay."""

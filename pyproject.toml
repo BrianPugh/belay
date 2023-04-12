@@ -28,7 +28,7 @@ pyserial = "^3.1"
 typer = {extras = ["all"], version = "^0.6"}
 pathspec = "*"
 tomli = "^2.0.1"
-autoregistry = "^0.8.2"
+autoregistry = "^0.10.1"
 fsspec = {version = "^2022.11.0", extras = ["http"]}
 requests = "^2.28.1"
 gitpython = "^3.1.30"

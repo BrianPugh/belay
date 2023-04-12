@@ -15,7 +15,6 @@ __all__ = [
     "SpecialFunctionNameError",
     "UsbSpecifier",
     "list_devices",
-    "list_usb_specifiers",
     "minify",
 ]
 from ._minify import minify

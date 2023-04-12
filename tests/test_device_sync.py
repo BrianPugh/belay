@@ -6,6 +6,7 @@ import pytest
 
 import belay
 import belay.device
+import belay.device_sync_support as device_sync_support
 
 
 def uint(x):
@@ -198,7 +199,7 @@ def test_device_sync_partial_remote(mocker, mock_device, sync_path):
             if local_fn.stem.endswith("1"):
                 out.append(0)
             else:
-                out.append(belay.device.fnv1a(local_fn))
+                out.append(device_sync_support.fnv1a(local_fn))
         return out
 
     def mock_exec(cmd, data_consumer=None):
@@ -240,7 +241,7 @@ def test_discover_files_dirs_dir(tmp_path):
     (tmp_path / "folder1" / "file3.ext").touch()
 
     remote_dir = "/foo/bar"
-    src_files, src_dirs, dst_files = belay.device._discover_files_dirs(
+    src_files, src_dirs, dst_files = belay.device.discover_files_dirs(
         remote_dir=remote_dir,
         local_file_or_folder=tmp_path,
     )
@@ -267,7 +268,7 @@ def test_discover_files_dirs_dir_ignore(tmp_path):
     (tmp_path / "folder1" / "file3.ext").touch()
 
     remote_dir = "/foo/bar"
-    src_files, src_dirs, dst_files = belay.device._discover_files_dirs(
+    src_files, src_dirs, dst_files = belay.device.discover_files_dirs(
         remote_dir=remote_dir,
         local_file_or_folder=tmp_path,
         ignore=["*.pyc"],
@@ -288,7 +289,7 @@ def test_discover_files_dirs_dir_ignore(tmp_path):
 
 def test_discover_files_dirs_empty(tmp_path):
     remote_dir = "/foo/bar"
-    src_files, src_dirs, dst_files = belay.device._discover_files_dirs(
+    src_files, src_dirs, dst_files = belay.device.discover_files_dirs(
         remote_dir=remote_dir,
         local_file_or_folder=tmp_path,
     )
@@ -303,7 +304,7 @@ def test_discover_files_dirs_single_file(tmp_path):
     single_file.touch()
 
     remote_dir = "/foo/bar"
-    src_files, src_dirs, dst_files = belay.device._discover_files_dirs(
+    src_files, src_dirs, dst_files = belay.device.discover_files_dirs(
         remote_dir=remote_dir,
         local_file_or_folder=single_file,
     )
@@ -316,68 +317,72 @@ def test_discover_files_dirs_single_file(tmp_path):
 
 
 def test_preprocess_keep_none_root():
-    actual = belay.device._preprocess_keep(None, "/")
+    actual = device_sync_support.preprocess_keep(None, "/")
     assert actual == ["/boot.py", "/webrepl_cfg.py", "/lib"]
 
 
 def test_preprocess_keep_none_nonroot():
-    actual = belay.device._preprocess_keep(None, "/foo")
+    actual = device_sync_support.preprocess_keep(None, "/foo")
     assert actual == []
 
 
 def test_preprocess_keep_list():
-    actual = belay.device._preprocess_keep(["foo"], "/")
+    actual = device_sync_support.preprocess_keep(["foo"], "/")
     assert actual == ["/foo"]
 
 
 def test_preprocess_keep_str():
-    actual = belay.device._preprocess_keep("foo", "/")
+    actual = belay.device.preprocess_keep("foo", "/")
     assert actual == ["/foo"]
 
 
 def test_preprocess_keep_bool_true():
-    actual = belay.device._preprocess_keep(True, "/")
+    actual = device_sync_support.preprocess_keep(True, "/")
     assert actual == []
 
 
 def test_preprocess_keep_bool_false():
-    actual = belay.device._preprocess_keep(False, "/")
+    actual = device_sync_support.preprocess_keep(False, "/")
     assert actual == []
 
 
 def test_preprocess_keep_invalid_dtype(tmp_path):
     with pytest.raises(TypeError):
-        belay.device._preprocess_keep(5, "")
+        device_sync_support.preprocess_keep(5, "")
 
 
 def test_preprocess_ignore_none():
-    actual = belay.device._preprocess_ignore(None)
+    actual = device_sync_support.preprocess_ignore(None)
     assert actual == ["*.pyc", "__pycache__", ".DS_Store", ".pytest_cache"]
 
 
 def test_preprocess_ignore_list():
-    actual = belay.device._preprocess_ignore(["foo", "bar"])
+    actual = device_sync_support.preprocess_ignore(["foo", "bar"])
     assert actual == ["foo", "bar"]
 
 
 def test_preprocess_ignore_str():
-    actual = belay.device._preprocess_ignore("foo")
+    actual = device_sync_support.preprocess_ignore("foo")
     assert actual == ["foo"]
 
 
 def test_preprocess_ignore_invalid_dtype():
     with pytest.raises(TypeError):
-        belay.device._preprocess_ignore(5)
+        device_sync_support.preprocess_ignore(5)
 
 
 def test_preprocess_src_file_default_py(tmp_path):
-    actual = belay.device._preprocess_src_file(tmp_path, "foo/bar/baz.py", False, None)
+    actual = device_sync_support.preprocess_src_file(
+        tmp_path, "foo/bar/baz.py", False, None
+    )
     assert actual == Path("foo/bar/baz.py")
 
 
 def test_preprocess_src_file_cross_mpy(tmp_path, mocker):
-    mock_check_output = mocker.patch("belay.device.subprocess.check_output")
-    actual = belay.device._preprocess_src_file(
+    mock_check_output = mocker.patch(
+        "belay.device_sync_support.subprocess.check_output"
+    )
+    actual = device_sync_support.preprocess_src_file(
         tmp_path,
         "foo/bar/baz.py",
         False,
@@ -393,7 +398,7 @@ def test_preprocess_src_file_cross_mpy(tmp_path, mocker):
 
 
 def test_preprocess_src_file_default_generic(tmp_path):
-    actual = belay.device._preprocess_src_file(
+    actual = device_sync_support.preprocess_src_file(
         tmp_path, "foo/bar/baz.generic", False, None
     )
     assert actual == Path("foo/bar/baz.generic")
@@ -410,7 +415,7 @@ def test_generate_dst_dirs():
         src / "dir2" / "dir2_1",
         src / "dir2" / "dir2_2",
     ]
-    dst_dirs = belay.device._generate_dst_dirs(dst, src, src_dirs)
+    dst_dirs = belay.device.generate_dst_dirs(dst, src, src_dirs)
     assert dst_dirs == [
         "/foo",
         "/foo/bar",
