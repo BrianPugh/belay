@@ -141,3 +141,75 @@ def test_classes_teardown_context_manager_mocked(emulate_command, mocker):
         device._belay_teardown._belay_executers[0] = mock_teardown
 
     mock_teardown.assert_called_once()
+
+
+def test_classes_executer_implementation_overload(emulate_command, mocker):
+    """Tests if proper overloaded methods are executed depending on implementation."""
+
+    class MyDevice(Device, skip=True):
+        @Device.task(implementation="foo")
+        def test_task():
+            return "foo_task_return_value"
+
+        @Device.task(implementation="bar")
+        def test_task():  # noqa: F811
+            return "bar_task_return_value"
+
+        @Device.task
+        def test_task():  # noqa: F811
+            return "catchall_task_return_value"
+
+        @Device.setup(implementation="foo")
+        def test_setup():
+            return "foo_setup_return_value"
+
+        @Device.setup(implementation="bar")
+        def test_setup():  # noqa: F811
+            return "bar_setup_return_value"
+
+        @Device.setup()
+        def test_setup():  # noqa: F811
+            return "catchall_setup_return_value"
+
+        @Device.teardown(implementation="foo")
+        def test_teardown():
+            return "foo_teardown_return_value"
+
+        @Device.teardown(implementation="bar")
+        def test_teardown():  # noqa: F811
+            return "bar_teardown_return_value"
+
+        @Device.teardown()
+        def test_teardown():  # noqa: F811
+            return "catchall_teardown_return_value"
+
+    with MyDevice(emulate_command) as device:
+        # Tasks
+        device.implementation.name = "foo"
+        assert device.test_task() == "foo_task_return_value"
+
+        device.implementation.name = "bar"
+        assert device.test_task() == "bar_task_return_value"
+
+        device.implementation.name = "baz"
+        assert device.test_task() == "catchall_task_return_value"
+
+        # Setup
+        device.implementation.name = "foo"
+        assert device.test_setup() == "foo_setup_return_value"
+
+        device.implementation.name = "bar"
+        assert device.test_setup() == "bar_setup_return_value"
+
+        device.implementation.name = "baz"
+        assert device.test_setup() == "catchall_setup_return_value"
+
+        # Teardown
+        device.implementation.name = "foo"
+        assert device.test_teardown() == "foo_teardown_return_value"
+
+        device.implementation.name = "bar"
+        assert device.test_teardown() == "bar_teardown_return_value"
+
+        device.implementation.name = "baz"
+        assert device.test_teardown() == "catchall_teardown_return_value"

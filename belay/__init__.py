@@ -11,6 +11,8 @@ __all__ = [
     "Implementation",
     "InsufficientSpecifierError",
     "MaxHistoryLengthError",
+    "NoMatchingExecuterError",
+    "NotBelayResponseError",
     "PyboardException",
     "SpecialFunctionNameError",
     "UsbSpecifier",
@@ -27,6 +29,8 @@ from .exceptions import (
     FeatureUnavailableError,
     InsufficientSpecifierError,
     MaxHistoryLengthError,
+    NoMatchingExecuterError,
+    NotBelayResponseError,
     SpecialFunctionNameError,
 )
 from .helpers import list_devices

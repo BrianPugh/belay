@@ -45,5 +45,9 @@ class InternalError(BelayException):
     """Internal to Belay logic error."""
 
 
-class NotBelayResponseError(Exception):
+class NotBelayResponseError(BelayException):
     """Parsed response wasn't for Belay."""
+
+
+class NoMatchingExecuterError(BelayException):
+    """No valid executer found for the given board Implementation."""

@@ -126,6 +126,7 @@ class Device(metaclass=DeviceMeta):
         # executer markers (e.g. ``Device.task``).
         autoinit_executers = []
         for name, method in vars(type(self)).items():
+            # TODO: this is broken now due to _OverloadList
             metadata = getattr(method, "__belay__", None)
             if not metadata:
                 continue
@@ -543,15 +544,15 @@ class Device(metaclass=DeviceMeta):
     @overload
     @staticmethod
     def setup(
-        *, autoinit=False, **kwargs
+        *, autoinit: bool = False, implementation: str = "", **kwargs
     ) -> Callable[[Callable[P, R]], Callable[P, R]]:
         ...
 
     @staticmethod
     def setup(
         f: Optional[Callable[P, R]] = None,
-        autoinit=False,
-        implementation=None,
+        autoinit: bool = False,
+        implementation: str = "",
         **kwargs,
     ) -> Union[Callable[[Callable[P, R]], Callable[P, R]], Callable[P, R]]:
         """Execute decorated function's body in a global-context on-device when called.
@@ -579,7 +580,7 @@ class Device(metaclass=DeviceMeta):
             Defaults to ``False``.
         """  # noqa: D400
         if f is None:
-            return wraps_partial(Device.setup, autoinit=autoinit, **kwargs)  # type: ignore[reportGeneralTypeIssues]
+            return wraps_partial(Device.setup, autoinit=autoinit, implementation=implementation, **kwargs)  # type: ignore[reportGeneralTypeIssues]
         if signature(f).parameters and autoinit:
             raise ValueError(
                 f"Method {f} decorated with "
@@ -588,7 +589,10 @@ class Device(metaclass=DeviceMeta):
             )
 
         f.__belay__ = MethodMetadata(
-            executer=SetupExecuter, autoinit=autoinit, kwargs=kwargs
+            executer=SetupExecuter,
+            autoinit=autoinit,
+            implementation=implementation,
+            kwargs=kwargs,
         )
         return f
 
@@ -599,12 +603,14 @@ class Device(metaclass=DeviceMeta):
 
     @overload
     @staticmethod
-    def teardown(**kwargs) -> Callable[[Callable[P, R]], Callable[P, R]]:
+    def teardown(
+        *, implementation: str = "", **kwargs
+    ) -> Callable[[Callable[P, R]], Callable[P, R]]:
         ...
 
     @staticmethod
     def teardown(
-        f: Optional[Callable[P, R]] = None, **kwargs
+        f: Optional[Callable[P, R]] = None, implementation: str = "", **kwargs
     ) -> Union[Callable[[Callable[P, R]], Callable[P, R]], Callable[P, R]]:
         """Executes decorated function's body in a global-context on-device when ``device.close()`` is called.
 
@@ -627,14 +633,16 @@ class Device(metaclass=DeviceMeta):
             Defaults to ``True``.
         """  # noqa: D400
         if f is None:
-            return wraps_partial(Device.teardown, **kwargs)  # type: ignore[reportGeneralTypeIssues]
+            return wraps_partial(Device.teardown, implementation=implementation, **kwargs)  # type: ignore[reportGeneralTypeIssues]
 
         if signature(f).parameters:
             raise ValueError(
                 f'Method {f} decorated with "@Device.teardown" must have no arguments.'
             )
 
-        f.__belay__ = MethodMetadata(executer=TeardownExecuter, kwargs=kwargs)
+        f.__belay__ = MethodMetadata(
+            executer=TeardownExecuter, implementation=implementation, kwargs=kwargs
+        )
         return f
 
     @overload
@@ -644,12 +652,14 @@ class Device(metaclass=DeviceMeta):
 
     @overload
     @staticmethod
-    def task(**kwargs) -> Callable[[Callable[P, R]], Callable[P, R]]:
+    def task(
+        *, implementation: str = "", **kwargs
+    ) -> Callable[[Callable[P, R]], Callable[P, R]]:
         ...
 
     @staticmethod
     def task(
-        f: Optional[Callable[P, R]] = None, **kwargs
+        f: Optional[Callable[P, R]] = None, implementation: str = "", **kwargs
     ) -> Union[Callable[[Callable[P, R]], Callable[P, R]], Callable[P, R]]:
         """Execute decorated function on-device.
 
@@ -674,9 +684,11 @@ class Device(metaclass=DeviceMeta):
             Defaults to ``False``.
         """  # noqa: D400
         if f is None:
-            return wraps_partial(Device.task, **kwargs)  # type: ignore[reportGeneralTypeIssues]
+            return wraps_partial(Device.task, implementation=implementation, **kwargs)  # type: ignore[reportGeneralTypeIssues]
 
-        f.__belay__ = MethodMetadata(executer=TaskExecuter, kwargs=kwargs)
+        f.__belay__ = MethodMetadata(
+            executer=TaskExecuter, implementation=implementation, kwargs=kwargs
+        )
         return f
 
     @staticmethod
@@ -687,12 +699,14 @@ class Device(metaclass=DeviceMeta):
 
     @overload
     @staticmethod
-    def thread(**kwargs) -> Callable[[Callable[P, R]], Callable[P, R]]:
+    def thread(
+        *, implementation: str = "", **kwargs
+    ) -> Callable[[Callable[P, R]], Callable[P, R]]:
         ...
 
     @staticmethod
     def thread(
-        f: Optional[Callable[P, R]] = None, **kwargs
+        f: Optional[Callable[P, R]] = None, implementation: str = "", **kwargs
     ) -> Union[Callable[[Callable[P, R]], Callable[P, R]], Callable[P, R]]:
         """Spawn on-device thread that executes decorated function.
 
@@ -713,8 +727,10 @@ class Device(metaclass=DeviceMeta):
             Defaults to ``True``.
         """  # noqa: D400
         if f is None:
-            return wraps_partial(Device.task, **kwargs)  # type: ignore[reportGeneralTypeIssues]
-        f.__belay__ = MethodMetadata(executer=ThreadExecuter, kwargs=kwargs)
+            return wraps_partial(Device.task, implementation=implementation, **kwargs)  # type: ignore[reportGeneralTypeIssues]
+        f.__belay__ = MethodMetadata(
+            executer=ThreadExecuter, implementation=implementation, kwargs=kwargs
+        )
         return f
 
     def terminal(self, *, exit_char=chr(0x1D)):
