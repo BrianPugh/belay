@@ -3,10 +3,7 @@
 Inspired by mCoding example::
 
     https://github.com/mCodingLLC/VideosSampleCode/blob/master/videos/077_metaclasses_in_python/overloading.py
-
 """
-from typing import Callable
-
 from autoregistry import RegistryMeta
 
 from .exceptions import NoMatchingExecuterError
@@ -14,11 +11,11 @@ from .exceptions import NoMatchingExecuterError
 _MISSING = object()
 
 
-class _ExecuterList(list):
+class OverloadList(list):
     """To separate user-lists from a list of overloaded methods."""
 
 
-class _OverloadDict(dict):
+class OverloadDict(dict):
     """Dictionary where a key can be written to multiple times."""
 
     def __setitem__(self, key, value):
@@ -33,9 +30,9 @@ class _OverloadDict(dict):
 
         if prior_val is _MISSING:
             # Register a new method name
-            insert_val = _ExecuterList([value]) if method_metadata else value
+            insert_val = OverloadList([value]) if method_metadata else value
             super().__setitem__(key, insert_val)
-        elif isinstance(prior_val, _ExecuterList):
+        elif isinstance(prior_val, OverloadList):
             # Add to a previously overloaded method.
             if not method_metadata:
                 raise ValueError(f"Cannot mix non-executer and executer methods: {key}")
@@ -60,10 +57,10 @@ class ExecuterMethod:
         self.name = name
 
     def __init__(self, overload_list):
-        if not isinstance(overload_list, _ExecuterList):
-            raise TypeError("must use OverloadList")
+        if not isinstance(overload_list, OverloadList):
+            raise TypeError("Must use OverloadList.")
         if not overload_list:
-            raise ValueError("empty overload list")
+            raise ValueError("Empty OverloadList.")
         self.overload_list = overload_list
 
     def __repr__(self):
@@ -92,11 +89,11 @@ class ExecuterMethod:
 class DeviceMeta(RegistryMeta):
     @classmethod
     def __prepare__(cls, name, bases, **kwargs):
-        return _OverloadDict()
+        return OverloadDict()
 
     def __new__(cls, name, bases, namespace, **kwargs):
         overload_namespace = {
-            key: ExecuterMethod(val) if isinstance(val, _ExecuterList) else val
+            key: ExecuterMethod(val) if isinstance(val, OverloadList) else val
             for key, val in namespace.items()
         }
         output_cls = super().__new__(cls, name, bases, overload_namespace, **kwargs)
