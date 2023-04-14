@@ -57,3 +57,6 @@ class UsbSpecifier(BaseModel):
             raise InsufficientSpecifierError(message)
 
         return possible_matches[0].device
+
+    def populated(self):
+        return bool(self.dict(exclude_none=True))

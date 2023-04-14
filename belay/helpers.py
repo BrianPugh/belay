@@ -38,7 +38,7 @@ def list_devices() -> List[UsbSpecifier]:
     List[UsbSpecifier]
         Available devices identifiers.
     """
-    return [
+    devices = [
         UsbSpecifier(
             vid=port.vid,
             pid=port.pid,
@@ -50,3 +50,4 @@ def list_devices() -> List[UsbSpecifier]:
         )
         for port in list_ports.comports()
     ]
+    return [x for x in devices if x.populated()]
