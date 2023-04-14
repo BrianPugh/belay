@@ -54,7 +54,7 @@ class _OverloadDict(dict):
             super().__setitem__(key, value)
 
 
-class _Overload:
+class ExecuterMethod:
     def __set_name__(self, owner, name):
         self.owner = owner
         self.name = name
@@ -72,45 +72,19 @@ class _Overload:
     def __get__(self, instance, _owner=None):
         if instance is None:
             return self
-        # don't use owner == type(instance)
-        # we want self.owner, which is the class from which get is being called
-        return BoundOverloadDispatcher(
-            instance, self.owner, self.name, self.overload_list
-        )
-
-
-class BoundOverloadDispatcher:
-    def __init__(self, instance, owner_cls, name, overload_list):
-        self.instance = instance
-        self.owner_cls = owner_cls
-        self.name = name
-        self.overload_list = overload_list
-
-    def best_match(self, *args, **kwargs):
-        target = self.instance.implementation.name
-
+        # Don't use owner == type(instance)
+        # We want self.owner, which is the class from which get is being called
         for f in self.overload_list:
             imp = f.__belay__.implementation
 
-            if not imp or imp == target:
+            if not imp or imp == instance.implementation.name:
                 return f
 
-        raise NoMatchingExecuterError()
-
-    def __call__(self, *args, **kwargs):
-        try:
-            f = self.best_match(*args, **kwargs)
-        except NoMatchingExecuterError:
-            pass
-        else:
-            # All executers are static methods, so don't pass in ``self.instance``
-            return f(*args, **kwargs)
-
         # no matching overload in owner class, check next in line
-        super_instance = super(self.owner_cls, self.instance)
+        super_instance = super(self.owner, instance)
         super_call = getattr(super_instance, self.name, _MISSING)
         if super_call is not _MISSING:
-            return super_call(*args, **kwargs)  # type: ignore[reportGeneralTypeIssues]
+            return super_call
         else:
             raise NoMatchingExecuterError()
 
@@ -122,7 +96,8 @@ class DeviceMeta(RegistryMeta):
 
     def __new__(cls, name, bases, namespace, **kwargs):
         overload_namespace = {
-            key: _Overload(val) if isinstance(val, _ExecuterList) else val
+            key: ExecuterMethod(val) if isinstance(val, _ExecuterList) else val
             for key, val in namespace.items()
         }
-        return super().__new__(cls, name, bases, overload_namespace, **kwargs)
+        output_cls = super().__new__(cls, name, bases, overload_namespace, **kwargs)
+        return output_cls

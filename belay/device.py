@@ -104,15 +104,6 @@ class Device(metaclass=DeviceMeta):
 
         self._connect_to_board(**self._board_kwargs)
 
-        for executer_name, executer_cls in Executer.items():
-            executer = executer_cls(self)
-            setattr(
-                self, executer_name, executer
-            )  # Public interface; might get stomped
-            setattr(
-                self, "_belay_" + executer_name, executer
-            )  # Private interface; will always be there
-
         self._exec_snippet("startup")
 
         self.implementation = Implementation(
@@ -122,25 +113,45 @@ class Device(metaclass=DeviceMeta):
             emitters=self._emitter_check(),
         )
 
-        # if subclassing Device, register methods decorated with
-        # executer markers (e.g. ``Device.task``).
+        # Setup private executer generators
+        executer_generators = {}
+        for executer_name, executer_cls in Executer.items():
+            executer_generator = executer_cls(self)
+            # Private interface, will always be available
+            attr_name = f"_belay_{executer_name}"
+            setattr(self, attr_name, executer_generator)
+            executer_generators[executer_name] = executer_generator
+
+        # If subclassing Device, register methods decorated with
+        # executer markers (e.g. ``@Device.task``).
         autoinit_executers = []
-        for name, method in vars(type(self)).items():
-            # TODO: this is broken now due to _OverloadList
-            metadata = getattr(method, "__belay__", None)
-            if not metadata:
+        instantiated_executer_names = set()
+        for method_name in vars(type(self)):
+            # Get method from self to trigger descriptors.
+            try:
+                method = getattr(self, method_name)
+                metadata = method.__belay__
+            except AttributeError:
                 continue
-            decorator = getattr(self, metadata.executer.__registry__.name)
-            executer = decorator(method, **metadata.kwargs)
+            executer_name = metadata.executer.__registry__.name
+            executer_generator = executer_generators[executer_name]
+            executer = executer_generator(method, **metadata.kwargs)
+            instantiated_executer_names.add(executer_name)
 
             if metadata.autoinit:
                 autoinit_executers.append(executer)
 
             setattr(
                 self,
-                name,
+                method_name,
                 executer,
             )
+
+        # Setup publicly accessible if the name hasn't been stomped.
+        for executer_name, executer_generator in executer_generators.items():
+            if executer_name in instantiated_executer_names:
+                continue
+            setattr(self, executer_name, executer_generator)
 
         if startup is None:
             if self.implementation.name == "circuitpython":
@@ -152,8 +163,7 @@ class Device(metaclass=DeviceMeta):
 
         self.__pre_autoinit__()
 
-        autoinit_executers = sort_executers(autoinit_executers)
-        for executer in autoinit_executers:
+        for executer in sort_executers(autoinit_executers):
             executer()
 
         atexit.register(self.close)
