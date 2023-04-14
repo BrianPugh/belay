@@ -106,6 +106,7 @@ class Device(metaclass=DeviceMeta):
 
         self._exec_snippet("startup")
 
+        # Obtain implementation early on so implementation-specific executers can be bound.
         self.implementation = Implementation(
             *self(
                 "(sys.implementation.name, sys.implementation.version, sys.platform)"
@@ -588,6 +589,11 @@ class Device(metaclass=DeviceMeta):
             Automatically invokes decorated functions at the end of object ``__init__``.
             Methods will be executed in order-registered.
             Defaults to ``False``.
+        implementation: str
+            If supplied, the provided method will **only** be used if the board's implementation **name** matches.
+            Several methods of the same name can be overloaded that support different implementations.
+            Common values include "micropython", and "circuitpython".
+            Defaults to an empty string, which **all** implementations will match to.
         """  # noqa: D400
         if f is None:
             return wraps_partial(Device.setup, autoinit=autoinit, implementation=implementation, **kwargs)  # type: ignore[reportGeneralTypeIssues]
@@ -641,6 +647,11 @@ class Device(metaclass=DeviceMeta):
         record: bool
             Each invocation of the executer is recorded for playback upon reconnect.
             Defaults to ``True``.
+        implementation: str
+            If supplied, the provided method will **only** be used if the board's implementation **name** matches.
+            Several methods of the same name can be overloaded that support different implementations.
+            Common values include "micropython", and "circuitpython".
+            Defaults to an empty string, which **all** implementations will match to.
         """  # noqa: D400
         if f is None:
             return wraps_partial(Device.teardown, implementation=implementation, **kwargs)  # type: ignore[reportGeneralTypeIssues]
@@ -692,6 +703,11 @@ class Device(metaclass=DeviceMeta):
             Each invocation of the executer is recorded for playback upon reconnect.
             Only recommended to be set to ``True`` for a setup-like function.
             Defaults to ``False``.
+        implementation: str
+            If supplied, the provided method will **only** be used if the board's implementation **name** matches.
+            Several methods of the same name can be overloaded that support different implementations.
+            Common values include "micropython", and "circuitpython".
+            Defaults to an empty string, which **all** implementations will match to.
         """  # noqa: D400
         if f is None:
             return wraps_partial(Device.task, implementation=implementation, **kwargs)  # type: ignore[reportGeneralTypeIssues]
@@ -735,6 +751,11 @@ class Device(metaclass=DeviceMeta):
         record: bool
             Each invocation of the executer is recorded for playback upon reconnect.
             Defaults to ``True``.
+        implementation: str
+            If supplied, the provided method will **only** be used if the board's implementation **name** matches.
+            Several methods of the same name can be overloaded that support different implementations.
+            Common values include "micropython", and "circuitpython".
+            Defaults to an empty string, which **all** implementations will match to.
         """  # noqa: D400
         if f is None:
             return wraps_partial(Device.task, implementation=implementation, **kwargs)  # type: ignore[reportGeneralTypeIssues]
