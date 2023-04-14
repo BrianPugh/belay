@@ -71,7 +71,7 @@ class Device(metaclass=DeviceMeta):
 
     Can be used as a context manager; calls ``self.close`` on exit.
 
-    Inherits from ``autoregistry.Registry`` for easy access to subclasses.
+    Uses the ``autoregistry.RegistryMeta`` metaclass for easy-to-access subclasses.
 
     Attributes
     ----------
@@ -113,7 +113,7 @@ class Device(metaclass=DeviceMeta):
             emitters=self._emitter_check(),
         )
 
-        # Setup private executer generators
+        # Setup executer generators and bind to private attributes.
         executer_generators = {}
         for executer_name, executer_cls in Executer.items():
             executer_generator = executer_cls(self)
@@ -126,7 +126,7 @@ class Device(metaclass=DeviceMeta):
         # executer markers (e.g. ``@Device.task``).
         autoinit_executers = []
         instantiated_executer_names = set()
-        for method_name in vars(type(self)):
+        for method_name in dir(type(self)):
             # Get method from self to trigger descriptors.
             try:
                 method = getattr(self, method_name)

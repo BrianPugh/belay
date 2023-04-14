@@ -6,6 +6,7 @@ __all__ = [
     "ConnectionFailedError",
     "ConnectionLost",
     "Device",
+    "DeviceMeta",
     "DeviceNotFoundError",
     "FeatureUnavailableError",
     "Implementation",
@@ -21,6 +22,7 @@ __all__ = [
 ]
 from ._minify import minify
 from .device import Device, Implementation
+from .device_meta import DeviceMeta
 from .exceptions import (
     AuthenticationError,
     ConnectionFailedError,
