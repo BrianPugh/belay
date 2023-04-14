@@ -34,6 +34,19 @@ def test_classes_basic(emulate_command):
         assert device.get_times_bar(2) == 84
 
 
+def test_classes_mixin(emulate_command):
+    class Mixin:
+        @Device.task
+        def foo(x):
+            return x * 2
+
+    class MyDevice(Device, Mixin, skip=True):
+        pass
+
+    with MyDevice(emulate_command) as device:
+        assert device.foo(5) == 10
+
+
 def test_classes_setup_arguments(emulate_command):
     class MyDevice(Device, skip=True):
         @Device.setup
