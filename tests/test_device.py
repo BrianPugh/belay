@@ -3,6 +3,7 @@ import pytest
 import belay
 import belay.device
 from belay import Device
+from belay.exceptions import NoMatchingExecuterError
 
 
 @pytest.fixture
@@ -165,3 +166,13 @@ def test_overload_executer_after_catchall_error():
             @Device.task(implementation="circuitpython")
             def foo():  # noqa: F811
                 pass
+
+
+def test_overload_executer_no_matching_error(mock_pyboard):
+    class MyDevice(Device):
+        @Device.task(implementation="missing_implementation")
+        def foo():
+            pass
+
+    with pytest.raises(NoMatchingExecuterError):
+        MyDevice()
