@@ -38,6 +38,9 @@ class UsbSpecifier(BaseModel):
 
     device: Optional[str] = Field(None, exclude=True)
 
+    def __repr__(self):
+        return f'{self.__class__.__name__}({", ".join(f"{k}={v!r}" for k, v in self.dict().items() if v is not None)})'
+
     def to_port(self) -> str:
         if self.device:
             return self.device
