@@ -717,7 +717,6 @@ class Device(metaclass=DeviceMeta):
         )
         return f
 
-    @staticmethod
     @overload
     @staticmethod
     def thread(f: Callable[P, R]) -> Callable[P, R]:
