@@ -71,7 +71,7 @@ class Device(metaclass=DeviceMeta):
 
     Can be used as a context manager; calls ``self.close`` on exit.
 
-    Inherits from ``autoregistry.Registry`` for easy access to subclasses.
+    Uses the ``autoregistry.RegistryMeta`` metaclass for easy-to-access subclasses.
 
     Attributes
     ----------
@@ -104,17 +104,9 @@ class Device(metaclass=DeviceMeta):
 
         self._connect_to_board(**self._board_kwargs)
 
-        for executer_name, executer_cls in Executer.items():
-            executer = executer_cls(self)
-            setattr(
-                self, executer_name, executer
-            )  # Public interface; might get stomped
-            setattr(
-                self, "_belay_" + executer_name, executer
-            )  # Private interface; will always be there
-
         self._exec_snippet("startup")
 
+        # Obtain implementation early on so implementation-specific executers can be bound.
         self.implementation = Implementation(
             *self(
                 "(sys.implementation.name, sys.implementation.version, sys.platform)"
@@ -122,24 +114,45 @@ class Device(metaclass=DeviceMeta):
             emitters=self._emitter_check(),
         )
 
-        # if subclassing Device, register methods decorated with
-        # executer markers (e.g. ``Device.task``).
+        # Setup executer generators and bind to private attributes.
+        executer_generators = {}
+        for executer_name, executer_cls in Executer.items():
+            executer_generator = executer_cls(self)
+            # Private interface, will always be available
+            attr_name = f"_belay_{executer_name}"
+            setattr(self, attr_name, executer_generator)
+            executer_generators[executer_name] = executer_generator
+
+        # If subclassing Device, register methods decorated with
+        # executer markers (e.g. ``@Device.task``).
         autoinit_executers = []
-        for name, method in vars(type(self)).items():
-            metadata = getattr(method, "__belay__", None)
-            if not metadata:
+        instantiated_executer_names = set()
+        for method_name in dir(type(self)):
+            # Get method from self to trigger descriptors.
+            try:
+                method = getattr(self, method_name)
+                metadata = method.__belay__
+            except AttributeError:
                 continue
-            decorator = getattr(self, metadata.executer.__registry__.name)
-            executer = decorator(method, **metadata.kwargs)
+            executer_name = metadata.executer.__registry__.name
+            executer_generator = executer_generators[executer_name]
+            executer = executer_generator(method, **metadata.kwargs)
+            instantiated_executer_names.add(executer_name)
 
             if metadata.autoinit:
                 autoinit_executers.append(executer)
 
             setattr(
                 self,
-                name,
+                method_name,
                 executer,
             )
+
+        # Setup publicly accessible if the name hasn't been stomped.
+        for executer_name, executer_generator in executer_generators.items():
+            if executer_name in instantiated_executer_names:
+                continue
+            setattr(self, executer_name, executer_generator)
 
         if startup is None:
             if self.implementation.name == "circuitpython":
@@ -151,8 +164,7 @@ class Device(metaclass=DeviceMeta):
 
         self.__pre_autoinit__()
 
-        autoinit_executers = sort_executers(autoinit_executers)
-        for executer in autoinit_executers:
+        for executer in sort_executers(autoinit_executers):
             executer()
 
         atexit.register(self.close)
@@ -543,15 +555,15 @@ class Device(metaclass=DeviceMeta):
     @overload
     @staticmethod
     def setup(
-        *, autoinit=False, **kwargs
+        *, autoinit: bool = False, implementation: str = "", **kwargs
     ) -> Callable[[Callable[P, R]], Callable[P, R]]:
         ...
 
     @staticmethod
     def setup(
         f: Optional[Callable[P, R]] = None,
-        autoinit=False,
-        implementation=None,
+        autoinit: bool = False,
+        implementation: str = "",
         **kwargs,
     ) -> Union[Callable[[Callable[P, R]], Callable[P, R]], Callable[P, R]]:
         """Execute decorated function's body in a global-context on-device when called.
@@ -577,9 +589,14 @@ class Device(metaclass=DeviceMeta):
             Automatically invokes decorated functions at the end of object ``__init__``.
             Methods will be executed in order-registered.
             Defaults to ``False``.
+        implementation: str
+            If supplied, the provided method will **only** be used if the board's implementation **name** matches.
+            Several methods of the same name can be overloaded that support different implementations.
+            Common values include "micropython", and "circuitpython".
+            Defaults to an empty string, which **all** implementations will match to.
         """  # noqa: D400
         if f is None:
-            return wraps_partial(Device.setup, autoinit=autoinit, **kwargs)  # type: ignore[reportGeneralTypeIssues]
+            return wraps_partial(Device.setup, autoinit=autoinit, implementation=implementation, **kwargs)  # type: ignore[reportGeneralTypeIssues]
         if signature(f).parameters and autoinit:
             raise ValueError(
                 f"Method {f} decorated with "
@@ -588,7 +605,10 @@ class Device(metaclass=DeviceMeta):
             )
 
         f.__belay__ = MethodMetadata(
-            executer=SetupExecuter, autoinit=autoinit, kwargs=kwargs
+            executer=SetupExecuter,
+            autoinit=autoinit,
+            implementation=implementation,
+            kwargs=kwargs,
         )
         return f
 
@@ -599,12 +619,14 @@ class Device(metaclass=DeviceMeta):
 
     @overload
     @staticmethod
-    def teardown(**kwargs) -> Callable[[Callable[P, R]], Callable[P, R]]:
+    def teardown(
+        *, implementation: str = "", **kwargs
+    ) -> Callable[[Callable[P, R]], Callable[P, R]]:
         ...
 
     @staticmethod
     def teardown(
-        f: Optional[Callable[P, R]] = None, **kwargs
+        f: Optional[Callable[P, R]] = None, implementation: str = "", **kwargs
     ) -> Union[Callable[[Callable[P, R]], Callable[P, R]], Callable[P, R]]:
         """Executes decorated function's body in a global-context on-device when ``device.close()`` is called.
 
@@ -625,16 +647,23 @@ class Device(metaclass=DeviceMeta):
         record: bool
             Each invocation of the executer is recorded for playback upon reconnect.
             Defaults to ``True``.
+        implementation: str
+            If supplied, the provided method will **only** be used if the board's implementation **name** matches.
+            Several methods of the same name can be overloaded that support different implementations.
+            Common values include "micropython", and "circuitpython".
+            Defaults to an empty string, which **all** implementations will match to.
         """  # noqa: D400
         if f is None:
-            return wraps_partial(Device.teardown, **kwargs)  # type: ignore[reportGeneralTypeIssues]
+            return wraps_partial(Device.teardown, implementation=implementation, **kwargs)  # type: ignore[reportGeneralTypeIssues]
 
         if signature(f).parameters:
             raise ValueError(
                 f'Method {f} decorated with "@Device.teardown" must have no arguments.'
             )
 
-        f.__belay__ = MethodMetadata(executer=TeardownExecuter, kwargs=kwargs)
+        f.__belay__ = MethodMetadata(
+            executer=TeardownExecuter, implementation=implementation, kwargs=kwargs
+        )
         return f
 
     @overload
@@ -644,12 +673,14 @@ class Device(metaclass=DeviceMeta):
 
     @overload
     @staticmethod
-    def task(**kwargs) -> Callable[[Callable[P, R]], Callable[P, R]]:
+    def task(
+        *, implementation: str = "", **kwargs
+    ) -> Callable[[Callable[P, R]], Callable[P, R]]:
         ...
 
     @staticmethod
     def task(
-        f: Optional[Callable[P, R]] = None, **kwargs
+        f: Optional[Callable[P, R]] = None, implementation: str = "", **kwargs
     ) -> Union[Callable[[Callable[P, R]], Callable[P, R]], Callable[P, R]]:
         """Execute decorated function on-device.
 
@@ -672,14 +703,20 @@ class Device(metaclass=DeviceMeta):
             Each invocation of the executer is recorded for playback upon reconnect.
             Only recommended to be set to ``True`` for a setup-like function.
             Defaults to ``False``.
+        implementation: str
+            If supplied, the provided method will **only** be used if the board's implementation **name** matches.
+            Several methods of the same name can be overloaded that support different implementations.
+            Common values include "micropython", and "circuitpython".
+            Defaults to an empty string, which **all** implementations will match to.
         """  # noqa: D400
         if f is None:
-            return wraps_partial(Device.task, **kwargs)  # type: ignore[reportGeneralTypeIssues]
+            return wraps_partial(Device.task, implementation=implementation, **kwargs)  # type: ignore[reportGeneralTypeIssues]
 
-        f.__belay__ = MethodMetadata(executer=TaskExecuter, kwargs=kwargs)
+        f.__belay__ = MethodMetadata(
+            executer=TaskExecuter, implementation=implementation, kwargs=kwargs
+        )
         return f
 
-    @staticmethod
     @overload
     @staticmethod
     def thread(f: Callable[P, R]) -> Callable[P, R]:
@@ -687,12 +724,14 @@ class Device(metaclass=DeviceMeta):
 
     @overload
     @staticmethod
-    def thread(**kwargs) -> Callable[[Callable[P, R]], Callable[P, R]]:
+    def thread(
+        *, implementation: str = "", **kwargs
+    ) -> Callable[[Callable[P, R]], Callable[P, R]]:
         ...
 
     @staticmethod
     def thread(
-        f: Optional[Callable[P, R]] = None, **kwargs
+        f: Optional[Callable[P, R]] = None, implementation: str = "", **kwargs
     ) -> Union[Callable[[Callable[P, R]], Callable[P, R]], Callable[P, R]]:
         """Spawn on-device thread that executes decorated function.
 
@@ -711,10 +750,17 @@ class Device(metaclass=DeviceMeta):
         record: bool
             Each invocation of the executer is recorded for playback upon reconnect.
             Defaults to ``True``.
+        implementation: str
+            If supplied, the provided method will **only** be used if the board's implementation **name** matches.
+            Several methods of the same name can be overloaded that support different implementations.
+            Common values include "micropython", and "circuitpython".
+            Defaults to an empty string, which **all** implementations will match to.
         """  # noqa: D400
         if f is None:
-            return wraps_partial(Device.task, **kwargs)  # type: ignore[reportGeneralTypeIssues]
-        f.__belay__ = MethodMetadata(executer=ThreadExecuter, kwargs=kwargs)
+            return wraps_partial(Device.task, implementation=implementation, **kwargs)  # type: ignore[reportGeneralTypeIssues]
+        f.__belay__ = MethodMetadata(
+            executer=ThreadExecuter, implementation=implementation, kwargs=kwargs
+        )
         return f
 
     def terminal(self, *, exit_char=chr(0x1D)):

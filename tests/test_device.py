@@ -2,6 +2,8 @@ import pytest
 
 import belay
 import belay.device
+from belay import Device
+from belay.exceptions import NoMatchingExecuterError
 
 
 @pytest.fixture
@@ -129,3 +131,48 @@ def test_parse_belay_response_r():
     assert {1} == belay.device.parse_belay_response("_BELAYR{1}")
     assert belay.device.parse_belay_response("_BELAYRb'foo'") == b"foo"
     assert belay.device.parse_belay_response("_BELAYRFalse") is False
+
+
+def test_overload_executer_mixing_error():
+    with pytest.raises(ValueError):
+
+        class MyDevice1(Device, skip=True):
+            def foo():
+                pass
+
+            @Device.task(implementation="circuitpython")
+            def foo():  # noqa: F811
+                pass
+
+    with pytest.raises(ValueError):
+
+        class MyDevice2(Device, skip=True):
+            @Device.task(implementation="circuitpython")
+            def foo():
+                pass
+
+            def foo():  # noqa: F811
+                pass
+
+
+def test_overload_executer_after_catchall_error():
+    with pytest.raises(ValueError):
+
+        class MyDevice(Device, skip=True):
+            @Device.task
+            def foo():
+                pass
+
+            @Device.task(implementation="circuitpython")
+            def foo():  # noqa: F811
+                pass
+
+
+def test_overload_executer_no_matching_error(mock_pyboard):
+    class MyDevice(Device):
+        @Device.task(implementation="missing_implementation")
+        def foo():
+            pass
+
+    with pytest.raises(NoMatchingExecuterError):
+        MyDevice()

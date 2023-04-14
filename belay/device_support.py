@@ -34,6 +34,8 @@ _method_metadata_counter = 0
 
 @dataclass
 class MethodMetadata:
+    """Metadata for executer-decorated Device methods."""
+
     executer: Callable
     kwargs: dict
     autoinit: bool = False  # Only applies to ``SetupExecuter``.

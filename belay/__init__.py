@@ -6,11 +6,14 @@ __all__ = [
     "ConnectionFailedError",
     "ConnectionLost",
     "Device",
+    "DeviceMeta",
     "DeviceNotFoundError",
     "FeatureUnavailableError",
     "Implementation",
     "InsufficientSpecifierError",
     "MaxHistoryLengthError",
+    "NoMatchingExecuterError",
+    "NotBelayResponseError",
     "PyboardException",
     "SpecialFunctionNameError",
     "UsbSpecifier",
@@ -19,6 +22,7 @@ __all__ = [
 ]
 from ._minify import minify
 from .device import Device, Implementation
+from .device_meta import DeviceMeta
 from .exceptions import (
     AuthenticationError,
     ConnectionFailedError,
@@ -27,6 +31,8 @@ from .exceptions import (
     FeatureUnavailableError,
     InsufficientSpecifierError,
     MaxHistoryLengthError,
+    NoMatchingExecuterError,
+    NotBelayResponseError,
     SpecialFunctionNameError,
 )
 from .helpers import list_devices

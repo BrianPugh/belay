@@ -3,6 +3,7 @@ from inspect import isfunction
 import pytest
 
 from belay import Device, PyboardException
+from belay.device_meta import DeviceMeta
 
 
 def test_classes_basic(emulate_command):
@@ -31,6 +32,19 @@ def test_classes_basic(emulate_command):
 
         assert device.get_times_bar(1) == 42
         assert device.get_times_bar(2) == 84
+
+
+def test_classes_mixin(emulate_command):
+    class Mixin:
+        @Device.task
+        def foo(x):
+            return x * 2
+
+    class MyDevice(Device, Mixin, skip=True):
+        pass
+
+    with MyDevice(emulate_command) as device:
+        assert device.foo(5) == 10
 
 
 def test_classes_setup_arguments(emulate_command):
@@ -141,3 +155,124 @@ def test_classes_teardown_context_manager_mocked(emulate_command, mocker):
         device._belay_teardown._belay_executers[0] = mock_teardown
 
     mock_teardown.assert_called_once()
+
+
+def test_classes_executer_implementation_overload(emulate_command, mocker):
+    """Tests if proper overloaded methods are executed depending on implementation."""
+
+    class MyDevice(Device, skip=True):
+        @Device.task(implementation="micropython")
+        def test_task():
+            return "micropython_task_return_value"
+
+        @Device.task(implementation="circuitpython")
+        def test_task():  # noqa: F811
+            return "circuitpython_task_return_value"
+
+        @Device.setup(implementation="micropython")
+        def test_setup():
+            setup_var = "micropython_setup_return_value"  # noqa: F841
+
+        @Device.setup(implementation="circuitpython")
+        def test_setup():  # noqa: F811
+            setup_var = "circuitpython_setup_return_value"  # noqa: F841
+
+        @Device.task
+        def get_setup_var():
+            return setup_var  # noqa: F821
+
+    with MyDevice(emulate_command) as device:
+        if "--image=micropython" in emulate_command:
+            assert device.test_task() == "micropython_task_return_value"
+            device.test_setup()
+            assert device.get_setup_var() == "micropython_setup_return_value"
+        elif "--image=circuitpython" in emulate_command:
+            assert device.test_task() == "circuitpython_task_return_value"
+            device.test_setup()
+            assert device.get_setup_var() == "circuitpython_setup_return_value"
+        else:
+            raise NotImplementedError
+
+
+def test_classes_executer_implementation_overload_mixins_per_implementation(
+    emulate_command, mocker
+):
+    """Tests if proper overloaded methods from mixins are executed depending on implementation."""
+
+    class MicropythonMixin(metaclass=DeviceMeta):
+        @Device.setup(implementation="micropython")
+        def test_setup():
+            setup_var = "micropython_setup_return_value"  # noqa: F841
+
+        @Device.task(implementation="micropython")
+        def test_task():
+            return "micropython_task_return_value"
+
+    class CircuitpythonMixin(metaclass=DeviceMeta):
+        @Device.task(implementation="circuitpython")
+        def test_task():  # noqa: F811
+            return "circuitpython_task_return_value"
+
+        @Device.setup(implementation="circuitpython")
+        def test_setup():  # noqa: F811
+            setup_var = "circuitpython_setup_return_value"  # noqa: F841
+
+    class MyDevice(Device, MicropythonMixin, CircuitpythonMixin, skip=True):
+        @Device.task
+        def get_setup_var():
+            return setup_var  # noqa: F821
+
+    with MyDevice(emulate_command) as device:
+        if "--image=micropython" in emulate_command:
+            assert device.test_task() == "micropython_task_return_value"
+            device.test_setup()
+            assert device.get_setup_var() == "micropython_setup_return_value"
+        elif "--image=circuitpython" in emulate_command:
+            assert device.test_task() == "circuitpython_task_return_value"
+            device.test_setup()
+            assert device.get_setup_var() == "circuitpython_setup_return_value"
+        else:
+            raise NotImplementedError
+
+
+def test_classes_executer_implementation_overload_mixins_per_method(
+    emulate_command, mocker
+):
+    """Tests if proper overloaded methods from mixins are executed depending on implementation."""
+
+    class TaskMixin(metaclass=DeviceMeta):
+        @Device.task(implementation="micropython")
+        def test_task():
+            return "micropython_task_return_value"
+
+        @Device.task(implementation="circuitpython")
+        def test_task():  # noqa: F811
+            return "circuitpython_task_return_value"
+
+    class SetupMixin(metaclass=DeviceMeta):
+        @Device.setup(implementation="micropython")
+        def test_setup():
+            setup_var = "micropython_setup_return_value"  # noqa: F841
+
+        @Device.setup(implementation="circuitpython")
+        def test_setup():  # noqa: F811
+            setup_var = "circuitpython_setup_return_value"  # noqa: F841
+
+        @Device.task
+        def get_setup_var():
+            return setup_var  # noqa: F821
+
+    class MyDevice(Device, TaskMixin, SetupMixin, skip=True):
+        pass
+
+    with MyDevice(emulate_command) as device:
+        if "--image=micropython" in emulate_command:
+            assert device.test_task() == "micropython_task_return_value"
+            device.test_setup()
+            assert device.get_setup_var() == "micropython_setup_return_value"
+        elif "--image=circuitpython" in emulate_command:
+            assert device.test_task() == "circuitpython_task_return_value"
+            device.test_setup()
+            assert device.get_setup_var() == "circuitpython_setup_return_value"
+        else:
+            raise NotImplementedError
