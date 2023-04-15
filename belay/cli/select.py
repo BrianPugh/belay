@@ -6,7 +6,7 @@ from questionary import Choice
 
 from belay import Device, DeviceMeta
 from belay.cli.questionary_ext import press_any_key_to_continue
-from belay.helpers import list_devices
+from belay.usb_specifier import list_devices
 
 
 async def blink_loop(device):
