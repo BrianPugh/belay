@@ -211,6 +211,9 @@ class ProcessToSerial:
 
         atexit.register(self.close)
 
+        while b">>>" not in self.buf:
+            time.sleep(0.0001)
+
     def close(self):
         _kill_process(self.subp.pid)
         atexit.unregister(self.close)

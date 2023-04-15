@@ -123,6 +123,18 @@ def test_classes_teardown(emulate_command):
         device.teardown()  # Testing that it can be directly called
 
 
+def test_classes_teardown_ignore_error(emulate_command):
+    """Simply tests as its called and no uncaught exceptions occur."""
+
+    class MyDevice(Device, skip=True):
+        @Device.teardown(ignore_errors=True)
+        def teardown():
+            raise ValueError
+
+    with MyDevice(emulate_command):
+        pass
+
+
 def test_classes_teardown_mocked(emulate_command, mocker):
     """Tests if the teardown functions are executed on close."""
 
@@ -177,11 +189,22 @@ def test_classes_executer_implementation_overload(emulate_command, mocker):
         def test_setup():  # noqa: F811
             setup_var = "circuitpython_setup_return_value"  # noqa: F841
 
+        @Device.teardown(implementation="micropython")
+        def test_teardown():
+            pass
+
+        @Device.teardown(implementation="circuitpython")
+        def test_teardown():  # noqa: F811
+            pass
+
         @Device.task
         def get_setup_var():
             return setup_var  # noqa: F821
 
     with MyDevice(emulate_command) as device:
+        assert (
+            len(device._belay_teardown._belay_executers) == 1
+        )  # TODO: change to teardown after fix
         if "--image=micropython" in emulate_command:
             assert device.test_task() == "micropython_task_return_value"
             device.test_setup()
@@ -189,6 +212,32 @@ def test_classes_executer_implementation_overload(emulate_command, mocker):
         elif "--image=circuitpython" in emulate_command:
             assert device.test_task() == "circuitpython_task_return_value"
             device.test_setup()
+            assert device.get_setup_var() == "circuitpython_setup_return_value"
+        else:
+            raise NotImplementedError
+
+
+def test_classes_executer_implementation_overload_stomping(emulate_command, mocker):
+    """Tests if proper overloaded methods are executed depending on implementation if they have Executer names."""
+
+    class MyDevice(Device, skip=True):
+        @Device.setup(implementation="micropython")
+        def setup():
+            setup_var = "micropython_setup_return_value"  # noqa: F841
+
+        @Device.setup(implementation="circuitpython")
+        def setup():  # noqa: F811
+            setup_var = "circuitpython_setup_return_value"  # noqa: F841
+
+        @Device.task
+        def get_setup_var():
+            return setup_var  # noqa: F821
+
+    with MyDevice(emulate_command) as device:
+        device.setup()
+        if "--image=micropython" in emulate_command:
+            assert device.get_setup_var() == "micropython_setup_return_value"
+        elif "--image=circuitpython" in emulate_command:
             assert device.get_setup_var() == "circuitpython_setup_return_value"
         else:
             raise NotImplementedError
@@ -230,6 +279,48 @@ def test_classes_executer_implementation_overload_mixins_per_implementation(
         elif "--image=circuitpython" in emulate_command:
             assert device.test_task() == "circuitpython_task_return_value"
             device.test_setup()
+            assert device.get_setup_var() == "circuitpython_setup_return_value"
+        else:
+            raise NotImplementedError
+
+
+def test_classes_executer_implementation_overload_mixins_per_implementation_stomping(
+    emulate_command, mocker
+):
+    """Tests if proper overloaded methods from mixins are executed depending on implementation.
+
+    In this test, they have same names as executers.
+
+    The original bug was caused by having the mixins like:
+
+        class MyDevice(Device, MicropythonMixin, CircuitpythonMixin, skip=True):
+            pass
+
+    where ``setup`` was ``Device.setup`` due to MRO.
+
+    Fix: ``Device`` is now moved to end of MRO in ``belay.DeviceMeta.mro``.
+    """
+
+    class MicropythonMixin(metaclass=DeviceMeta):
+        @Device.setup(implementation="micropython")
+        def setup():
+            setup_var = "micropython_setup_return_value"  # noqa: F841
+
+    class CircuitpythonMixin(metaclass=DeviceMeta):
+        @Device.setup(implementation="circuitpython")
+        def setup():  # noqa: F811
+            setup_var = "circuitpython_setup_return_value"  # noqa: F841
+
+    class MyDevice(Device, MicropythonMixin, CircuitpythonMixin, skip=True):
+        @Device.task
+        def get_setup_var():
+            return setup_var  # noqa: F821
+
+    with MyDevice(emulate_command) as device:
+        device.setup()
+        if "--image=micropython" in emulate_command:
+            assert device.get_setup_var() == "micropython_setup_return_value"
+        elif "--image=circuitpython" in emulate_command:
             assert device.get_setup_var() == "circuitpython_setup_return_value"
         else:
             raise NotImplementedError

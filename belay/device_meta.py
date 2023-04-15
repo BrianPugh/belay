@@ -98,3 +98,22 @@ class DeviceMeta(RegistryMeta):
         }
         output_cls = super().__new__(cls, name, bases, overload_namespace, **kwargs)
         return output_cls
+
+    def mro(self):
+        mro = super().mro()
+        # Move ``Device`` to back, if it exists in the mro
+
+        try:
+            from belay.device import Device
+        except ImportError:  # circular import on first use
+            return mro
+
+        try:
+            mro.remove(Device)
+        except ValueError:  # Device was not in ``bases``
+            return mro
+
+        # Insert it right before ``object``
+        mro.insert(mro.index(object), Device)
+
+        return mro

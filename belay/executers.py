@@ -54,6 +54,7 @@ class _GlobalExecuter(Executer, skip=True):
         minify: bool = True,
         register: bool = True,
         record: bool = True,
+        ignore_errors: bool = False,
     ) -> Callable[[Callable[P, R]], Callable[P, R]]:
         ...
 
@@ -64,6 +65,7 @@ class _GlobalExecuter(Executer, skip=True):
         minify: bool = True,
         register: bool = True,
         record: bool = True,
+        ignore_errors: bool = False,
     ) -> Union[Callable[[Callable[P, R]], Callable[P, R]], Callable[P, R]]:
         if f is None:
             return wraps_partial(self, minify=minify, register=register, record=record)
@@ -88,9 +90,13 @@ class _GlobalExecuter(Executer, skip=True):
             if arg_assign_cmd:
                 cmd = arg_assign_cmd + "\n" + cmd
 
-            return self._belay_device._traceback_execute(
-                src_file, src_lineno, name, cmd, record=record
-            )
+            try:
+                self._belay_device._traceback_execute(
+                    src_file, src_lineno, name, cmd, record=record
+                )
+            except Exception:
+                if not ignore_errors:
+                    raise
 
         if register:
             setattr(self, name, executer)
