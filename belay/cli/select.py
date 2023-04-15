@@ -1,3 +1,6 @@
+from threading import Thread
+from time import sleep
+
 import questionary
 from questionary import Choice
 
@@ -5,63 +8,76 @@ from belay import Device, DeviceMeta
 from belay.helpers import list_devices
 
 
-class CircuitPythonLed(metaclass=DeviceMeta):
-    @Device.setup
-    def setup_led(self, pin) -> None:
+def blink_loop(device):
+    while True:
+        device.led(True)
+        sleep(0.5)
+        device.led(False)
+        sleep(0.5)
+
+
+class CircuitPythonBlinker(metaclass=DeviceMeta):
+    @Device.setup(implementation="circuitpython")
+    def setup_meow(pin: str, is_neopixel) -> None:
         import board
         import digitalio
 
-        pin_name = "LED" if pin.lower() == "led" else f"GP{pin}"
+        if is_neopixel:
+            from neopixel_write import neopixel_write
 
-        led = digitalio.DigitalInOut(getattr(board, pin_name, None))
-        led.direction = digitalio.Direction.OUTPUT
+        pin_name = "GP"
+        pin_name = "LED" if pin.upper() == "LED" else f"GP{pin}"
 
-    @Device.task(implementation="circuitpython")
-    def led(self, value: bool) -> None:
-        raise NotImplementedError
-
-
-class CircuitPythonNeoPixel(metaclass=DeviceMeta):
-    @Device.setup
-    def setup_neopixel(self, pin) -> None:
-        import board
-        import digitalio
-        from neopixel import neopixel
-
-        pin_name = "LED" if pin.lower() == "led" else f"GP{pin}"
-
-        led = digitalio.DigitalInOut(getattr(board, pin_name, None))
-        led.direction = digitalio.Direction.OUTPUT
+        led_io = digitalio.DigitalInOut(getattr(board, pin_name))
+        led_io.direction = digitalio.Direction.OUTPUT
 
     @Device.task(implementation="circuitpython")
-    def led(self, value: bool) -> None:
-        raise NotImplementedError
+    def led(value: bool) -> None:
+        if is_neopixel:
+            val = (255, 255, 255) if value else (0, 0, 0)
+            neopixel_write(led_io, bytearray(val))  # noqa: F821
+        else:
+            led_io.value = value
+
+    @Device.teardown(implementation="circuitpython")
+    def teardown():
+        if is_neopixel:
+            neopixel_write(led_io, b"\x00\x00\x00")  # noqa: F821
+        else:
+            led_io.value = False
 
 
-class MicroPythonLed(metaclass=DeviceMeta):
+class MicroPythonBlinker(metaclass=DeviceMeta):
     @Device.setup
-    def setup_led(self, pin) -> None:
-        raise NotImplementedError
+    def setup_meow(pin, is_neopixel) -> None:
+        from machine import Pin
+
+        led_io = Pin(pin, Pin.OUT)
+
+        if is_neopixel:
+            from neopixel import NeoPixel
+
+            NeoPixel(led_io, 1)
 
     @Device.task
-    def led(self, value: bool) -> None:
-        raise NotImplementedError
+    def led(value: bool) -> None:
+        if is_neopixel:
+            pixel[0] = (255, 255, 255) if value else (0, 0, 0)  # noqa: F821
+            pixel.write()  # noqa: F821
+        else:
+            led_io(value)
+
+    @Device.teardown
+    def teardown_neopixel():
+        if is_neopixel:
+            pixel[0] = (0, 0, 0)  # noqa: F821
+            pixel.write()  # noqa: F821
+        else:
+            led_io(False)
 
 
-class MicroPythonNeoPixel(metaclass=DeviceMeta):
-    @Device.setup
-    def setup_neopixel(self, pin) -> None:
-        raise NotImplementedError
-
-    @Device.task
-    def led(self, value: bool) -> None:
-        raise NotImplementedError
-
-
-class Blinker(
-    Device, CircuitPythonLed, CircuitPythonNeoPixel, MicroPythonLed, MicroPythonNeoPixel
-):
-    pass
+class Blinker(Device, CircuitPythonBlinker, MicroPythonBlinker):
+    """MicroPython + CircuitPython led/neopixel interactions."""
 
 
 def select():
@@ -69,6 +85,7 @@ def select():
 
     For determining board-specific metadata for repeatable connections.
     """
+    style = "bold"
     header = (
         "   "
         f"{'vid':6} "
@@ -78,58 +95,70 @@ def select():
         f"{'product':18} "
         f"{'location':18}"
     )
-    devices, choices = [], []
-    for device in list_devices():
-        devices.append(device)
+    specs, choices = [], []
+    for spec in list_devices():
+        specs.append(spec)
         choices.append(
             Choice(
-                f"{str(device.vid) or '':6.6} "
-                f"{str(device.pid) or '':6.6} "
-                f"{str(device.serial_number) or '':18.18} "
-                f"{str(device.manufacturer) or '':18.18} "
-                f"{str(device.product) or '':18.18} "
-                f"{str(device.location) or '':18.18}",
+                f"{str(spec.vid) or '':6.6} "
+                f"{str(spec.pid) or '':6.6} "
+                f"{str(spec.serial_number) or '':18.18} "
+                f"{str(spec.manufacturer) or '':18.18} "
+                f"{str(spec.product) or '':18.18} "
+                f"{str(spec.location) or '':18.18}",
                 value=len(choices),
             )
         )
 
     while True:
         device_index = questionary.select(
-            f"What do you want to do? (Use arrow keys)\n{header}",
+            f"Select USB Device (Use arrow keys):\n{header}",
             choices=choices,
             instruction=" ",
         ).ask()
 
-        device = devices[device_index]
+        spec = specs[device_index]
 
-        def validate_led_pin_number(response):
-            if not response:
+        with Blinker(spec) as device:
+            questionary.print(str(device.implementation), style=style)
+
+            def validate_led_pin_number(response):
+                if not response:
+                    return True
+
+                try:
+                    int(response)
+                except ValueError:
+                    return False
                 return True
 
-            try:
-                int(response)
-            except ValueError:
-                return False
-            return True
+            pin_number = questionary.text(
+                "Blink LED Pin Number [skip]?",
+                validate=validate_led_pin_number,
+            ).ask()
 
-        pin_number = questionary.text(
-            "Blink LED Pin number [skip]?",
-            validate=validate_led_pin_number,
-        ).ask()
-        if pin_number:
-            is_neopixel = questionary.confirm("Is this a NeoPixel?").ask()
-            if is_neopixel:
-                pass
-            else:
-                pass
-            raise NotImplementedError
+            if pin_number:
+                is_neopixel = questionary.confirm(
+                    "Is this a NeoPixel?", default=False
+                ).ask()
+                device.setup_meow(pin_number, is_neopixel)
 
-        break
+                # thread = Thread(target=blink_loop, args=(device,))
+                # thread.daemon = True
+                # thread.start()
+                while True:
+                    device.led(True)
+                    sleep(0.5)
+                    device.led(False)
+                    sleep(0.5)
 
-    device_json = device.json(exclude_none=True)
-    style = "bold"
+                questionary.text("Press enter to continue")
+
+            break
+
+    spec_json = spec.json(exclude_none=True)
     questionary.print("Either set the BELAY_DEVICE environment variable:", style=style)
-    questionary.print(f"    export BELAY_DEVICE='{device_json}'")
+    questionary.print(f"    export BELAY_DEVICE='{spec_json}'")
     questionary.print(
         "And in python code, instantiate Device without arguments:", style=style
     )
