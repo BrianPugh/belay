@@ -182,6 +182,9 @@ convention = "numpy"
     "S106",  # possible hardcoded password.
     "PGH001",  # use of "eval"
 ]
+"belay/cli/select.py" = [
+    "F821",
+]
 
 [tool.ruff.pep8-naming]
 staticmethod-decorators = [

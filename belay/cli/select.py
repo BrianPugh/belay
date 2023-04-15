@@ -35,14 +35,14 @@ class CircuitPythonBlinker(metaclass=DeviceMeta):
     def led(value: bool) -> None:
         if is_neopixel:
             val = (255, 255, 255) if value else (0, 0, 0)
-            neopixel_write(led_io, bytearray(val))  # noqa: F821
+            neopixel_write(led_io, bytearray(val))
         else:
             led_io.value = value
 
     @Device.teardown(implementation="circuitpython")
     def teardown():
         if is_neopixel:
-            neopixel_write(led_io, b"\x00\x00\x00")  # noqa: F821
+            neopixel_write(led_io, b"\x00\x00\x00")
         else:
             led_io.value = False
 
@@ -62,16 +62,16 @@ class MicroPythonBlinker(metaclass=DeviceMeta):
     @Device.task
     def led(value: bool) -> None:
         if is_neopixel:
-            pixel[0] = (255, 255, 255) if value else (0, 0, 0)  # noqa: F821
-            pixel.write()  # noqa: F821
+            pixel[0] = (255, 255, 255) if value else (0, 0, 0)
+            pixel.write()
         else:
             led_io(value)
 
     @Device.teardown
-    def teardown_neopixel():
+    def teardown():
         if is_neopixel:
-            pixel[0] = (0, 0, 0)  # noqa: F821
-            pixel.write()  # noqa: F821
+            pixel[0] = (0, 0, 0)
+            pixel.write()
         else:
             led_io(False)
 
