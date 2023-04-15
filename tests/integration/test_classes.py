@@ -123,6 +123,18 @@ def test_classes_teardown(emulate_command):
         device.teardown()  # Testing that it can be directly called
 
 
+def test_classes_teardown_ignore_error(emulate_command):
+    """Simply tests as its called and no uncaught exceptions occur."""
+
+    class MyDevice(Device, skip=True):
+        @Device.teardown(ignore_errors=True)
+        def teardown():
+            raise ValueError
+
+    with MyDevice(emulate_command):
+        pass
+
+
 def test_classes_teardown_mocked(emulate_command, mocker):
     """Tests if the teardown functions are executed on close."""
 

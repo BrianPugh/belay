@@ -589,6 +589,9 @@ class Device(metaclass=DeviceMeta):
             Automatically invokes decorated functions at the end of object ``__init__``.
             Methods will be executed in order-registered.
             Defaults to ``False``.
+        ignore_errors: bool
+            Discard any device-side uncaught exception.
+            Defaults to ``False``.
         implementation: str
             If supplied, the provided method will **only** be used if the board's implementation **name** matches.
             Several methods of the same name can be overloaded that support different implementations.
@@ -647,6 +650,9 @@ class Device(metaclass=DeviceMeta):
         record: bool
             Each invocation of the executer is recorded for playback upon reconnect.
             Defaults to ``True``.
+        ignore_errors: bool
+            Discard any device-side uncaught exception.
+            Defaults to ``False``.
         implementation: str
             If supplied, the provided method will **only** be used if the board's implementation **name** matches.
             Several methods of the same name can be overloaded that support different implementations.
