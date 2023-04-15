@@ -289,7 +289,7 @@ class ProcessPtyToTerminal:
 class Pyboard:
     def __init__(
         self,
-        device: Union[str, UsbSpecifier],
+        device: Union[None, str, UsbSpecifier] = None,
         baudrate: int = 115200,
         user: str = "micro",
         password: str = "python",  # noqa: S107
@@ -320,6 +320,10 @@ class Pyboard:
         self.use_raw_paste = True
         self._consumed_buf = bytearray()
         self._unconsumed_buf = bytearray()
+
+        if device is None:
+            usb_specifier_str = os.environ.get("BELAY_DEVICE", "{}")
+            device = UsbSpecifier.parse_raw(usb_specifier_str)
 
         if isinstance(device, UsbSpecifier):
             device = device.to_port()
