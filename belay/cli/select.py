@@ -61,7 +61,7 @@ class MicroPythonBlinker(metaclass=DeviceMeta):
     def setup(pin, is_neopixel) -> None:
         from machine import Pin
 
-        led_io = Pin(pin, Pin.OUT)
+        led_io = Pin(int(pin), Pin.OUT)
 
         if is_neopixel:
             from neopixel import NeoPixel
