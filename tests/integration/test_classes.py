@@ -179,11 +179,11 @@ def test_classes_executer_implementation_overload(emulate_command, mocker):
 
         @Device.teardown(implementation="micropython")
         def test_teardown():
-            return "micropython"
+            pass
 
         @Device.teardown(implementation="circuitpython")
         def test_teardown():  # noqa: F811
-            return "circuitpython"
+            pass
 
         @Device.task
         def get_setup_var():
@@ -278,6 +278,15 @@ def test_classes_executer_implementation_overload_mixins_per_implementation_stom
     """Tests if proper overloaded methods from mixins are executed depending on implementation.
 
     In this test, they have same names as executers.
+
+    The original bug was caused by having the mixins like:
+
+        class MyDevice(Device, MicropythonMixin, CircuitpythonMixin, skip=True):
+            pass
+
+    where ``setup`` was ``Device.setup`` due to MRO.
+
+    Fix: ``Device`` is now moved to end of MRO in ``belay.DeviceMeta.mro``.
     """
 
     class MicropythonMixin(metaclass=DeviceMeta):
