@@ -5,7 +5,7 @@ import questionary
 from questionary import Choice
 
 from belay import Device, DeviceMeta
-from belay.cli.questionary_ext import press_any_key_to_continue
+from belay.cli.questionary_ext import press_any_key_to_continue, select_table
 from belay.usb_specifier import list_devices
 
 
@@ -95,34 +95,31 @@ def select():
     For determining board-specific metadata for repeatable connections.
     """
     style = "bold"
-    header = (
-        "   "
-        f"{'vid':6} "
-        f"{'pid':6} "
-        f"{'serial_number':18} "
-        f"{'manufacturer':18} "
-        f"{'product':18} "
-        f"{'location':18}"
-    )
+    table_spec = {
+        "vid": 6,
+        "pid": 6,
+        "serial_number": 18,
+        "manufacturer": 18,
+        "product": 18,
+        "location": 18,
+    }
+    header = " ".join(f"{k:{v}}" for k, v in table_spec.items())
     specs, choices = [], []
     for spec in list_devices():
         specs.append(spec)
         choices.append(
             Choice(
-                f"{str(spec.vid) or '':6.6} "
-                f"{str(spec.pid) or '':6.6} "
-                f"{str(spec.serial_number) or '':18.18} "
-                f"{str(spec.manufacturer) or '':18.18} "
-                f"{str(spec.product) or '':18.18} "
-                f"{str(spec.location) or '':18.18}",
+                " ".join(
+                    f"{str(getattr(spec, k)):{v}.{v}}" for k, v in table_spec.items()
+                ),
                 value=len(choices),
             )
         )
 
-    device_index = questionary.select(
-        f"Select USB Device (Use arrow keys):\n{header}",
-        choices=choices,
-        instruction=" ",
+    device_index = select_table(
+        "Select USB Device (Use arrow keys):",
+        header,
+        choices,
     ).ask()
 
     spec = specs[device_index]
