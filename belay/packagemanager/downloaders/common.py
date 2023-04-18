@@ -1,3 +1,4 @@
+import shutil
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -34,9 +35,8 @@ def _download_generic(dst: Path, uri: str) -> Path:
 
         uri = str(uri_path)
 
-    if Path(uri).is_dir():
-        fs = fsspec.filesystem("file")
-        fs.get(uri, str(dst), recursive=True)
+    if Path(uri).is_dir():  # local
+        shutil.copytree(uri, dst, dirs_exist_ok=True)
     else:
         with fsspec.open(uri, "rb") as f:
             data = f.read()
