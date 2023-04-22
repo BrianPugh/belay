@@ -38,20 +38,25 @@ app.command()(update)
 
 
 def run_exec(command: List[str]):
-    """Pseudo-virtual-environment."""
+    """Enable virtual-environment and run command."""
     groups = load_groups()
     virtual_env = os.environ.copy()
     # Add all dependency groups to the micropython path.
+    # This flattens all dependencies to a single folder and fetches fresh
+    # copies of dependencies in ``develop`` mode.
     with TemporaryDirectory() as tmp_dir:
         virtual_env["MICROPYPATH"] = tmp_dir
         for group in groups:
             group.copy_to(tmp_dir)
 
-        return subprocess.run(  # nosec
-            command,
-            env=virtual_env,
-            check=True,
-        ).returncode
+        try:
+            subprocess.run(  # nosec
+                command,
+                env=virtual_env,
+                check=True,
+            )
+        except subprocess.CalledProcessError as e:
+            typer.Exit(code=e.returncode)
 
 
 def _get(indexable, index, default=None):
@@ -71,11 +76,11 @@ def run_app(*args, **kwargs):
         exec_path = None
 
     if command == "run" and exec_path:
-        # See docstring in belay.cli.run.run
-        return run_exec(sys.argv[2:])
-
-    # Common-case; use Typer functionality.
-    app(*args, **kwargs)
+        # Special subcommand override.
+        run_exec(sys.argv[2:])
+    else:
+        # Common-case; use Typer functionality.
+        app(*args, **kwargs)
 
 
 def version_callback(value: bool):

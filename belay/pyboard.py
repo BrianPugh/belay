@@ -86,6 +86,14 @@ def _kill_process(pid):
         pass
 
 
+def _parse_bool(env_var, default_value=False):
+    if env_var in os.environ:
+        env_value = os.environ[env_var].lower()
+        return env_value == "true" or env_value == "1"
+    else:
+        return default_value
+
+
 def stdout_write_bytes(b):
     b = b.replace(b"\x04", b"")
     stdout.write(b)
@@ -211,8 +219,12 @@ class ProcessToSerial:
 
         atexit.register(self.close)
 
+        t_deadline = time.time() + 1
         while b">>>" not in self.buf:
             time.sleep(0.0001)
+            if _parse_bool("BELAY_DEBUG_PROCESS_BUFFER") and time.time() > t_deadline:
+                t_deadline = time.time() + 1
+                print(self.buf)
 
     def close(self):
         _kill_process(self.subp.pid)
