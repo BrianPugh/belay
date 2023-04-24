@@ -45,7 +45,7 @@ def run_exec(command: List[str]):
     # This flattens all dependencies to a single folder and fetches fresh
     # copies of dependencies in ``develop`` mode.
     with TemporaryDirectory() as tmp_dir:
-        virtual_env["MICROPYPATH"] = tmp_dir
+        virtual_env["MICROPYPATH"] = f".:{tmp_dir}"
         for group in groups:
             group.copy_to(tmp_dir)
 
