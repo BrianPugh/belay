@@ -8,7 +8,7 @@ from rich.progress import Progress
 from typer import Argument, Option
 
 from belay import Device
-from belay.cli.common import help_password, help_port
+from belay.cli.common import help_password, help_port, remove_stacktrace
 from belay.cli.sync import sync_device as _sync_device
 from belay.project import find_project_folder, load_groups, load_pyproject
 
@@ -97,7 +97,8 @@ def install(
 
         if run:
             content = run.read_text()
-            device(content)
+            with remove_stacktrace():
+                device(content)
             return
 
         # Reset device so ``main.py`` has a chance to execute.

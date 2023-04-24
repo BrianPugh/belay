@@ -3,7 +3,7 @@ from pathlib import Path
 from typer import Argument, Option
 
 from belay import Device
-from belay.cli.common import help_password, help_port
+from belay.cli.common import help_password, help_port, remove_stacktrace
 
 
 def exec(
@@ -13,5 +13,6 @@ def exec(
 ):
     """Execute python statement on-device."""
     device = Device(port, password=password)
-    device(statement)
+    with remove_stacktrace():
+        device(statement)
     device.close()
