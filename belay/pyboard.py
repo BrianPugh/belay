@@ -54,6 +54,7 @@ Then:
 
 import ast
 import atexit
+import contextlib
 import itertools
 import os
 import platform
@@ -64,6 +65,8 @@ import time
 from pathlib import Path
 from threading import Lock, Thread
 from typing import Union
+
+from pydantic import ValidationError
 
 from .exceptions import BelayException, ConnectionFailedError, DeviceNotFoundError
 from .usb_specifier import UsbSpecifier
@@ -339,6 +342,9 @@ class Pyboard:
 
         if isinstance(device, UsbSpecifier):
             device = device.to_port()
+        else:
+            with contextlib.suppress(ValidationError):
+                device = UsbSpecifier.parse_raw(device).to_port()
 
         if device.startswith("exec:"):
             self.serial = ProcessToSerial(device[len("exec:") :])
