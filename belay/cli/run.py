@@ -3,7 +3,7 @@ from pathlib import Path
 from typer import Argument, Option
 
 from belay import Device
-from belay.cli.common import help_password, help_port
+from belay.cli.common import help_password, help_port, remove_stacktrace
 
 
 def run(
@@ -23,5 +23,5 @@ def run(
 
     """
     content = file.read_text()
-    with Device(port, password=password) as device:
+    with Device(port, password=password) as device, remove_stacktrace():
         device(content)
