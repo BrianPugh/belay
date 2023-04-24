@@ -35,6 +35,5 @@ from .exceptions import (
     NotBelayResponseError,
     SpecialFunctionNameError,
 )
-from .helpers import list_devices
 from .pyboard import PyboardException
-from .usb_specifier import UsbSpecifier
+from .usb_specifier import UsbSpecifier, list_devices

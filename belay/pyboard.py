@@ -54,6 +54,7 @@ Then:
 
 import ast
 import atexit
+import contextlib
 import itertools
 import os
 import platform
@@ -64,6 +65,8 @@ import time
 from pathlib import Path
 from threading import Lock, Thread
 from typing import Union
+
+from pydantic import ValidationError
 
 from .exceptions import BelayException, ConnectionFailedError, DeviceNotFoundError
 from .usb_specifier import UsbSpecifier
@@ -301,7 +304,7 @@ class ProcessPtyToTerminal:
 class Pyboard:
     def __init__(
         self,
-        device: Union[str, UsbSpecifier],
+        device: Union[None, str, UsbSpecifier] = None,
         baudrate: int = 115200,
         user: str = "micro",
         password: str = "python",  # noqa: S107
@@ -333,8 +336,15 @@ class Pyboard:
         self._consumed_buf = bytearray()
         self._unconsumed_buf = bytearray()
 
+        if device is None:
+            usb_specifier_str = os.environ.get("BELAY_DEVICE", "{}")
+            device = UsbSpecifier.parse_raw(usb_specifier_str)
+
         if isinstance(device, UsbSpecifier):
             device = device.to_port()
+        else:
+            with contextlib.suppress(ValidationError):
+                device = UsbSpecifier.parse_raw(device).to_port()
 
         if device.startswith("exec:"):
             self.serial = ProcessToSerial(device[len("exec:") :])

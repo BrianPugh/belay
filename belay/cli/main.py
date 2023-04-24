@@ -12,11 +12,11 @@ import belay
 from belay.cli import cache
 from belay.cli.clean import clean
 from belay.cli.exec import exec
-from belay.cli.identify import identify
 from belay.cli.info import info
 from belay.cli.install import install
 from belay.cli.new import new
 from belay.cli.run import run
+from belay.cli.select import select
 from belay.cli.sync import sync
 from belay.cli.terminal import terminal
 from belay.cli.update import update
@@ -27,11 +27,11 @@ app.add_typer(cache.app, name="cache")
 
 app.command()(clean)
 app.command()(exec)
-app.command()(identify)
 app.command()(info)
 app.command()(install)
 app.command()(new)
 app.command()(run)
+app.command()(select)
 app.command()(sync)
 app.command()(terminal)
 app.command()(update)

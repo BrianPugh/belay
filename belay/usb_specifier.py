@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 from pydantic import BaseModel, Field
 from serial.tools.list_ports import comports
@@ -38,6 +38,9 @@ class UsbSpecifier(BaseModel):
 
     device: Optional[str] = Field(None, exclude=True)
 
+    def __repr__(self):
+        return f'{self.__class__.__name__}({", ".join(f"{k}={v!r}" for k, v in self.dict().items() if v is not None)})'
+
     def to_port(self) -> str:
         if self.device:
             return self.device
@@ -45,7 +48,7 @@ class UsbSpecifier(BaseModel):
         spec = self.dict(exclude_none=True)
         possible_matches = []
 
-        for port_info in comports():
+        for port_info in list_devices():
             if _dict_is_subset(spec, vars(port_info)):
                 possible_matches.append(port_info)
         if not possible_matches:
@@ -57,3 +60,31 @@ class UsbSpecifier(BaseModel):
             raise InsufficientSpecifierError(message)
 
         return possible_matches[0].device
+
+    def populated(self):
+        # some ports, like wlan and bluetooth on macos,
+        # don't populate any meaningful fields.
+        return bool(self.dict(exclude_none=True))
+
+
+def list_devices() -> List[UsbSpecifier]:
+    """Lists available device ports.
+
+    Returns
+    -------
+    List[UsbSpecifier]
+        Available devices identifiers.
+    """
+    devices = [
+        UsbSpecifier(
+            vid=port.vid,
+            pid=port.pid,
+            serial_number=port.serial_number,
+            manufacturer=port.manufacturer,
+            product=port.product,
+            location=port.location,
+            device=port.device,
+        )
+        for port in comports()
+    ]
+    return [x for x in devices if x.populated()]
