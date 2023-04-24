@@ -309,6 +309,37 @@ Press ``ctrl-]`` to exit the terminal.
 
    belay terminal [PORT]
 
+select
+------
+Interactive menu for selecting a usb-connected micropython board.
+Helps identify and appropriate `UsbSpecifier`; particularly useful when interacting with multiple boards.
+
+.. code-block:: bash
+
+   belay select
+
+Example output:
+
+.. code-block:: bash
+
+   $ belay select
+   ? Select USB Device (Use arrow keys):
+      vid    pid    serial_number      manufacturer       product            location
+    » 11914  5      e6614c311b137637   MicroPython        Board in FS mode   0-1.1.3.1
+
+   Implementation(name='micropython', version=(1, 19, 1), platform='rp2', emitters=('native', 'viper'))
+   ? Blink LED Pin Number [skip]?
+
+
+   Either set the BELAY_DEVICE environment variable:
+       export BELAY_DEVICE='{"vid": 11914, "pid": 5, "serial_number": "e6614c311b137637", "manufacturer": "MicroPython", "product": "Board in FS mode", "location": "0-1.1.3.1"}'
+   And in python code, instantiate Device without arguments:
+       device = belay.Device()
+
+   Or, add the following (or a subset) to your python code:
+       spec = belay.UsbSpecifier(vid=11914, pid=5, serial_number='e6614c311b137637', manufacturer='MicroPython', product='Board in FS mode', location='0-1.1.3.1')
+       device = belay.Device(spec)
+
 Q&A
 ^^^
 
