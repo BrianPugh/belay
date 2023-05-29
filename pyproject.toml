@@ -117,7 +117,6 @@ select = [
     "PGH",  # pygrep-hooks
     "PTH", # flake8-use-pathlib
     "Q",  # flake8-quotes
-    "S",  # bandit
     "SIM",  # flake8-simplify
     "TRY",  # tryceratops
     "UP",  # pyupgrade
@@ -179,9 +178,6 @@ convention = "numpy"
     "D105",
     "D106",
     "D107",
-    "S101",  # use of "assert"
-    "S102",  # use of "exec"
-    "S106",  # possible hardcoded password.
     "PGH001",  # use of "eval"
 ]
 "belay/cli/select.py" = [
