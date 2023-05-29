@@ -56,7 +56,7 @@ def run_exec(command: List[str]):
                 check=True,
             )
         except subprocess.CalledProcessError as e:
-            typer.Exit(code=e.returncode)
+            sys.exit(e.returncode)
 
 
 def _get(indexable, index, default=None):
