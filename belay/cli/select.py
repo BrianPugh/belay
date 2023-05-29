@@ -2,6 +2,7 @@ import asyncio
 import contextlib
 
 import questionary
+import typer
 from questionary import Choice
 
 from belay import Device, DeviceMeta
@@ -115,6 +116,10 @@ def select():
                 value=len(choices),
             )
         )
+
+    if not choices:
+        print("Detected no devices.")
+        raise typer.Exit(code=1)
 
     device_index = select_table(
         "Select USB Device (Use arrow keys):",
