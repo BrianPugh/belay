@@ -1,6 +1,6 @@
 [build-system]
-requires = ["poetry>=1.2.0", "poetry-dynamic-versioning-plugin"]
-build-backend = "poetry.core.masonry.api"
+requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning"]
+build-backend = "poetry_dynamic_versioning.backend"
 
 [tool.poetry-dynamic-versioning]
 enable = true
@@ -23,18 +23,19 @@ belay = "belay.cli.main:run_app"
 
 [tool.poetry.dependencies]
 # Be as loose as possible if writing a library.
-python = "^3.8"
-pyserial = "^3.1"
-typer = {extras = ["all"], version = ">=0.6.0, <1.0.0"}
+python = "^3.8"  # TODO: unrestrict upper bound once Questionary loosens
+pyserial = ">=3.1"
+typer = {extras = ["all"], version = ">=0.6.0"}
 pathspec = "*"
-tomli = "^2.0.1"
-autoregistry = ">=0.10.1, <1.0.0"
+tomli = ">=2.0.1"
+autoregistry = ">=0.10.1"
 fsspec = {version = ">=2022.11.0", extras = ["http"]}
-requests = "^2.28.1"
-gitpython = "^3.1.30"
-pydantic = "^1.10.4"
-typing-extensions = "^4.5.0"
-questionary = "^1.10.0"
+requests = ">=2.28.1"
+gitpython = ">=3.1.30"
+pydantic = ">=1.10.4"
+typing-extensions = ">=4.5.0"
+questionary = ">=1.10.0"
+packaging = ">=20.4"
 
 [tool.poetry.group.docs.dependencies]
 sphinx = "^4.5.0"
