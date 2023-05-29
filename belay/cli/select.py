@@ -66,7 +66,7 @@ class MicroPythonBlinker(metaclass=DeviceMeta):
         if is_neopixel:
             from neopixel import NeoPixel
 
-            NeoPixel(led_io, 1)
+            pixel = NeoPixel(led_io, 1)
 
     @Device.task
     def led(value: bool) -> None:

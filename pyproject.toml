@@ -185,6 +185,7 @@ convention = "numpy"
 ]
 "belay/cli/select.py" = [
     "F821",
+    "F841"
 ]
 
 [tool.ruff.pep8-naming]
