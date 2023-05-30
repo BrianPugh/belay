@@ -122,6 +122,9 @@ class BelayConfig(BaseModel):
     # Name/Folder of project's primary micropython code.
     name: Optional[str] = None
 
+    # Items in project directory to ignore.
+    ignore: Optional[list] = []
+
     # "main" dependencies
     dependencies: Dict[str, DependencyList] = {}
 

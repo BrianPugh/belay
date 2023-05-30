@@ -287,6 +287,47 @@ def test_discover_files_dirs_dir_ignore(tmp_path):
     ]
 
 
+def test_discover_files_dirs_dir_ignore_folder(tmp_path):
+    (tmp_path / "file1.ext").touch()
+    (tmp_path / "file2.pyc").touch()
+    (tmp_path / "folder1").mkdir()
+    (tmp_path / "folder1" / "file3.ext").touch()
+
+    remote_dir = "/foo/bar"
+
+    src_files, src_dirs, dst_files = belay.device.discover_files_dirs(
+        remote_dir=remote_dir,
+        local_file_or_folder=tmp_path,
+        ignore=["*.pyc", "folder1"],
+    )
+
+    src_files = [x.relative_to(tmp_path) for x in src_files]
+    src_dirs = [x.relative_to(tmp_path) for x in src_dirs]
+    assert src_files == [
+        Path("file1.ext"),
+    ]
+    assert src_dirs == []
+    assert dst_files == [
+        Path("/foo/bar/file1.ext"),
+    ]
+
+    src_files, src_dirs, dst_files = belay.device.discover_files_dirs(
+        remote_dir=remote_dir,
+        local_file_or_folder=tmp_path,
+        ignore=["*.pyc", "folder1/"],  # Testing trailing slash
+    )
+
+    src_files = [x.relative_to(tmp_path) for x in src_files]
+    src_dirs = [x.relative_to(tmp_path) for x in src_dirs]
+    assert src_files == [
+        Path("file1.ext"),
+    ]
+    assert src_dirs == []
+    assert dst_files == [
+        Path("/foo/bar/file1.ext"),
+    ]
+
+
 def test_discover_files_dirs_empty(tmp_path):
     remote_dir = "/foo/bar"
     src_files, src_dirs, dst_files = belay.device.discover_files_dirs(

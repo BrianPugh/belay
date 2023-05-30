@@ -74,6 +74,7 @@ def test_install_basic(tmp_path, mocker, mock_device):
                 progress_update=mocker.ANY,
                 mpy_cross_binary=None,
                 dst="/my_pkg_name",
+                ignore=[],
             ),
         ]
     )

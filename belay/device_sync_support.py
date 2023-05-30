@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Optional, Union
 
 from pathspec import PathSpec
+from pathspec.util import append_dir_sep
 
 from ._minify import minify as minify_code
 from .hash import fnv1a
@@ -20,7 +21,7 @@ def discover_files_dirs(
             ignore = []
         ignore_spec = PathSpec.from_lines("gitwildmatch", ignore)
         for src_object in local_file_or_folder.rglob("*"):
-            if ignore_spec.match_file(str(src_object)):
+            if ignore_spec.match_file(append_dir_sep(src_object)):
                 continue
             src_objects.append(src_object)
         # Sort so that folder creation comes before file sending.
