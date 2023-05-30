@@ -24,9 +24,7 @@ def github(dst: Path, uri: str):
         raise NonMatchingURI
     org, repo, ref, path = match.groups()
 
-    githubusercontent_url = (
-        f"https://raw.githubusercontent.com/{org}/{repo}/{ref}/{path}"
-    )
+    githubusercontent_url = f"https://raw.githubusercontent.com/{org}/{repo}/{ref}/{path}"
 
     r = requests.get(githubusercontent_url, timeout=10.0)
 

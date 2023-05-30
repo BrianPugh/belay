@@ -372,16 +372,12 @@ def test_preprocess_ignore_invalid_dtype():
 
 
 def test_preprocess_src_file_default_py(tmp_path):
-    actual = device_sync_support.preprocess_src_file(
-        tmp_path, "foo/bar/baz.py", False, None
-    )
+    actual = device_sync_support.preprocess_src_file(tmp_path, "foo/bar/baz.py", False, None)
     assert actual == Path("foo/bar/baz.py")
 
 
 def test_preprocess_src_file_cross_mpy(tmp_path, mocker):
-    mock_check_output = mocker.patch(
-        "belay.device_sync_support.subprocess.check_output"
-    )
+    mock_check_output = mocker.patch("belay.device_sync_support.subprocess.check_output")
     actual = device_sync_support.preprocess_src_file(
         tmp_path,
         "foo/bar/baz.py",
@@ -398,9 +394,7 @@ def test_preprocess_src_file_cross_mpy(tmp_path, mocker):
 
 
 def test_preprocess_src_file_default_generic(tmp_path):
-    actual = device_sync_support.preprocess_src_file(
-        tmp_path, "foo/bar/baz.generic", False, None
-    )
+    actual = device_sync_support.preprocess_src_file(tmp_path, "foo/bar/baz.generic", False, None)
     assert actual == Path("foo/bar/baz.generic")
 
 

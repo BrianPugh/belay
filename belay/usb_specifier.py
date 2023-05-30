@@ -54,9 +54,7 @@ class UsbSpecifier(BaseModel):
         if not possible_matches:
             raise DeviceNotFoundError
         elif len(possible_matches) > 1:
-            message = "Multiple potential devices found:\n" + "\n".join(
-                f"    {vars(x)}" for x in possible_matches
-            )
+            message = "Multiple potential devices found:\n" + "\n".join(f"    {vars(x)}" for x in possible_matches)
             raise InsufficientSpecifierError(message)
 
         return possible_matches[0].device

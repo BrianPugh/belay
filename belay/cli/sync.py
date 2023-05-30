@@ -22,9 +22,7 @@ def sync(
     password: str = Option("", help=help_password),
     keep: Optional[List[str]] = Option(None, help="Files to keep."),
     ignore: Optional[List[str]] = Option(None, help="Files to ignore."),
-    mpy_cross_binary: Optional[Path] = Option(
-        None, help="Compile py files with this executable."
-    ),
+    mpy_cross_binary: Optional[Path] = Option(None, help="Compile py files with this executable."),
 ):
     """Synchronize a folder to device."""
     # Typer issues: https://github.com/tiangolo/typer/issues/410

@@ -45,9 +45,7 @@ def test_device_task(mocker, mock_device):
     def foo(a, b):
         c = a + b  # noqa: F841
 
-    mock_device._board.exec.assert_any_call(
-        "def foo(a,b):\n c=a+b\n", data_consumer=mocker.ANY
-    )
+    mock_device._board.exec.assert_any_call("def foo(a,b):\n c=a+b\n", data_consumer=mocker.ANY)
 
     foo(1, 2)
     assert mock_device._traceback_execute.call_args.args[-1] == "foo(*(1, 2), **{})"
@@ -63,14 +61,11 @@ def test_device_thread(mocker, mock_device):
     def foo(a, b):
         c = a + b  # noqa: F841
 
-    mock_device._board.exec.assert_any_call(
-        "def foo(a,b):\n c=a+b\n", data_consumer=mocker.ANY
-    )
+    mock_device._board.exec.assert_any_call("def foo(a,b):\n c=a+b\n", data_consumer=mocker.ANY)
 
     foo(1, 2)
     assert (
-        mock_device._traceback_execute.call_args.args[-1]
-        == "import _thread; _thread.start_new_thread(foo, (1, 2), {})"
+        mock_device._traceback_execute.call_args.args[-1] == "import _thread; _thread.start_new_thread(foo, (1, 2), {})"
     )
 
     foo(1, b=2)
@@ -82,12 +77,7 @@ def test_device_thread(mocker, mock_device):
 
 def test_device_traceback_execute(mocker, mock_device, tmp_path):
     src_file = tmp_path / "main.py"
-    src_file.write_text(
-        "\n"
-        "@device.task\n"
-        "def f():\n"
-        '    raise Exception("This is raised on-device.")'
-    )
+    src_file.write_text("\n" "@device.task\n" "def f():\n" '    raise Exception("This is raised on-device.")')
     exception = belay.PyboardException(
         "Traceback (most recent call last):\r\n"
         '  File "<stdin>", line 1, in <module>\r\n'

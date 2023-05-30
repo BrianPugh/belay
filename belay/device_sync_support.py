@@ -32,9 +32,7 @@ def discover_files_dirs(
                 src_dirs.append(src_object)
             else:
                 src_files.append(src_object)
-        dst_files = [
-            remote_dir / src.relative_to(local_file_or_folder) for src in src_files
-        ]
+        dst_files = [remote_dir / src.relative_to(local_file_or_folder) for src in src_files]
     else:
         src_files = [local_file_or_folder]
         src_dirs = []
@@ -91,9 +89,7 @@ def preprocess_src_file(
     if src_file.suffix == ".py":
         if mpy_cross_binary:
             transformed = transformed.with_suffix(".mpy")
-            subprocess.check_output(  # nosec
-                [mpy_cross_binary, "-o", transformed, src_file]
-            )
+            subprocess.check_output([mpy_cross_binary, "-o", transformed, src_file])  # nosec
             return transformed
         elif minify:
             minified = minify_code(src_file.read_text())

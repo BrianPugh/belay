@@ -16,19 +16,11 @@ from belay.project import find_project_folder, load_groups, load_pyproject
 def install(
     port: str = Argument(..., help=help_port),
     password: str = Option("", help=help_password),
-    mpy_cross_binary: Optional[Path] = Option(
-        None, help="Compile py files with this executable."
-    ),
+    mpy_cross_binary: Optional[Path] = Option(None, help="Compile py files with this executable."),
     run: Optional[Path] = Option(None, help="Run script on-device after installing."),
-    main: Optional[Path] = Option(
-        None, help="Sync script to /main.py after installing."
-    ),
-    with_groups: List[str] = Option(
-        None, "--with", help="Include specified optional dependency group."
-    ),
-    follow: bool = Option(
-        False, "--follow", "-f", help="Follow the stdout after upload."
-    ),
+    main: Optional[Path] = Option(None, help="Sync script to /main.py after installing."),
+    with_groups: List[str] = Option(None, "--with", help="Include specified optional dependency group."),
+    follow: bool = Option(False, "--follow", "-f", help="Follow the stdout after upload."),
 ):
     """Sync dependencies and project itself to device."""
     if run and run.suffix != ".py":

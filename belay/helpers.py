@@ -5,9 +5,7 @@ from functools import lru_cache, partial, wraps
 
 from . import snippets
 
-_python_identifier_chars = (
-    string.ascii_uppercase + string.ascii_lowercase + string.digits
-)
+_python_identifier_chars = string.ascii_uppercase + string.ascii_lowercase + string.digits
 
 
 def wraps_partial(f, *args, **kwargs):

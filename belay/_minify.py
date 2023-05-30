@@ -61,9 +61,7 @@ def minify(code: str) -> str:
         elif token_type == COMMENT:
             continue
 
-        if token_type == STRING and (
-            prev_token_type in (NEWLINE, INDENT) or start_col == global_start_col
-        ):
+        if token_type == STRING and (prev_token_type in (NEWLINE, INDENT) or start_col == global_start_col):
             # Docstring
             out.append(" " * level + "0" + "\n" * string.count("\n"))
         elif start_line > prev_start_line and token_type != NEWLINE:

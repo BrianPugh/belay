@@ -28,9 +28,7 @@ def new(project_name: str = Argument(..., help="Project Name.")):
         def _replace(match):
             return replacements[match.group(0)]
 
-        return re.sub(
-            "|".join(r"\b%s\b" % re.escape(s) for s in replacements), _replace, string
-        )
+        return re.sub("|".join(r"\b%s\b" % re.escape(s) for s in replacements), _replace, string)
 
     for path in paths:
         if path.is_dir():

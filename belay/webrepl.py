@@ -158,9 +158,7 @@ def put_file(ws, local_file, remote_file):
     local_file = Path(local_file)
     sz = local_file.stat().st_size
     dest_fname = (SANDBOX + remote_file).encode("utf-8")
-    rec = struct.pack(
-        WEBREPL_REQ_S, b"WA", WEBREPL_PUT_FILE, 0, 0, sz, len(dest_fname), dest_fname
-    )
+    rec = struct.pack(WEBREPL_REQ_S, b"WA", WEBREPL_PUT_FILE, 0, 0, sz, len(dest_fname), dest_fname)
     debugmsg("%r %d" % (rec, len(rec)))
     ws.write(rec[:10])
     ws.write(rec[10:])
@@ -184,9 +182,7 @@ def put_file(ws, local_file, remote_file):
 def get_file(ws, local_file, remote_file):
     local_file = Path(local_file)
     src_fname = (SANDBOX + remote_file).encode("utf-8")
-    rec = struct.pack(
-        WEBREPL_REQ_S, b"WA", WEBREPL_GET_FILE, 0, 0, 0, len(src_fname), src_fname
-    )
+    rec = struct.pack(WEBREPL_REQ_S, b"WA", WEBREPL_GET_FILE, 0, 0, 0, len(src_fname), src_fname)
     debugmsg("%r %d" % (rec, len(rec)))
     ws.write(rec)
     if read_resp(ws) != 0:
@@ -214,17 +210,10 @@ def get_file(ws, local_file, remote_file):
 
 def help(rc=0):
     exename = sys.argv[0].rsplit("/", 1)[-1]
-    print(
-        "%s - Perform remote file operations using MicroPython WebREPL protocol"
-        % exename
-    )
+    print("%s - Perform remote file operations using MicroPython WebREPL protocol" % exename)
     print("Arguments:")
-    print(
-        "  [-p password] <host>:<remote_file> <local_file> - Copy remote file to local file"
-    )
-    print(
-        "  [-p password] <local_file> <host>:<remote_file> - Copy local file to remote file"
-    )
+    print("  [-p password] <host>:<remote_file> <local_file> - Copy remote file to local file")
+    print("  [-p password] <local_file> <host>:<remote_file> - Copy local file to remote file")
     print("Examples:")
     print("  %s script.py 192.168.4.1:/another_name.py" % exename)
     print("  %s script.py 192.168.4.1:/app/" % exename)

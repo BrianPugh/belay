@@ -202,9 +202,7 @@ def test_classes_executer_implementation_overload(emulate_command, mocker):
             return setup_var  # noqa: F821
 
     with MyDevice(emulate_command) as device:
-        assert (
-            len(device._belay_teardown._belay_executers) == 1
-        )  # TODO: change to teardown after fix
+        assert len(device._belay_teardown._belay_executers) == 1  # TODO: change to teardown after fix
         if "--image=micropython" in emulate_command:
             assert device.test_task() == "micropython_task_return_value"
             device.test_setup()
@@ -243,9 +241,7 @@ def test_classes_executer_implementation_overload_stomping(emulate_command, mock
             raise NotImplementedError
 
 
-def test_classes_executer_implementation_overload_mixins_per_implementation(
-    emulate_command, mocker
-):
+def test_classes_executer_implementation_overload_mixins_per_implementation(emulate_command, mocker):
     """Tests if proper overloaded methods from mixins are executed depending on implementation."""
 
     class MicropythonMixin(metaclass=DeviceMeta):
@@ -284,9 +280,7 @@ def test_classes_executer_implementation_overload_mixins_per_implementation(
             raise NotImplementedError
 
 
-def test_classes_executer_implementation_overload_mixins_per_implementation_stomping(
-    emulate_command, mocker
-):
+def test_classes_executer_implementation_overload_mixins_per_implementation_stomping(emulate_command, mocker):
     """Tests if proper overloaded methods from mixins are executed depending on implementation.
 
     In this test, they have same names as executers.
@@ -326,9 +320,7 @@ def test_classes_executer_implementation_overload_mixins_per_implementation_stom
             raise NotImplementedError
 
 
-def test_classes_executer_implementation_overload_mixins_per_method(
-    emulate_command, mocker
-):
+def test_classes_executer_implementation_overload_mixins_per_method(emulate_command, mocker):
     """Tests if proper overloaded methods from mixins are executed depending on implementation."""
 
     class TaskMixin(metaclass=DeviceMeta):

@@ -40,9 +40,7 @@ class OverloadDict(dict):
             # Check for a previous "catchall" method
             for f in prior_val:
                 if not f.__belay__.implementation:
-                    raise ValueError(
-                        f"Cannot define another executor after catchall: {key}."
-                    )
+                    raise ValueError(f"Cannot define another executor after catchall: {key}.")
             prior_val.append(value)
         else:
             # Overwrite a previous vanilla method
@@ -93,8 +91,7 @@ class DeviceMeta(RegistryMeta):
 
     def __new__(cls, name, bases, namespace, **kwargs):
         overload_namespace = {
-            key: ExecuterMethod(val) if isinstance(val, OverloadList) else val
-            for key, val in namespace.items()
+            key: ExecuterMethod(val) if isinstance(val, OverloadList) else val for key, val in namespace.items()
         }
         output_cls = super().__new__(cls, name, bases, overload_namespace, **kwargs)
         return output_cls

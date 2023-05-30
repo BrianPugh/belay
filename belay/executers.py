@@ -23,14 +23,8 @@ class Executer(Registry, suffix="Executer"):
         object.__setattr__(self, "_belay_executers", [])
 
     def __setattr__(self, name: str, value: BelayCallable):
-        if (
-            name.startswith("_belay")
-            or name.startswith("__belay")
-            or (name.startswith("__") and name.endswith("__"))
-        ):
-            raise SpecialFunctionNameError(
-                f'Not allowed to register function named "{name}".'
-            )
+        if name.startswith("_belay") or name.startswith("__belay") or (name.startswith("__") and name.endswith("__")):
+            raise SpecialFunctionNameError(f'Not allowed to register function named "{name}".')
         super().__setattr__(name, value)
 
     def __getattr__(self, name: str) -> BelayCallable:
@@ -70,9 +64,7 @@ class _GlobalExecuter(Executer, skip=True):
         if f is None:
             return wraps_partial(self, minify=minify, register=register, record=record)
         if inspect.isgeneratorfunction(f):
-            raise ValueError(
-                f"@Device.{type(self).__registry__.name} does not support generators."
-            )
+            raise ValueError(f"@Device.{type(self).__registry__.name} does not support generators.")
         name = f.__name__
         src_code, src_lineno, src_file = getsource(f, strip_signature=True)
         if minify:
@@ -84,16 +76,12 @@ class _GlobalExecuter(Executer, skip=True):
             cmd = src_code
             bound_arguments = signature.bind(*args, **kwargs)
             bound_arguments.apply_defaults()
-            arg_assign_cmd = "\n".join(
-                f"{name}={repr(val)}" for name, val in bound_arguments.arguments.items()
-            )
+            arg_assign_cmd = "\n".join(f"{name}={repr(val)}" for name, val in bound_arguments.arguments.items())
             if arg_assign_cmd:
                 cmd = arg_assign_cmd + "\n" + cmd
 
             try:
-                self._belay_device._traceback_execute(
-                    src_file, src_lineno, name, cmd, record=record
-                )
+                self._belay_device._traceback_execute(src_file, src_lineno, name, cmd, record=record)
             except Exception:
                 if not ignore_errors:
                     raise
@@ -150,22 +138,16 @@ class TaskExecuter(Executer):
         def func_executer(*args, **kwargs):
             cmd = f"{name}(*{repr(args)}, **{repr(kwargs)})"
 
-            return self._belay_device._traceback_execute(
-                src_file, src_lineno, name, cmd, record=record
-            )
+            return self._belay_device._traceback_execute(src_file, src_lineno, name, cmd, record=record)
 
         @wraps(f)
         def gen_executer(*args, **kwargs):
             if record:
-                raise NotImplementedError(
-                    "Recording of generator tasks is currently not supported."
-                )
+                raise NotImplementedError("Recording of generator tasks is currently not supported.")
             # Step 1: Create the on-device generator
             gen_identifier = random_python_identifier()
             cmd = f"{gen_identifier} = {name}(*{repr(args)}, **{repr(kwargs)})"
-            self._belay_device._traceback_execute(
-                src_file, src_lineno, name, cmd, record=False
-            )
+            self._belay_device._traceback_execute(src_file, src_lineno, name, cmd, record=False)
             # Step 2: Create the host generator that invokes ``next()`` on-device.
 
             def gen_inner():
@@ -231,9 +213,7 @@ class ThreadExecuter(Executer):
         @wraps(f)
         def executer(*args, **kwargs):
             cmd = f"import _thread; _thread.start_new_thread({name}, {repr(args)}, {repr(kwargs)})"
-            self._belay_device._traceback_execute(
-                src_file, src_lineno, name, cmd, record=record
-            )
+            self._belay_device._traceback_execute(src_file, src_lineno, name, cmd, record=record)
 
         if register:
             setattr(self, name, executer)

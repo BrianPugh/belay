@@ -15,6 +15,7 @@ repos:
           - "--target-version=py38"
           - "--target-version=py39"
           - "--target-version=py310"
+          - "--line-length=120"
         types: [python]
         exclude: ^(belay/snippets/)
 
