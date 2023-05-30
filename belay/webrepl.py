@@ -59,20 +59,13 @@ class Websocket:
 
     def write(self, data):
         data_len = len(data)
-        if data_len < 126:
-            # TODO: hardcoded "binary" type
-            hdr = struct.pack(">BB", 0x82, data_len)
-        else:
-            hdr = struct.pack(">BBH", 0x82, 126, data_len)
+        hdr = struct.pack(">BB", 130, data_len) if data_len < 126 else struct.pack(">BBH", 130, 126, data_len)
         self.s.send(hdr)
         self.s.send(data)
 
     def writetext(self, data: bytes):
         data_len = len(data)
-        if data_len < 126:
-            hdr = struct.pack(">BB", 0x81, data_len)
-        else:
-            hdr = struct.pack(">BBH", 0x81, 126, data_len)
+        hdr = struct.pack(">BB", 129, data_len) if data_len < 126 else struct.pack(">BBH", 129, 126, data_len)
         self.s.send(hdr)
         self.s.send(data)
 

@@ -119,10 +119,7 @@ class Group:
         if not packages:
             return
 
-        if console:
-            cm = console.status("[bold green]Updating Dependencies")
-        else:
-            cm = nullcontext()
+        cm = console.status("[bold green]Updating Dependencies") if console else nullcontext()
 
         def log(*args, **kwargs):
             if console:

@@ -80,10 +80,7 @@ def preprocess_src_file(
     tmp_dir = Path(tmp_dir)
     src_file = Path(src_file)
 
-    if src_file.is_absolute():
-        transformed = tmp_dir / src_file.relative_to(tmp_dir.anchor)
-    else:
-        transformed = tmp_dir / src_file
+    transformed = tmp_dir / src_file.relative_to(tmp_dir.anchor) if src_file.is_absolute() else tmp_dir / src_file
     transformed.parent.mkdir(parents=True, exist_ok=True)
 
     if src_file.suffix == ".py":

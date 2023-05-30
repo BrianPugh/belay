@@ -14,10 +14,7 @@ def update(packages: List[str] = Argument(None, help="Specific package(s) to upd
     packages = packages if packages else None
 
     for group in groups:
-        if packages is None:
-            group_packages = None
-        else:
-            group_packages = [x for x in packages if x in group.config.dependencies]
+        group_packages = None if packages is None else [x for x in packages if x in group.config.dependencies]
 
         group.download(
             packages=group_packages,
