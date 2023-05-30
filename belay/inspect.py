@@ -14,9 +14,7 @@ from tokenize import (
 )
 from typing import Tuple
 
-_pat_no_decorators = re.compile(
-    r"^(\s*def\s)|(\s*async\s+def\s)|(.*(?<!\w)lambda(:|\s))"
-)
+_pat_no_decorators = re.compile(r"^(\s*def\s)|(\s*async\s+def\s)|(.*(?<!\w)lambda(:|\s))")
 
 
 class _NoAction(Exception):  # noqa: N818

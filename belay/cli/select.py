@@ -110,9 +110,7 @@ def select():
         specs.append(spec)
         choices.append(
             Choice(
-                " ".join(
-                    f"{str(getattr(spec, k)):{v}.{v}}" for k, v in table_spec.items()
-                ),
+                " ".join(f"{str(getattr(spec, k)):{v}.{v}}" for k, v in table_spec.items()),
                 value=len(choices),
             )
         )
@@ -148,9 +146,7 @@ def select():
         ).ask()
 
         if pin_number:
-            is_neopixel = questionary.confirm(
-                "Is this a NeoPixel?", default=False
-            ).ask()
+            is_neopixel = questionary.confirm("Is this a NeoPixel?", default=False).ask()
             device.setup(pin_number, is_neopixel)
 
             asyncio.run(blink_until_prompt(device))
@@ -159,12 +155,8 @@ def select():
     questionary.print("\n")
     questionary.print("Either set the BELAY_DEVICE environment variable:", style=style)
     questionary.print(f"    export BELAY_DEVICE='{spec_json}'")
-    questionary.print(
-        "And in python code, instantiate Device without arguments:", style=style
-    )
+    questionary.print("And in python code, instantiate Device without arguments:", style=style)
     questionary.print("    device = belay.Device()")
     questionary.print("")
-    questionary.print(
-        "Or, add the following (or a subset) to your python code:", style=style
-    )
+    questionary.print("Or, add the following (or a subset) to your python code:", style=style)
     questionary.print(f"    spec = belay.{spec!r}\n    device = belay.Device(spec)\n")

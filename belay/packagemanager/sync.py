@@ -27,9 +27,7 @@ def sync(src_folder: PathType, dst_folder: PathType) -> bool:
     changed = False
     src_folder, dst_folder = Path(src_folder), Path(dst_folder)
 
-    src_files = {
-        x.relative_to(src_folder) for x in src_folder.rglob("*") if x.is_file()
-    }
+    src_files = {x.relative_to(src_folder) for x in src_folder.rglob("*") if x.is_file()}
 
     dst_files, dst_subfolders = set(), set()
     for dst_item in dst_folder.rglob("*"):

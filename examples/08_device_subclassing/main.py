@@ -16,9 +16,7 @@ class MyDevice(Device):
     def setup():
         # Code here is executed on-device in a global context.
         led_pin = Pin(25, Pin.OUT)
-        sensor_temp = ADC(
-            4
-        )  # ADC4 is attached to an internal temperature sensor on the Pi Pico
+        sensor_temp = ADC(4)  # ADC4 is attached to an internal temperature sensor on the Pi Pico
 
     @Device.task
     def set_led(state):

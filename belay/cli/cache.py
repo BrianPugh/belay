@@ -72,8 +72,6 @@ def info():
     n_elements = len(builtins.list(cache_folder.glob("*")))
     print(f"Elements: {n_elements}")
 
-    size_in_bytes = sum(
-        f.stat().st_size for f in cache_folder.glob("**/*") if f.is_file()
-    )
+    size_in_bytes = sum(f.stat().st_size for f in cache_folder.glob("**/*") if f.is_file())
     size_in_megabytes = size_in_bytes / (1 << 20)
     print(f"Total Size: {size_in_megabytes:0.3}MB")

@@ -56,9 +56,7 @@ def cli_runner(mock_device):
     cli_runner = CliRunner()
 
     def run(cmd, *args):
-        result = cli_runner.invoke(
-            app, [cmd, "/dev/ttyUSB0", *args, "--password", "password"]
-        )
+        result = cli_runner.invoke(app, [cmd, "/dev/ttyUSB0", *args, "--password", "password"])
         mock_device.cls_assert_common()
         return result
 
@@ -73,9 +71,7 @@ def cli_runner(mock_device):
     ]
 )
 def emulate_command(request):
-    return (
-        f"exec:npm run --prefix rp2040js start:micropython -- --image={request.param}"
-    )
+    return f"exec:npm run --prefix rp2040js start:micropython -- --image={request.param}"
 
 
 @pytest.fixture

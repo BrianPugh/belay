@@ -108,9 +108,7 @@ class Device(metaclass=DeviceMeta):
 
         # Obtain implementation early on so implementation-specific executers can be bound.
         self.implementation = Implementation(
-            *self(
-                "(sys.implementation.name, sys.implementation.version, sys.platform)"
-            ),
+            *self("(sys.implementation.name, sys.implementation.version, sys.platform)"),
             emitters=self._emitter_check(),
         )
 
@@ -261,11 +259,7 @@ class Device(metaclass=DeviceMeta):
             # Belay Tasks are inherently expressions as well.
             cmd = f"print('_BELAYR' + repr({cmd}))"
 
-        if (
-            record
-            and self.attempts
-            and len(self._cmd_history) < self.MAX_CMD_HISTORY_LEN
-        ):
+        if record and self.attempts and len(self._cmd_history) < self.MAX_CMD_HISTORY_LEN:
             self._cmd_history.append(cmd)
 
         out = None  # Used to store the parsed response object.
@@ -382,8 +376,7 @@ class Device(metaclass=DeviceMeta):
 
         if mpy_cross_binary:
             dst_files = [
-                dst_file.with_suffix(".mpy") if dst_file.suffix == ".py" else dst_file
-                for dst_file in dst_files
+                dst_file.with_suffix(".mpy") if dst_file.suffix == ".py" else dst_file for dst_file in dst_files
             ]
         dst_files = [dst_file.as_posix() for dst_file in dst_files]
         dst_dirs = generate_dst_dirs(dst, folder, src_dirs)
@@ -391,9 +384,7 @@ class Device(metaclass=DeviceMeta):
         if keep_all:
             self("del __belay_del_fs")
         else:
-            self(
-                f"__belay_del_fs({repr(dst)}, {repr(set(keep + dst_files))}); del __belay_del_fs"
-            )
+            self(f"__belay_del_fs({repr(dst)}, {repr(set(keep + dst_files))}); del __belay_del_fs")
 
         # Try and make all remote dirs
         if dst_dirs:
@@ -405,13 +396,9 @@ class Device(metaclass=DeviceMeta):
             tmp_dir = Path(tmp_dir)
 
             def _preprocess_src_file_hash_helper(src_file):
-                return preprocess_src_file_hash(
-                    tmp_dir, src_file, minify, mpy_cross_binary
-                )
+                return preprocess_src_file_hash(tmp_dir, src_file, minify, mpy_cross_binary)
 
-            src_files_and_hashes = executor.map(
-                _preprocess_src_file_hash_helper, src_files
-            )
+            src_files_and_hashes = executor.map(_preprocess_src_file_hash_helper, src_files)
 
             # Get all remote hashes
             if progress_update:
@@ -422,9 +409,7 @@ class Device(metaclass=DeviceMeta):
                 raise InternalError
 
             puts = []
-            for (src_file, src_hash), dst_file, dst_hash in zip(
-                src_files_and_hashes, dst_files, dst_hashes
-            ):
+            for (src_file, src_hash), dst_file, dst_hash in zip(src_files_and_hashes, dst_files, dst_hashes):
                 if src_hash != dst_hash:
                     puts.append((src_file, dst_file))
 
@@ -601,11 +586,7 @@ class Device(metaclass=DeviceMeta):
         if f is None:
             return wraps_partial(Device.setup, autoinit=autoinit, implementation=implementation, **kwargs)  # type: ignore[reportGeneralTypeIssues]
         if signature(f).parameters and autoinit:
-            raise ValueError(
-                f"Method {f} decorated with "
-                '"@Device.setup(autoinit=True)" '
-                "must have no arguments."
-            )
+            raise ValueError(f"Method {f} decorated with " '"@Device.setup(autoinit=True)" ' "must have no arguments.")
 
         f.__belay__ = MethodMetadata(
             executer=SetupExecuter,
@@ -622,9 +603,7 @@ class Device(metaclass=DeviceMeta):
 
     @overload
     @staticmethod
-    def teardown(
-        *, implementation: str = "", **kwargs
-    ) -> Callable[[Callable[P, R]], Callable[P, R]]:
+    def teardown(*, implementation: str = "", **kwargs) -> Callable[[Callable[P, R]], Callable[P, R]]:
         ...
 
     @staticmethod
@@ -663,13 +642,9 @@ class Device(metaclass=DeviceMeta):
             return wraps_partial(Device.teardown, implementation=implementation, **kwargs)  # type: ignore[reportGeneralTypeIssues]
 
         if signature(f).parameters:
-            raise ValueError(
-                f'Method {f} decorated with "@Device.teardown" must have no arguments.'
-            )
+            raise ValueError(f'Method {f} decorated with "@Device.teardown" must have no arguments.')
 
-        f.__belay__ = MethodMetadata(
-            executer=TeardownExecuter, implementation=implementation, kwargs=kwargs
-        )
+        f.__belay__ = MethodMetadata(executer=TeardownExecuter, implementation=implementation, kwargs=kwargs)
         return f
 
     @overload
@@ -679,9 +654,7 @@ class Device(metaclass=DeviceMeta):
 
     @overload
     @staticmethod
-    def task(
-        *, implementation: str = "", **kwargs
-    ) -> Callable[[Callable[P, R]], Callable[P, R]]:
+    def task(*, implementation: str = "", **kwargs) -> Callable[[Callable[P, R]], Callable[P, R]]:
         ...
 
     @staticmethod
@@ -718,9 +691,7 @@ class Device(metaclass=DeviceMeta):
         if f is None:
             return wraps_partial(Device.task, implementation=implementation, **kwargs)  # type: ignore[reportGeneralTypeIssues]
 
-        f.__belay__ = MethodMetadata(
-            executer=TaskExecuter, implementation=implementation, kwargs=kwargs
-        )
+        f.__belay__ = MethodMetadata(executer=TaskExecuter, implementation=implementation, kwargs=kwargs)
         return f
 
     @overload
@@ -730,9 +701,7 @@ class Device(metaclass=DeviceMeta):
 
     @overload
     @staticmethod
-    def thread(
-        *, implementation: str = "", **kwargs
-    ) -> Callable[[Callable[P, R]], Callable[P, R]]:
+    def thread(*, implementation: str = "", **kwargs) -> Callable[[Callable[P, R]], Callable[P, R]]:
         ...
 
     @staticmethod
@@ -764,9 +733,7 @@ class Device(metaclass=DeviceMeta):
         """  # noqa: D400
         if f is None:
             return wraps_partial(Device.task, implementation=implementation, **kwargs)  # type: ignore[reportGeneralTypeIssues]
-        f.__belay__ = MethodMetadata(
-            executer=ThreadExecuter, implementation=implementation, kwargs=kwargs
-        )
+        f.__belay__ = MethodMetadata(executer=ThreadExecuter, implementation=implementation, kwargs=kwargs)
         return f
 
     def terminal(self, *, exit_char=chr(0x1D)):

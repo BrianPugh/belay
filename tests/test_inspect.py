@@ -61,9 +61,7 @@ def test_getsource_decorated_1(foo):
 
 
 def test_getsource_decorated_1_body(foo):
-    code, lineno, file = belay.inspect.getsource(
-        foo.foo_decorated_1, strip_signature=True
-    )
+    code, lineno, file = belay.inspect.getsource(foo.foo_decorated_1, strip_signature=True)
     assert code == "return arg1 +arg2 \n"
     assert lineno == 21
     assert file == foo.__file__
@@ -77,9 +75,7 @@ def test_getsource_decorated_2(foo):
 
 
 def test_getsource_decorated_2_body(foo):
-    code, lineno, file = belay.inspect.getsource(
-        foo.foo_decorated_2, strip_signature=True
-    )
+    code, lineno, file = belay.inspect.getsource(foo.foo_decorated_2, strip_signature=True)
     assert code == "return arg1 +arg2 \n"
     assert lineno == 26
     assert file == foo.__file__
@@ -93,9 +89,7 @@ def test_getsource_decorated_3(foo):
 
 
 def test_getsource_decorated_3_body(foo):
-    code, lineno, file = belay.inspect.getsource(
-        foo.foo_decorated_3, strip_signature=True
-    )
+    code, lineno, file = belay.inspect.getsource(foo.foo_decorated_3, strip_signature=True)
     assert code == "return arg1 +arg2 \n"
     assert lineno == 31
     assert file == foo.__file__
@@ -103,18 +97,13 @@ def test_getsource_decorated_3_body(foo):
 
 def test_getsource_decorated_4(foo):
     code, lineno, file = belay.inspect.getsource(foo.foo_decorated_4)
-    assert (
-        code
-        == "def foo_decorated_4(\n    arg1,\n    arg2,\n):\n    return arg1 + arg2\n"
-    )
+    assert code == "def foo_decorated_4(\n    arg1,\n    arg2,\n):\n    return arg1 + arg2\n"
     assert lineno == 35
     assert file == foo.__file__
 
 
 def test_getsource_decorated_4_body(foo):
-    code, lineno, file = belay.inspect.getsource(
-        foo.foo_decorated_4, strip_signature=True
-    )
+    code, lineno, file = belay.inspect.getsource(foo.foo_decorated_4, strip_signature=True)
     assert code == "return arg1 +arg2 \n"
     assert lineno == 39
     assert file == foo.__file__
@@ -130,9 +119,7 @@ def test_getsource_decorated_5(foo):
 
 def test_getsource_decorated_5_body(foo):
     """Removes leading indent."""
-    code, lineno, file = belay.inspect.getsource(
-        foo.foo_decorated_5, strip_signature=True
-    )
+    code, lineno, file = belay.inspect.getsource(foo.foo_decorated_5, strip_signature=True)
     assert code == "return arg1 +arg2 \n"
     assert lineno == 46
     assert file == foo.__file__
@@ -148,9 +135,7 @@ def test_getsource_decorated_6(foo):
 
 def test_getsource_decorated_6_body(foo):
     """Double decorated."""
-    code, lineno, file = belay.inspect.getsource(
-        foo.foo_decorated_6, strip_signature=True
-    )
+    code, lineno, file = belay.inspect.getsource(foo.foo_decorated_6, strip_signature=True)
     assert code == "return arg1 +arg2 \n"
     assert lineno == 52
     assert file == foo.__file__
@@ -169,9 +154,7 @@ def test_getsource_decorated_7(foo):
 
 def test_getsource_decorated_7_body(foo):
     """Double decorated."""
-    code, lineno, file = belay.inspect.getsource(
-        foo.foo_decorated_7, strip_signature=True
-    )
+    code, lineno, file = belay.inspect.getsource(foo.foo_decorated_7, strip_signature=True)
     assert code == 'return """This\n    is\na\n  multiline\n             string.\n"""\n'
     assert lineno == 57
     assert file == foo.__file__
@@ -199,10 +182,7 @@ a
 """
 
     code, lineno, file = belay.inspect.getsource(foo)
-    assert (
-        code
-        == 'def foo (arg1 ,arg2 ):\n    return """This\n    is\na\n  multiline\n             string.\n"""\n'
-    )
+    assert code == 'def foo (arg1 ,arg2 ):\n    return """This\n    is\na\n  multiline\n             string.\n"""\n'
     assert file == __file__
 
 
@@ -221,10 +201,7 @@ arg1,
 
     # fmt: on
     code, lineno, file = belay.inspect.getsource(foo)
-    assert (
-        code
-        == "def foo (arg1 ,arg2 ):\n    return bar (\n    arg1 ,\n    arg2 \n    )\n"
-    )
+    assert code == "def foo (arg1 ,arg2 ):\n    return bar (\n    arg1 ,\n    arg2 \n    )\n"
     assert file == __file__
 
 

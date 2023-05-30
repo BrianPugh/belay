@@ -32,9 +32,7 @@ def test_update_specific_packages(mocker, tmp_path):
     toml_path = tmp_path / "pyproject.toml"
     toml_path.touch()
 
-    groups = [
-        Group("name", dependencies={"foo": "foo.py", "bar": "bar.py", "baz": "baz.py"})
-    ]
+    groups = [Group("name", dependencies={"foo": "foo.py", "bar": "bar.py", "baz": "baz.py"})]
     mock_download = mocker.patch.object(groups[0], "download")
     mock_load_groups = mocker.patch("belay.cli.update.load_groups", return_value=groups)
     res = cli_runner.invoke(app, ["update", "bar", "baz"])

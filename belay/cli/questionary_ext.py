@@ -54,11 +54,7 @@ def press_any_key_to_continue(
     def any_key(event):
         exit_with_result(event)
 
-    return Question(
-        PromptSession(
-            get_prompt_tokens, key_bindings=bindings, style=merged_style, **kwargs
-        ).app
-    )
+    return Question(PromptSession(get_prompt_tokens, key_bindings=bindings, style=merged_style, **kwargs).app)
 
 
 def select_table(

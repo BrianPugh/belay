@@ -48,9 +48,7 @@ def test_install_basic(tmp_path, mocker, mock_device):
     toml = {"name": "my_pkg_name"}
 
     mock_load_toml = mocker.patch("belay.project.load_toml", return_value=toml)
-    mocker.patch(
-        "belay.project.find_dependencies_folder", return_value=dependencies_folder
-    )
+    mocker.patch("belay.project.find_dependencies_folder", return_value=dependencies_folder)
     mocker.patch("belay.cli.install.find_project_folder", return_value=Path())
     mock_device.patch("belay.cli.install.Device")
 

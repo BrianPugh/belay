@@ -61,9 +61,7 @@ def _dependencies_preprocessor(dependencies) -> Dict[str, List[dict]]:
                         }
                     )
                 elif isinstance(elem, list):
-                    raise TypeError(
-                        "Cannot have double nested lists in dependency specification."
-                    )
+                    raise TypeError("Cannot have double nested lists in dependency specification.")
                 elif isinstance(elem, (dict, DependencySourceConfig)):
                     group_value_out.append(elem)
                 else:
@@ -104,12 +102,8 @@ class GroupConfig(BaseModel):
     ##############
     # VALIDATORS #
     ##############
-    _v_dependencies_preprocessor = prevalidator_reuse("dependencies")(
-        _dependencies_preprocessor
-    )
-    _v_dependencies_names = validator_reuse("dependencies")(
-        _dependencies_name_validator
-    )
+    _v_dependencies_preprocessor = prevalidator_reuse("dependencies")(_dependencies_preprocessor)
+    _v_dependencies_names = validator_reuse("dependencies")(_dependencies_name_validator)
 
     @validator("dependencies")
     def max_1_rename_to_init(packages: dict):
@@ -118,9 +112,7 @@ class GroupConfig(BaseModel):
             rename_to_init_count.setdefault(package_name, 0)
             rename_to_init_count[package_name] += dependency.rename_to_init
             if rename_to_init_count[package_name] > 1:
-                raise ValueError(
-                    f'{package_name} has more than 1 dependency marked with "rename_to_init".'
-                )
+                raise ValueError(f'{package_name} has more than 1 dependency marked with "rename_to_init".')
         return packages
 
 
@@ -142,12 +134,8 @@ class BelayConfig(BaseModel):
     ##############
     # VALIDATORS #
     ##############
-    _v_dependencies_preprocessor = prevalidator_reuse("dependencies")(
-        _dependencies_preprocessor
-    )
-    _v_dependencies_names = validator_reuse("dependencies")(
-        _dependencies_name_validator
-    )
+    _v_dependencies_preprocessor = prevalidator_reuse("dependencies")(_dependencies_preprocessor)
+    _v_dependencies_names = validator_reuse("dependencies")(_dependencies_name_validator)
 
     @validator("group")
     def main_not_in_group(cls, v):

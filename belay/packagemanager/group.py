@@ -166,9 +166,7 @@ def _walk_develop_dependencies(packages: dict):
             yield package_name, dependency
 
 
-def _download_and_verify_dependency(
-    download_folder: PathType, dependency: DependencySourceConfig
-):
+def _download_and_verify_dependency(download_folder: PathType, dependency: DependencySourceConfig):
     """Download and verify a dependency.
 
     Parameters

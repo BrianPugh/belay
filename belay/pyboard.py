@@ -160,10 +160,7 @@ class TelnetToSerial:
                 timeout_count = 0
             else:
                 time.sleep(0.25)
-                if (
-                    self.read_timeout is not None
-                    and timeout_count > 4 * self.read_timeout
-                ):
+                if self.read_timeout is not None and timeout_count > 4 * self.read_timeout:
                     break
                 timeout_count += 1
 
@@ -350,12 +347,7 @@ class Pyboard:
             self.serial = ProcessToSerial(device[len("exec:") :])
         elif device.startswith("execpty:"):
             self.serial = ProcessPtyToTerminal(device[len("qemupty:") :])
-        elif (
-            device
-            and device[0].isdigit()
-            and device[-1].isdigit()
-            and device.count(".") == 3
-        ):
+        elif device and device[0].isdigit() and device[-1].isdigit() and device.count(".") == 3:
             # device looks like an IP address
             self.serial = TelnetToSerial(device, user, password, read_timeout=10)
         elif device and device.startswith("ws://"):
@@ -442,9 +434,7 @@ class Pyboard:
                     # The ``ending`` was split across the buffers
                     out = self._consumed_buf[:ending_index]
                     self._unconsumed_buf[:] = self._consumed_buf[ending_index:]
-                    data_for_consumer = self._consumed_buf[
-                        og_consumed_buf_len:ending_index
-                    ]
+                    data_for_consumer = self._consumed_buf[og_consumed_buf_len:ending_index]
                     self._consumed_buf.clear()
                     data_consumer(data_for_consumer)
                     return out
@@ -458,8 +448,7 @@ class Pyboard:
                 # loop until new data has arrived.
                 if time.time() > deadline:
                     raise PyboardError(
-                        f"Timed out reading until {repr(ending)}\n"
-                        f"    Received: {repr(self._consumed_buf)}"
+                        f"Timed out reading until {repr(ending)}\n" f"    Received: {repr(self._consumed_buf)}"
                     )
 
                 if not self.serial.in_waiting:
@@ -611,9 +600,9 @@ class Pyboard:
         self.exec(cmd, data_consumer=stdout_write_bytes)
 
     def fs_cat(self, src, chunk_size=256):
-        cmd = (
-            "with open('%s') as f:\n while 1:\n"
-            "  b=f.read(%u)\n  if not b:break\n  print(b,end='')" % (src, chunk_size)
+        cmd = "with open('%s') as f:\n while 1:\n" "  b=f.read(%u)\n  if not b:break\n  print(b,end='')" % (
+            src,
+            chunk_size,
         )
         self.exec(cmd, data_consumer=stdout_write_bytes)
 
