@@ -448,7 +448,7 @@ class Pyboard:
                 # loop until new data has arrived.
                 if time.time() > deadline:
                     raise PyboardError(
-                        f"Timed out reading until {repr(ending)}\n" f"    Received: {repr(self._consumed_buf)}"
+                        f"Timed out reading until {repr(ending)}\n    Received: {repr(self._consumed_buf)}"
                     )
 
                 if not self.serial.in_waiting:
@@ -533,10 +533,7 @@ class Pyboard:
         self.read_until(b"\x04")
 
     def exec_raw_no_follow(self, command):
-        if isinstance(command, bytes):
-            command_bytes = command
-        else:
-            command_bytes = bytes(command, encoding="utf8")
+        command_bytes = command if isinstance(command, bytes) else bytes(command, encoding="utf8")
 
         # check we have a prompt
         self.read_until(b">")
@@ -600,7 +597,7 @@ class Pyboard:
         self.exec(cmd, data_consumer=stdout_write_bytes)
 
     def fs_cat(self, src, chunk_size=256):
-        cmd = "with open('%s') as f:\n while 1:\n" "  b=f.read(%u)\n  if not b:break\n  print(b,end='')" % (
+        cmd = "with open('%s') as f:\n while 1:\n  b=f.read(%u)\n  if not b:break\n  print(b,end='')" % (
             src,
             chunk_size,
         )

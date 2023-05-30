@@ -77,7 +77,7 @@ def test_device_thread(mocker, mock_device):
 
 def test_device_traceback_execute(mocker, mock_device, tmp_path):
     src_file = tmp_path / "main.py"
-    src_file.write_text("\n" "@device.task\n" "def f():\n" '    raise Exception("This is raised on-device.")')
+    src_file.write_text('\n@device.task\ndef f():\n    raise Exception("This is raised on-device.")')
     exception = belay.PyboardException(
         "Traceback (most recent call last):\r\n"
         '  File "<stdin>", line 1, in <module>\r\n'

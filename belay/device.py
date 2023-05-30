@@ -586,7 +586,7 @@ class Device(metaclass=DeviceMeta):
         if f is None:
             return wraps_partial(Device.setup, autoinit=autoinit, implementation=implementation, **kwargs)  # type: ignore[reportGeneralTypeIssues]
         if signature(f).parameters and autoinit:
-            raise ValueError(f"Method {f} decorated with " '"@Device.setup(autoinit=True)" ' "must have no arguments.")
+            raise ValueError(f"Method {f} decorated with @Device.setup(autoinit=True) must have no arguments.")
 
         f.__belay__ = MethodMetadata(
             executer=SetupExecuter,
