@@ -79,6 +79,7 @@ def install(
                     folder=project_folder / project_package,
                     dst=f"/{project_package}",
                     progress_update=tasks["project_package"],
+                    ignore=config.ignore,
                 )
 
             if main:
