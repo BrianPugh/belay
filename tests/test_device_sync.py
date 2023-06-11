@@ -447,9 +447,9 @@ def test_preprocess_src_file_cross_mpy_absolute(mocker):
     call = mock_check_output.call_args_list[0][0][0]
     assert call[0] == "fake-mpy-cross-binary"
     assert call[1] == "-o"
-    assert call[2].as_posix() == "C:/tmp/abc123/foo/bar/baz.py"
+    assert call[2].as_posix() == "C:/tmp/abc123/foo/bar/baz.mpy"
     assert call[3].as_posix() == "D:/foo/bar/baz.py"
-    assert actual.as_posix() == "C:/tmp/abc123/foo/bar/baz.py"
+    assert actual.as_posix() == "C:/tmp/abc123/foo/bar/baz.mpy"
 
 
 def test_preprocess_src_file_default_generic(tmp_path):
