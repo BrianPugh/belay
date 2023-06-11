@@ -417,7 +417,7 @@ def test_preprocess_src_file_default_py(tmp_path):
     assert actual == Path("foo/bar/baz.py")
 
 
-def test_preprocess_src_file_cross_mpy(tmp_path, mocker):
+def test_preprocess_src_file_cross_mpy_relative(tmp_path, mocker):
     mock_check_output = mocker.patch("belay.device_sync_support.subprocess.check_output")
     actual = device_sync_support.preprocess_src_file(
         tmp_path,
@@ -432,6 +432,24 @@ def test_preprocess_src_file_cross_mpy(tmp_path, mocker):
     assert call[2].as_posix().endswith("foo/bar/baz.mpy")
     assert call[3].as_posix().endswith("foo/bar/baz.py")
     assert actual.as_posix().endswith("foo/bar/baz.mpy")
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Runs only on Windows")
+def test_preprocess_src_file_cross_mpy_absolute(mocker):
+    mock_check_output = mocker.patch("belay.device_sync_support.subprocess.check_output")
+    actual = device_sync_support.preprocess_src_file(
+        "C:/tmp/abc123",
+        "D:/foo/bar/baz.py",
+        False,
+        "fake-mpy-cross-binary",
+    )
+    mock_check_output.assert_called_once()
+    call = mock_check_output.call_args_list[0][0][0]
+    assert call[0] == "fake-mpy-cross-binary"
+    assert call[1] == "-o"
+    assert call[2].as_posix() == "C:/tmp/abc123/foo/bar/baz.mpy"
+    assert call[3].as_posix() == "D:/foo/bar/baz.py"
+    assert actual.as_posix() == "C:/tmp/abc123/foo/bar/baz.mpy"
 
 
 def test_preprocess_src_file_default_generic(tmp_path):
