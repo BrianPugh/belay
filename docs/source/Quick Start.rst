@@ -140,6 +140,8 @@ For more complicated hardware interactions, additional python modules/files need
 ``sync`` takes in a path to a local folder.
 The contents of the folder will be synced to the device's root directory.
 
+**NOTE:** This will delete any existing files currently on device before syncing.
+
 For example, if the local filesystem looks like:
 
 ::
