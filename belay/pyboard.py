@@ -328,6 +328,9 @@ class Pyboard:
         """
         if attempts == 0:
             raise ValueError('"attempts" cannot be 0.')
+
+        attempt_start_val = 1
+
         self.in_raw_repl = False
         self.use_raw_paste = True
         self._consumed_buf = bytearray()
@@ -337,11 +340,22 @@ class Pyboard:
             usb_specifier_str = os.environ.get("BELAY_DEVICE", "{}")
             device = UsbSpecifier.parse_raw(usb_specifier_str)
 
-        if isinstance(device, UsbSpecifier):
-            device = device.to_port()
-        else:
-            with contextlib.suppress(ValidationError):
-                device = UsbSpecifier.parse_raw(device).to_port()
+        for attempt_count in itertools.count(start=attempt_start_val):
+            try:
+                if isinstance(device, UsbSpecifier):
+                    device = device.to_port()
+                else:
+                    with contextlib.suppress(ValidationError):
+                        device = UsbSpecifier.parse_raw(device).to_port()
+                break
+            except DeviceNotFoundError:
+                pass
+
+            if attempt_count == attempts:
+                raise ConnectionFailedError
+
+            attempt_start_val += 1
+            time.sleep(1.0)
 
         if device.startswith("exec:"):
             self.serial = ProcessToSerial(device[len("exec:") :])
@@ -360,7 +374,7 @@ class Pyboard:
             if serial.__version__ >= "3.3":
                 serial_kwargs["exclusive"] = exclusive
 
-            for attempt_count in itertools.count(start=1):
+            for attempt_count in itertools.count(start=attempt_start_val):
                 try:
                     self.serial = serial.Serial(device, **serial_kwargs)
                     break
