@@ -23,7 +23,7 @@ belay = "belay.cli.main:run_app"
 
 [tool.poetry.dependencies]
 # Be as loose as possible if writing a library.
-python = "^3.8"  # TODO: unrestrict upper bound once Questionary loosens
+python = ">=3.8"
 pyserial = ">=3.1"
 typer = {extras = ["all"], version = ">=0.6.0"}
 pathspec = ">=0.10.3"
@@ -34,7 +34,7 @@ requests = ">=2.28.1"
 gitpython = ">=3.1.30"
 pydantic = ">=1.10.4"
 typing-extensions = ">=4.5.0"
-questionary = ">=1.10.0"
+questionary = ">=2.0.0"
 packaging = ">=20.4"
 
 [tool.poetry.group.docs.dependencies]
@@ -44,7 +44,6 @@ sphinx_rtd_theme = "^1.0.0"
 [tool.poetry.group.dev.dependencies]
 black = "*"
 coverage = "^7.2.3"
-poetry-dynamic-versioning = ">=0.16.0, <1.0.0"
 pre_commit = "^2.16.0"
 pytest = "^7.2.0"
 pytest-cov = "^3.0.0"
