@@ -14,7 +14,7 @@ prevalidator_reuse = partial(validator_reuse, pre=True)
 
 class BaseModel(PydanticBaseModel):
     class Config:
-        allow_mutation = False
+        frozen = True
 
 
 class DependencySourceConfig(BaseModel):
