@@ -11,7 +11,7 @@ from inspect import signature
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import ModuleType
-from typing import Callable, Optional, TextIO, TypeVar, Union, overload
+from typing import Any, Callable, Optional, TextIO, TypeVar, Union, overload
 
 from serial import SerialException
 from serial.tools.miniterm import Miniterm
@@ -50,7 +50,20 @@ P = ParamSpec("P")
 R = TypeVar("R")
 
 
-def parse_belay_response(line):
+def parse_belay_response(
+    line: str,
+    result_parser: Callable[[str], Any] = ast.literal_eval,
+):
+    """Parse a Belay response string into a python object.
+
+    Parameters
+    ----------
+    line: str
+        String representations of a python object.
+        e.g. "(1, 2, 'foo')"
+    result_parser: Callable
+        Function that accepts a string and returns a python object.
+    """
     if not line.startswith("_BELAY"):
         raise NotBelayResponseError
     line = line[6:]
@@ -58,7 +71,7 @@ def parse_belay_response(line):
 
     if code == "R":
         # Result
-        return ast.literal_eval(line)
+        return result_parser(line)
     elif code == "S":
         # StopIteration
         raise StopIteration
@@ -233,6 +246,7 @@ class Device(metaclass=DeviceMeta):
         minify: bool = True,
         stream_out: TextIO = sys.stdout,
         record=True,
+        trusted: bool = False,
     ):
         """Execute code on-device.
 
@@ -247,6 +261,13 @@ class Device(metaclass=DeviceMeta):
         record: bool
             Record the call for state-reconstruction if device is accidentally reset.
             Defaults to ``True``.
+        trusted: bool
+            Fully trust remote device.
+            When set to ``False``, only ``[None, bool, bytes, int, float, str, List, Dict, Set]`` return
+            values can be parsed.
+            When set to ``True``, any value who's ``repr`` can be evaluated to create a python object can be
+            returned. However, **this also allows the remote device to execute arbitrary code on host**.
+            Defaults to ``False``.
 
         Returns
         -------
@@ -277,7 +298,10 @@ class Device(metaclass=DeviceMeta):
                 line = data_consumer_buffer[:i].decode()
                 data_consumer_buffer[:] = data_consumer_buffer[i:]
                 try:
-                    out = parse_belay_response(line)
+                    if trusted:
+                        out = parse_belay_response(line, result_parser=eval)
+                    else:
+                        out = parse_belay_response(line)
                 except NotBelayResponseError:
                     if stream_out:
                         stream_out.write(line)
@@ -687,6 +711,13 @@ class Device(metaclass=DeviceMeta):
             Several methods of the same name can be overloaded that support different implementations.
             Common values include "micropython", and "circuitpython".
             Defaults to an empty string, which **all** implementations will match to.
+        trusted: bool
+            Fully trust remote device.
+            When set to ``False``, only ``[None, bool, bytes, int, float, str, List, Dict, Set]`` return
+            values can be parsed.
+            When set to ``True``, any value who's ``repr`` can be evaluated to create a python object can be
+            returned. However, **this also allows the remote device to execute arbitrary code on host**.
+            Defaults to ``False``.
         """  # noqa: D400
         if f is None:
             return wraps_partial(Device.task, implementation=implementation, **kwargs)  # type: ignore[reportGeneralTypeIssues]
@@ -763,6 +794,7 @@ class Device(metaclass=DeviceMeta):
         name: str,
         cmd: str,
         record: bool = True,
+        trusted: bool = False,
     ):
         """Invoke ``cmd``, and reinterprets raised stacktrace in ``PyboardException``.
 
@@ -779,6 +811,13 @@ class Device(metaclass=DeviceMeta):
         record: bool
             Record the call for state-reconstruction if device is accidentally reset.
             Defaults to ``True``.
+        trusted: bool
+            Fully trust remote device.
+            When set to ``False``, only ``[None, bool, bytes, int, float, str, List, Dict, Set]`` return
+            values can be parsed.
+            When set to ``True``, any value who's ``repr`` can be evaluated to create a python object can be
+            returned. However, **this also allows the remote device to execute arbitrary code on host**.
+            Defaults to ``False``.
 
         Returns
         -------
@@ -787,7 +826,7 @@ class Device(metaclass=DeviceMeta):
         src_file = str(src_file)
 
         try:
-            res = self(cmd, record=record)
+            res = self(cmd, record=record, trusted=trusted)
         except PyboardException as e:
             new_lines = []
 

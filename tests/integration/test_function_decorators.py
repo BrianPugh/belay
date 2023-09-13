@@ -27,6 +27,16 @@ def test_task_basic(emulated_device, mocker):
     spy_parse_belay_response.assert_called_once_with("_BELAYR10\r\n")
 
 
+def test_task_basic_trusted(emulated_device, mocker):
+    @emulated_device.task(trusted=True)
+    def foo():
+        return bytearray(b"\x01")
+
+    res = foo()
+    assert isinstance(res, bytearray)
+    assert res == bytearray(b"\x01")
+
+
 def test_task_generators_basic(emulated_device, mocker):
     spy_parse_belay_response = mocker.spy(belay.device, "parse_belay_response")
 
