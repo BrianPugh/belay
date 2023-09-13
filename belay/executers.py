@@ -113,6 +113,7 @@ class TaskExecuter(Executer):
         minify: bool = True,
         register: bool = True,
         record: bool = False,
+        trusted: bool = False,
     ) -> Callable[[Callable[P, R]], Callable[P, R]]:
         ...
 
@@ -123,10 +124,11 @@ class TaskExecuter(Executer):
         minify: bool = True,
         register: bool = True,
         record: bool = False,
+        trusted: bool = False,
     ) -> Union[Callable[[Callable[P, R]], Callable[P, R]], Callable[P, R]]:
         """See ``Device.task``."""
         if f is None:
-            return wraps_partial(self, minify=minify, register=register, record=record)
+            return wraps_partial(self, minify=minify, register=register, record=record, trusted=trusted)
 
         name = f.__name__
         src_code, src_lineno, src_file = getsource(f)
@@ -138,7 +140,9 @@ class TaskExecuter(Executer):
         def func_executer(*args, **kwargs):
             cmd = f"{name}(*{repr(args)}, **{repr(kwargs)})"
 
-            return self._belay_device._traceback_execute(src_file, src_lineno, name, cmd, record=record)
+            return self._belay_device._traceback_execute(
+                src_file, src_lineno, name, cmd, record=record, trusted=trusted
+            )
 
         @wraps(f)
         def gen_executer(*args, **kwargs):
@@ -147,7 +151,7 @@ class TaskExecuter(Executer):
             # Step 1: Create the on-device generator
             gen_identifier = random_python_identifier()
             cmd = f"{gen_identifier} = {name}(*{repr(args)}, **{repr(kwargs)})"
-            self._belay_device._traceback_execute(src_file, src_lineno, name, cmd, record=False)
+            self._belay_device._traceback_execute(src_file, src_lineno, name, cmd, record=False, trusted=trusted)
             # Step 2: Create the host generator that invokes ``next()`` on-device.
 
             def gen_inner():
@@ -156,7 +160,12 @@ class TaskExecuter(Executer):
                     while True:
                         cmd = f"__belay_next({gen_identifier}, {repr(send_val)})"
                         send_val = yield self._belay_device._traceback_execute(
-                            src_file, src_lineno, name, cmd, record=False
+                            src_file,
+                            src_lineno,
+                            name,
+                            cmd,
+                            record=False,
+                            trusted=trusted,
                         )
                 except StopIteration:
                     pass
