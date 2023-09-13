@@ -22,9 +22,15 @@ def test_task_basic(emulated_device, mocker):
     def foo(val):
         return 2 * val
 
+    @emulated_device.task
+    def bytes_task():
+        return b"\x00\x01\x02"
+
     assert foo(5) == 10
 
     spy_parse_belay_response.assert_called_once_with("_BELAYR10\r\n")
+
+    assert bytes_task() == b"\x00\x01\x02"
 
 
 def test_task_basic_trusted(emulated_device, mocker):
