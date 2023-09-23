@@ -32,7 +32,7 @@ jobs:
     env:
       OS: ${{ matrix.os }}
       PYTHON: ${{ matrix.python-version }}
-      BELAY_DEBUG_PROCESS_BUFFER: true
+      BELAY_DEBUG_PROCESS_BUFFER: false
 
     steps:
       - name: Set OS Environment Variables (Windows)
@@ -72,11 +72,6 @@ jobs:
           virtualenvs-in-project: true
           installer-parallel: true
 
-      - name: Install Node
-        uses: actions/setup-node@v3
-        with:
-          node-version: 16
-
       - name: Cache Pi Pico MicroPython 1.17 firmware
         id: cached-pi-pico-micropython-1-17-firmware
         uses: actions/cache@v3
@@ -87,7 +82,7 @@ jobs:
       - name: Download Pi Pico MicroPython 1.17 firmware
         if: steps.cached-pi-pico-micropython-1-17-firmware.outputs.cache-hit != 'true'
         run: |
-          curl https://micropython.org/resources/firmware/rp2-pico-20210902-v1.17.uf2 -o rp2040js/micropython-v1.17.uf2
+          curl https://micropython.org/resources/firmware/RPI_PICO-20210902-v1.17.uf2 -o rp2040js/micropython-v1.17.uf2
 
       - name: Cache Pi Pico CircuitPython 7.3.3 firmware
         id: cached-pi-pico-circuitpython-7-3-3-firmware

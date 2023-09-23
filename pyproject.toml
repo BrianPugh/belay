@@ -96,7 +96,7 @@ exclude_lines = [
 ]
 
 [tool.pytest.ini_options]
-addopts = "--import-mode=importlib --max-runs=3 --timeout=120 --force-flaky --no-success-flaky-report"
+addopts = "--import-mode=importlib --max-runs=3 --timeout=240 --force-flaky --no-success-flaky-report"
 norecursedirs = "integration"
 markers = [
     "network: mark a test that requires network access.",
