@@ -37,6 +37,7 @@ class UsbSpecifier(BaseModel):
     location: Optional[str] = None
 
     device: Optional[str] = Field(None, exclude=True)
+    #device: Optional[str] = field(default=None, repr=False)
 
     def __repr__(self):
         return f'{self.__class__.__name__}({", ".join(f"{k}={v!r}" for k, v in self.dict().items() if v is not None)})'

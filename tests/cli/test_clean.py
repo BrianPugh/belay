@@ -3,7 +3,7 @@ import os
 import pytest
 
 from belay.cli.clean import clean
-from belay.packagemanager import Group
+from belay.packagemanager import Group, DependencySource
 
 
 @pytest.fixture
@@ -25,8 +25,8 @@ def project_folder(tmp_path):
 
 def test_clean_basic(project_folder, mocker):
     groups = [
-        Group("main", dependencies={"foo": "foo_uri"}),
-        Group("dev", dependencies={"bar": "bar_uri"}),
+        Group("main", dependencies={"foo": [DependencySource(uri="foo_uri")]}),
+        Group("dev", dependencies={"bar": [DependencySource(uri="bar_uri")]}),
     ]
     mocker.patch("belay.cli.clean.load_groups", return_value=groups)
 
@@ -43,7 +43,7 @@ def test_clean_basic(project_folder, mocker):
 
 def test_clean_missing_group(project_folder, mocker):
     groups = [
-        Group("main", dependencies={"foo": "foo_uri"}),
+        Group("main", dependencies={"foo": [DependencySource(uri="foo_uri")]}),
     ]
     mocker.patch("belay.cli.clean.load_groups", return_value=groups)
 

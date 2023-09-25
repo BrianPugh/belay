@@ -1,3 +1,3 @@
 from . import downloaders
-from .group import Group, GroupConfig
+from .group import Group, DependencySource
 from .models import BelayConfig

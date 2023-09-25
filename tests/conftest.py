@@ -35,7 +35,6 @@ def cache_clear():
     belay.project.find_cache_folder.cache_clear()
     belay.project.find_cache_dependencies_folder.cache_clear()
     belay.project.load_pyproject.cache_clear()
-    belay.project.load_toml.cache_clear()
     belay.project.load_groups.cache_clear()
 
 

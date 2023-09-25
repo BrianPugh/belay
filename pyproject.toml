@@ -36,6 +36,8 @@ pydantic = ">=1.10.4"
 typing-extensions = ">=4.5.0"
 questionary = ">=2.0.0"
 packaging = ">=20.4"
+cattrs = "^23.1.2"
+attrs = "^23.1.0"
 
 [tool.poetry.group.docs.dependencies]
 sphinx = "^4.5.0"

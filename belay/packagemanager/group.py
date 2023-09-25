@@ -1,48 +1,107 @@
+from attrs import frozen, field
 import ast
 import shutil
 import tempfile
 from contextlib import nullcontext
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 from rich.console import Console
 
 from belay.packagemanager.downloaders import download_uri
-from belay.packagemanager.models import (
-    DependencySourceConfig,
-    GroupConfig,
-    walk_dependencies,
-)
 from belay.packagemanager.sync import sync
 from belay.typing import PathType
 
 
+@frozen
+class DependencySource:
+    uri: str
+
+    # If true, local dependency is in "editable" mode.
+    develop: bool = False
+
+    # Rename the downloaded file to `__init__.py`.
+    # Intended for single-file libraries.
+    rename_to_init: bool = False
+
+    def download_and_verify(self, download_folder):
+        """Download and verify a dependency.
+
+        Parameters
+        ----------
+        download_folder
+            Destination directory for downloaded file(s).
+        """
+        out = download_uri(download_folder, self.uri)
+        if self.rename_to_init and out.is_file() and out.suffix == ".py":
+            out = out.rename(out.parent / "__init__.py")
+
+        _verify_files(out)
+
+
+def _verify_files(path: PathType):
+    """Sanity checks downloaded files.
+
+    Performs the following checks:
+
+    * ".py" files are valid python code.
+
+    Parameters
+    ----------
+    path
+        Either a single file or a folder.
+    """
+    path = Path(path)
+
+    gen = path.rglob("*") if path.is_dir() else [path]
+
+    for f in gen:
+        if f.suffix == ".py":
+            code = f.read_text()
+            ast.parse(code)
+
+
+def walk_dependencies(packages: Dict[str, List[DependencySource]]):
+    """Walks over all package/dependency pairs.
+
+    Yields
+    ------
+    tuple
+        (package_name, dependency)
+    """
+    for package_name, dependencies in packages.items():
+        for dependency in dependencies:
+            yield package_name, dependency
+
+
+def walk_develop_dependencies(packages: Dict[str, List[DependencySource]]):
+    for package_name, dependency in walk_dependencies(packages):
+        if dependency.develop:
+            yield package_name, dependency
+
+
+@frozen
 class Group:
     """Represents a group defined in ``pyproject.toml``."""
+    name: str
+    optional: bool = False
+    dependencies: Dict[str, List[DependencySource]] = field(factory=dict)
 
-    def __init__(self, name: str, **kwargs):
+    folder: Path = field(init=False)
+
+    @dependencies.validator  # pyright: ignore[reportGeneralTypeIssues]
+    def _validator_max_1_rename_to_init(self, _, packages):
+        rename_to_init_count = {}
+        for package_name, dependency in walk_dependencies(packages):
+            rename_to_init_count.setdefault(package_name, 0)
+            rename_to_init_count[package_name] += dependency.rename_to_init
+            if rename_to_init_count[package_name] > 1:
+                raise ValueError(f'{package_name} has more than 1 dependency marked with "rename_to_init".')
+
+    def __attrs_post_init__(self):
         from belay.project import find_dependencies_folder
-
-        self.name = name
-        self.config = GroupConfig(**kwargs)
-        self.folder = find_dependencies_folder() / self.name
-
-    def __eq__(self, other):
-        if not isinstance(other, Group):
-            return False
-        return self.config.__dict__ == other.config.__dict__
-
-    def __repr__(self):
-        kws = [f"{key}={value!r}" for key, value in self.config.__dict__.items()]
-        return f"{type(self).__name__}({', '.join(kws)})"
-
-    @property
-    def optional(self) -> bool:
-        return self.config.optional
-
-    @property
-    def dependencies(self):
-        return self.config.dependencies
+        # circumvent "frozen"
+        object.__setattr__(self, "folder", find_dependencies_folder() / self.name)
 
     def clean(self):
         """Delete any dependency module not specified in ``self.config.dependencies``."""
@@ -72,10 +131,10 @@ class Group:
             shutil.copytree(self.folder, dst, dirs_exist_ok=True)
 
         # Copy over any (& overwrite) any dependencies in ``develop`` mode.
-        for package_name, dependency in _walk_develop_dependencies(self.dependencies):
+        for package_name, dependency in walk_develop_dependencies(self.dependencies):
             dst_package_folder = dst / package_name
             dst_package_folder.mkdir(parents=True, exist_ok=True)
-            _download_and_verify_dependency(dst_package_folder, dependency)
+            dependency.download_and_verify(dst_package_folder)
 
     def _download_package(self, package_name) -> bool:
         """Download a single package.
@@ -93,7 +152,7 @@ class Group:
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_dir = Path(tmp_dir)
             for dependency in dependencies:
-                _download_and_verify_dependency(tmp_dir, dependency)
+                dependency.download_and_verify(tmp_dir)
             changed = sync(tmp_dir, local_folder)
 
         return changed
@@ -133,46 +192,3 @@ class Group:
                     log(f"  • [bold green]{package_name}: Updated.")
                 else:
                     log(f"  • {package_name}: No changes detected.")
-
-
-def _verify_files(path: PathType):
-    """Sanity checks downloaded files.
-
-    Performs the following checks:
-
-    * ".py" files are valid python code.
-
-    Parameters
-    ----------
-    path
-        Either a single file or a folder.
-    """
-    path = Path(path)
-
-    gen = path.rglob("*") if path.is_dir() else [path]
-
-    for f in gen:
-        if f.suffix == ".py":
-            code = f.read_text()
-            ast.parse(code)
-
-
-def _walk_develop_dependencies(packages: dict):
-    for package_name, dependency in walk_dependencies(packages):
-        if dependency.develop:
-            yield package_name, dependency
-
-
-def _download_and_verify_dependency(download_folder: PathType, dependency: DependencySourceConfig):
-    """Download and verify a dependency.
-
-    Parameters
-    ----------
-    download_folder
-        Destination directory for downloaded file(s).
-    """
-    out = download_uri(download_folder, dependency.uri)
-    if dependency.rename_to_init and out.is_file() and out.suffix == ".py":
-        out = out.rename(out.parent / "__init__.py")
-
-    _verify_files(out)

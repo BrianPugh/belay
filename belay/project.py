@@ -58,29 +58,15 @@ def find_cache_dependencies_folder() -> Path:
 
 
 @lru_cache
-def load_toml(path: Union[str, Path]) -> dict:
-    path = Path(path)
-    with path.open("rb") as f:
-        toml = tomli.load(f)
-
-    try:
-        toml = toml["tool"]["belay"]
-    except KeyError:
-        return {}
-
-    return toml
-
-
-@lru_cache
 def load_pyproject() -> BelayConfig:
     """Load the pyproject TOML file."""
     pyproject_path = find_pyproject()
-    belay_data = load_toml(pyproject_path)
-    return BelayConfig(**belay_data)
+    return BelayConfig.from_pyproject(pyproject_path)
 
 
 @lru_cache
 def load_groups() -> List[Group]:
+    # TODO: Group and GroupConfig should be the same class.
     config = load_pyproject()
     groups = [Group("main", dependencies=config.dependencies)]
     groups.extend(Group(name, **definition.dict()) for name, definition in config.group.items())
