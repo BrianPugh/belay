@@ -70,6 +70,7 @@ from pydantic import ValidationError
 
 from .exceptions import BelayException, ConnectionFailedError, DeviceNotFoundError
 from .usb_specifier import UsbSpecifier
+from .utils import env_parse_bool
 from .webrepl import WebreplToSerial
 
 try:
@@ -87,14 +88,6 @@ def _kill_process(pid):
             os.killpg(os.getpgid(pid), signal.SIGTERM)
     except ProcessLookupError:
         pass
-
-
-def _parse_bool(env_var, default_value=False):
-    if env_var in os.environ:
-        env_value = os.environ[env_var].lower()
-        return env_value == "true" or env_value == "1"
-    else:
-        return default_value
 
 
 def stdout_write_bytes(b):
@@ -222,7 +215,7 @@ class ProcessToSerial:
         t_deadline = time.time() + 1
         while b">>>" not in self.buf:
             time.sleep(0.0001)
-            if _parse_bool("BELAY_DEBUG_PROCESS_BUFFER") and time.time() > t_deadline:
+            if env_parse_bool("BELAY_DEBUG_PROCESS_BUFFER") and time.time() > t_deadline:
                 t_deadline = time.time() + 1
                 print(self.buf)
 

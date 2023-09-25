@@ -39,6 +39,7 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           echo 'ACTIVATE_PYTHON_VENV=.venv/scripts/activate' >> $GITHUB_ENV
+          echo 'BELAY_SHORT_INTEGRATION_TEST=true' >> $GITHUB_ENV
 
       - name: Set OS Environment Variables (not Windows)
         if: runner.os != 'Windows'
