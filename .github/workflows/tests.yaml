@@ -149,7 +149,15 @@ jobs:
           theme: light
           comment_on_pr: false
 
-      - name: Run tests
+      - name: Run tests (unit only)
+        if: runner.os == 'Windows'
+        run: |
+          source ${{ env.ACTIVATE_PYTHON_VENV }}
+          python -m pytest --cov=belay --cov-report=term --cov-report=xml --cov-config=.coveragerc --junitxml=testresults.xml --network tests -s
+          coverage report
+
+      - name: Run tests (unit + integration)
+        if: runner.os != 'Windows'
         run: |
           source ${{ env.ACTIVATE_PYTHON_VENV }}
           python -m pytest --cov=belay --cov-report=term --cov-report=xml --cov-config=.coveragerc --junitxml=testresults.xml --network tests tests/integration -s
