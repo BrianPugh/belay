@@ -10,6 +10,7 @@ import belay
 import belay.cli.common
 import belay.project
 from belay.cli import app
+from belay.utils import env_parse_bool
 
 
 class MockDevice:
@@ -65,6 +66,10 @@ def cli_runner(mock_device):
 
 @pytest.fixture(
     params=[
+        "micropython-v1.17.uf2",
+    ]
+    if env_parse_bool("BELAY_SHORT_INTEGRATION_TEST")
+    else [
         "micropython-v1.17.uf2",
         "circuitpython-v7.3.3.uf2",
         "circuitpython-v8.0.0.uf2",

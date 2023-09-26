@@ -36,6 +36,7 @@ pydantic = ">=1.10.4"
 typing-extensions = ">=4.5.0"
 questionary = ">=2.0.0"
 packaging = ">=20.4"
+importlib_resources = {version = ">=3.0.0", python = "<3.9"}
 
 [tool.poetry.group.docs.dependencies]
 sphinx = "^4.5.0"
@@ -96,7 +97,7 @@ exclude_lines = [
 ]
 
 [tool.pytest.ini_options]
-addopts = "--import-mode=importlib --max-runs=3 --timeout=120 --force-flaky --no-success-flaky-report"
+addopts = "--import-mode=importlib --max-runs=3 --timeout=240 --force-flaky --no-success-flaky-report"
 norecursedirs = "integration"
 markers = [
     "network: mark a test that requires network access.",

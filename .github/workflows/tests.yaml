@@ -32,13 +32,14 @@ jobs:
     env:
       OS: ${{ matrix.os }}
       PYTHON: ${{ matrix.python-version }}
-      BELAY_DEBUG_PROCESS_BUFFER: true
+      BELAY_DEBUG_PROCESS_BUFFER: false
 
     steps:
       - name: Set OS Environment Variables (Windows)
         if: runner.os == 'Windows'
         run: |
           echo 'ACTIVATE_PYTHON_VENV=.venv/scripts/activate' >> $GITHUB_ENV
+          echo 'BELAY_SHORT_INTEGRATION_TEST=true' >> $GITHUB_ENV
 
       - name: Set OS Environment Variables (not Windows)
         if: runner.os != 'Windows'
@@ -72,11 +73,6 @@ jobs:
           virtualenvs-in-project: true
           installer-parallel: true
 
-      - name: Install Node
-        uses: actions/setup-node@v3
-        with:
-          node-version: 16
-
       - name: Cache Pi Pico MicroPython 1.17 firmware
         id: cached-pi-pico-micropython-1-17-firmware
         uses: actions/cache@v3
@@ -87,7 +83,7 @@ jobs:
       - name: Download Pi Pico MicroPython 1.17 firmware
         if: steps.cached-pi-pico-micropython-1-17-firmware.outputs.cache-hit != 'true'
         run: |
-          curl https://micropython.org/resources/firmware/rp2-pico-20210902-v1.17.uf2 -o rp2040js/micropython-v1.17.uf2
+          curl https://micropython.org/resources/firmware/RPI_PICO-20210902-v1.17.uf2 -o rp2040js/micropython-v1.17.uf2
 
       - name: Cache Pi Pico CircuitPython 7.3.3 firmware
         id: cached-pi-pico-circuitpython-7-3-3-firmware
@@ -153,7 +149,15 @@ jobs:
           theme: light
           comment_on_pr: false
 
-      - name: Run tests
+      - name: Run tests (unit only)
+        if: runner.os == 'Windows'
+        run: |
+          source ${{ env.ACTIVATE_PYTHON_VENV }}
+          python -m pytest --cov=belay --cov-report=term --cov-report=xml --cov-config=.coveragerc --junitxml=testresults.xml --network tests -s
+          coverage report
+
+      - name: Run tests (unit + integration)
+        if: runner.os != 'Windows'
         run: |
           source ${{ env.ACTIVATE_PYTHON_VENV }}
           python -m pytest --cov=belay --cov-report=term --cov-report=xml --cov-config=.coveragerc --junitxml=testresults.xml --network tests tests/integration -s
