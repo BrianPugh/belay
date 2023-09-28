@@ -66,7 +66,10 @@ from pathlib import Path
 from threading import Lock, Thread
 from typing import Union
 
-from pydantic import ValidationError
+try:
+    from pydantic.v1.error_wrappers import ValidationError
+except ImportError:
+    from pydantic import ValidationError
 
 from .exceptions import BelayException, ConnectionFailedError, DeviceNotFoundError
 from .usb_specifier import UsbSpecifier
