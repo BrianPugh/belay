@@ -61,7 +61,9 @@ repos:
           - "--paths=belay"
           - "--deps-file=pyproject.toml"
           - "--sections=tool.poetry.dependencies"
-          - "--exclude-deps=importlib_resources"
+          - "--exclude-deps"
+          - "importlib_resources"
+          - "pydantic"
 
   - repo: https://github.com/codespell-project/codespell
     rev: v2.2.5

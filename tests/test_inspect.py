@@ -5,9 +5,10 @@ may need to change while still remaining valid.
 """
 
 
-from importlib.machinery import SourceFileLoader
-
+import types
 import pytest
+
+from importlib.machinery import SourceFileLoader
 
 import belay.inspect
 
@@ -15,8 +16,13 @@ import belay.inspect
 @pytest.fixture
 def foo(data_path):
     fn = data_path / "foo.py"
-    foo = SourceFileLoader("foo", str(fn)).load_module()
-    assert foo.__file__ == str(fn)
+    module_name = "foo"
+    # Create a new module object
+    foo = types.ModuleType(module_name)
+    foo.__file__ = str(fn)
+    # Load the source file into the module object
+    loader = SourceFileLoader(module_name, str(fn))
+    loader.exec_module(foo)
     return foo
 
 

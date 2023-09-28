@@ -6,6 +6,11 @@ import pytest
 from belay.packagemanager import Group
 from belay.project import find_pyproject, load_groups, load_pyproject, load_toml
 
+try:
+    from pydantic.v1.error_wrappers import ValidationError
+except ImportError:
+    from pydantic import ValidationError
+
 
 @pytest.fixture
 def toml_file_standard(tmp_path):
@@ -77,7 +82,7 @@ def test_load_dependency_groups_main_group(mock_load_toml):
             },
         },
     }
-    with pytest.raises(pydantic.ValidationError):
+    with pytest.raises(ValidationError):
         load_groups()
 
 

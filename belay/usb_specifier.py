@@ -1,6 +1,10 @@
 from typing import Dict, List, Optional
 
-from pydantic import BaseModel, Field
+try:
+    from pydantic.v1 import BaseModel, Field
+except ImportError:
+    from pydantic import BaseModel, Field
+
 from serial.tools.list_ports import comports
 
 from .exceptions import DeviceNotFoundError, InsufficientSpecifierError
