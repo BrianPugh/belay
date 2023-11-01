@@ -2,7 +2,6 @@ import ast
 import atexit
 import concurrent.futures
 import contextlib
-import importlib.resources
 import linecache
 import re
 import shutil
@@ -45,6 +44,11 @@ from .inspect import isexpression
 from .pyboard import Pyboard, PyboardError, PyboardException
 from .typing import BelayReturn, PathType
 from .webrepl import WebreplToSerial
+
+if sys.version_info < (3, 9, 0):
+    import importlib_resources
+else:
+    import importlib.resources as importlib_resources
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -495,11 +499,11 @@ class Device(metaclass=DeviceMeta):
         **kwargs
             Passed along to ``Device.sync``.
         """
-        pkg_files = importlib.resources.files(package)
+        pkg_files = importlib_resources.files(package)
         with TemporaryDirectory() as tmp_dir:
             tmp_dir = Path(tmp_dir)
             for subfolder in subfolders:
-                with importlib.resources.as_file(pkg_files / str(subfolder)) as f:
+                with importlib_resources.as_file(pkg_files / str(subfolder)) as f:
                     shutil.copytree(f, tmp_dir, dirs_exist_ok=True)
             self.sync(tmp_dir, dst=dst, **kwargs)
 
