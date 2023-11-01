@@ -1,9 +1,14 @@
-import importlib.resources
 import secrets
 import string
+import sys
 from functools import lru_cache, partial, wraps
 
 from . import snippets
+
+if sys.version_info < (3, 9, 0):
+    import importlib_resources
+else:
+    import importlib.resources as importlib_resources
 
 _python_identifier_chars = string.ascii_uppercase + string.ascii_lowercase + string.digits
 
@@ -20,4 +25,4 @@ def random_python_identifier(n=16):
 @lru_cache
 def read_snippet(name):
     resource = f"{name}.py"
-    return importlib.resources.files(snippets).joinpath(resource).read_text()
+    return importlib_resources.files(snippets).joinpath(resource).read_text()
