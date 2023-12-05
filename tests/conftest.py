@@ -1,15 +1,13 @@
 import os
 from distutils import dir_util
-from functools import partial
 from pathlib import Path
 
 import pytest
-from typer.testing import CliRunner
 
 import belay
 import belay.cli.common
 import belay.project
-from belay.cli import app
+from belay.cli.main import app
 from belay.utils import env_parse_bool
 
 
@@ -54,10 +52,8 @@ def mock_device(mocker):
 
 @pytest.fixture
 def cli_runner(mock_device):
-    cli_runner = CliRunner()
-
     def run(cmd, *args):
-        result = cli_runner.invoke(app, [cmd, "/dev/ttyUSB0", *args, "--password", "password"])
+        result = app([cmd, "/dev/ttyUSB0", *args, "--password", "password"])
         mock_device.cls_assert_common()
         return result
 

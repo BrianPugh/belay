@@ -2,10 +2,10 @@ import asyncio
 import contextlib
 
 import questionary
-import typer
 from questionary import Choice
 
 from belay import Device, DeviceMeta
+from belay.cli.main import app
 from belay.cli.questionary_ext import press_any_key_to_continue, select_table
 from belay.usb_specifier import list_devices
 
@@ -90,6 +90,7 @@ class Blinker(Device, CircuitPythonBlinker, MicroPythonBlinker):
     """MicroPython + CircuitPython led/neopixel interactions."""
 
 
+@app.command
 def select():
     """Interactive board selector.
 
@@ -117,7 +118,7 @@ def select():
 
     if not choices:
         print("Detected no devices.")
-        raise typer.Exit(code=1)
+        return 1
 
     device_index = select_table(
         "Select USB Device (Use arrow keys):",

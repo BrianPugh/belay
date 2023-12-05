@@ -4,16 +4,24 @@ import sys
 from pathlib import Path
 
 from packaging.utils import canonicalize_name
-from typer import Argument, Option
 
 if sys.version_info < (3, 9, 0):
     import importlib_resources
 else:
     import importlib.resources as importlib_resources
 
+from belay.cli.main import app
 
-def new(project_name: str = Argument(..., help="Project Name.")):
-    """Create a new micropython project structure."""
+
+@app.command
+def new(project_name: str):
+    """Create a new micropython project structure.
+
+    Parameters
+    ----------
+    project_name: str
+        New project name.
+    """
     package_name = canonicalize_name(project_name)
     dst_dir = Path() / project_name
     template_dir = importlib_resources.files("belay") / "cli" / "new_template"

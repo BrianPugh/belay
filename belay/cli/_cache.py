@@ -1,33 +1,41 @@
 import builtins
 import contextlib
+import shutil
+
+import questionary
+from cyclopts import App, Parameter
+from typing_extensions import Annotated
 
 with contextlib.suppress(ImportError):
     import readline
-import shutil
 
-import typer
-from typer import Argument, Option, Typer
-
+from belay.cli.main import app
 from belay.project import find_cache_folder
 
-app = Typer(no_args_is_help=True, help="Perform action's on Belay's cache.")
+app.command(cache_app := App(name="cache", help="Perform action's on Belay's cache."))
 
 
-@app.command()
+@cache_app.command()
 def clear(
-    prefix: str = Argument("", help="Clear all caches that start with this."),
-    yes: bool = Option(
-        False,
-        "--yes",
-        "-y",
-        help='Automatically answer "yes" to all confirmation prompts.',
-    ),
-    all: bool = Option(False, "--all", "-a", help="Clear all caches."),
+    prefix: str = "",
+    *,
+    yes: Annotated[bool, Parameter(name=["--yes", "-y"])] = False,
+    all_: Annotated[bool, Parameter(name=["--all", "-a"])] = False,
 ):
-    """Clear cache."""
-    if (not prefix and not all) or (prefix and all):
+    """Clear cache.
+
+    Parameters
+    ----------
+    prefix: str
+        Clear all caches that start with this.
+    yes: bool
+        Skip interactive prompts confirming clear action.
+    all_: bool
+        Clear all caches.
+    """
+    if (not prefix and not all_) or (prefix and all_):
         print('Either provide a prefix OR set the "--all" flag.')
-        raise typer.Exit()
+        return 1
 
     cache_folder = find_cache_folder()
 
@@ -37,13 +45,15 @@ def clear(
 
     if not cache_paths:
         print(f'No caches found starting with "{prefix}"')
-        raise typer.Exit()
+        return 0
 
     if not yes:
         print("Found caches:")
         for cache_name in cache_names:
             print(f"  • {cache_name}")
-        typer.confirm("Clear these caches?", abort=True)
+        confirmed = questionary.confirm("Clear these caches?").ask()
+        if not confirmed:
+            return 0
 
     for path in cache_paths:
         if path.is_file():
@@ -52,7 +62,7 @@ def clear(
             shutil.rmtree(path)
 
 
-@app.command()
+@cache_app.command()
 def list():
     """List cache elements."""
     cache_folder = find_cache_folder()
@@ -62,7 +72,7 @@ def list():
         print(item)
 
 
-@app.command()
+@cache_app.command()
 def info():
     """Display cache location and size."""
     cache_folder = find_cache_folder()

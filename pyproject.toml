@@ -179,7 +179,7 @@ convention = "numpy"
     "D107",
     "PGH001",  # use of "eval"
 ]
-"belay/cli/select.py" = [
+"belay/cli/_select.py" = [
     "F821",
     "F841"
 ]
@@ -192,4 +192,17 @@ staticmethod-decorators = [
     "belay.Device.thread",
     "pydantic.validator",
     "pydantic.root_validator",
+]
+
+[tool.codespell]
+ignore-words-list = "ser,"
+
+[tool.creosote]
+venvs=[".venv"]
+paths=["belay"]
+deps-file="pyproject.toml"
+sections=["tool.poetry.dependencies"]
+exclude-deps =[
+  "importlib_resources",
+  "pydantic",
 ]

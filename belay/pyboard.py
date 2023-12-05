@@ -309,7 +309,7 @@ class Pyboard:
         Parameters
         ----------
         device: str
-            Some device specificier like ``'/dev/ttyACM0'`` or ``'192.168.1.1'``.
+            Some device specifier like ``'/dev/ttyACM0'`` or ``'192.168.1.1'``.
         baudrate: int
             If a serial-like connection, this baudrate will be used.
         user: str

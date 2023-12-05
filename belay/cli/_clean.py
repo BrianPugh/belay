@@ -1,8 +1,10 @@
 import shutil
 
+from belay.cli.main import app
 from belay.project import find_dependencies_folder, load_groups
 
 
+@app.command
 def clean():
     """Remove any downloaded dependencies if they are no longer specified in pyproject."""
     groups = load_groups()

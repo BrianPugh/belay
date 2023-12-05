@@ -1,14 +1,14 @@
 repos:
   - repo: https://github.com/charliermarsh/ruff-pre-commit
     # Ruff version.
-    rev: "v0.0.284"
+    rev: "v0.1.7"
     hooks:
       - id: ruff
         args: []
         exclude: ^(belay/snippets/)
 
   - repo: https://github.com/psf/black
-    rev: 23.7.0
+    rev: 23.11.0
     hooks:
       - id: black
         args:
@@ -20,13 +20,13 @@ repos:
         exclude: ^(belay/snippets/)
 
   - repo: https://github.com/asottile/blacken-docs
-    rev: 1.15.0
+    rev: 1.16.0
     hooks:
       - id: blacken-docs
         exclude: ^(docs/source/How Belay Works.rst)
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+    rev: v4.5.0
     hooks:
       - id: check-added-large-files
       - id: check-ast
@@ -53,21 +53,12 @@ repos:
         exclude: \.(html|svg)$
 
   - repo: https://github.com/fredrikaverpil/creosote.git
-    rev: v2.6.3
+    rev: v3.0.0
     hooks:
       - id: creosote
-        args:
-          - "--venv=.venv"
-          - "--paths=belay"
-          - "--deps-file=pyproject.toml"
-          - "--sections=tool.poetry.dependencies"
-          - "--exclude-deps"
-          - "importlib_resources"
-          - "pydantic"
 
   - repo: https://github.com/codespell-project/codespell
-    rev: v2.2.5
+    rev: v2.2.6
     hooks:
       - id: codespell
         exclude: ^(poetry.lock)
-        args: ["-L", "ser,"]
