@@ -23,9 +23,8 @@ belay = "belay.cli.main:run_app"
 
 [tool.poetry.dependencies]
 # Be as loose as possible if writing a library.
-python = ">=3.8"
+python = "^3.8"
 pyserial = ">=3.1"
-typer = {extras = ["all"], version = ">=0.6.0"}
 pathspec = ">=0.10.3"
 tomli = ">=2.0.1"
 autoregistry = ">=0.10.1"
@@ -37,6 +36,7 @@ typing-extensions = ">=4.5.0"
 questionary = ">=2.0.0"
 packaging = ">=20.4"
 importlib_resources = {version = ">=3.0.0", python = "<3.9"}
+cyclopts = "^0.2.0"
 
 [tool.poetry.group.docs.dependencies]
 sphinx = "^4.5.0"
@@ -162,8 +162,6 @@ line-length = 120  # Must agree with Black
 [tool.ruff.flake8-bugbear]
 extend-immutable-calls = [
     "chr",
-    "typer.Argument",
-    "typer.Option",
 ]
 
 [tool.ruff.pydocstyle]
