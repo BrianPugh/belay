@@ -92,7 +92,7 @@ Outputs from ``print`` calls from on-device user-code are forwarded to host ``st
 `For more examples, see the examples folder.`_
 
 
-.. |GHA tests| image:: https://github.com/BrianPugh/belay/workflows/tests/badge.svg
+.. |GHA tests| image:: https://github.com/BrianPugh/belay/actions/workflows/tests.yaml/badge.svg?branch=main
    :target: https://github.com/BrianPugh/belay/actions?query=workflow%3Atests
    :alt: GHA Status
 .. |Codecov report| image:: https://codecov.io/github/BrianPugh/belay/coverage.svg?branch=main
