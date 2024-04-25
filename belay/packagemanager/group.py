@@ -172,7 +172,7 @@ def _download_and_verify_dependency(download_folder: PathType, dependency: Depen
         Destination directory for downloaded file(s).
     """
     out = download_uri(download_folder, dependency.uri)
-    if dependency.rename_to_init and out.is_file() and out.suffix == ".py":
-        out = out.rename(out.parent / "__init__.py")
+    if dependency.rename_to_init and out.is_file() and out.suffix in (".py", ".mpy"):
+        out = out.rename(out.parent / f"__init__{out.suffix}")
 
     _verify_files(out)
