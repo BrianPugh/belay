@@ -23,6 +23,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
+
 import errno
 import socket
 import struct
@@ -95,10 +96,10 @@ class Websocket:
                     break
                 if text_ok and fl == 0x81:
                     break
-                debugmsg("Got unexpected websocket record of type %x, skipping it" % fl)
+                debugmsg(f"Got unexpected websocket record of type {fl:x}, skipping it")
                 while sz:
                     skip = self.s.recv(sz)
-                    debugmsg("Skip data: %s" % skip)
+                    debugmsg(f"Skip data: {skip}")
                     sz -= len(skip)
             data = self.recvexactly(sz)
             if len(data) != sz:
@@ -203,14 +204,14 @@ def get_file(ws, local_file, remote_file):
 
 def help(rc=0):
     exename = sys.argv[0].rsplit("/", 1)[-1]
-    print("%s - Perform remote file operations using MicroPython WebREPL protocol" % exename)
+    print(f"{exename} - Perform remote file operations using MicroPython WebREPL protocol")
     print("Arguments:")
     print("  [-p password] <host>:<remote_file> <local_file> - Copy remote file to local file")
     print("  [-p password] <local_file> <host>:<remote_file> - Copy local file to remote file")
     print("Examples:")
-    print("  %s script.py 192.168.4.1:/another_name.py" % exename)
-    print("  %s script.py 192.168.4.1:/app/" % exename)
-    print("  %s -p password 192.168.4.1:/app/script.py ." % exename)
+    print(f"  {exename} script.py 192.168.4.1:/another_name.py")
+    print(f"  {exename} script.py 192.168.4.1:/app/")
+    print(f"  {exename} -p password 192.168.4.1:/app/script.py .")
     sys.exit(rc)
 
 
@@ -297,8 +298,8 @@ class WebreplToSerial:
         if self.ws is None:
             raise WebsocketClosedError
 
-        readin = self.ws.read(size, text_ok=True, size_match=False)
-        self.fifo.extend(readin)
+        read_in = self.ws.read(size, text_ok=True, size_match=False)
+        self.fifo.extend(read_in)
 
         data = b""
         while len(data) < size and len(self.fifo) > 0:

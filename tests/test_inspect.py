@@ -4,7 +4,6 @@ Note: ``untokenize`` doesn't properly preserve inter-token spacing, so this test
 may need to change while still remaining valid.
 """
 
-
 import types
 import pytest
 

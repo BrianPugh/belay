@@ -38,8 +38,7 @@ class Executer(Registry, suffix="Executer"):
 
 class _GlobalExecuter(Executer, skip=True):
     @overload
-    def __call__(self, f: Callable[P, R]) -> Callable[P, R]:
-        ...
+    def __call__(self, f: Callable[P, R]) -> Callable[P, R]: ...
 
     @overload
     def __call__(
@@ -49,8 +48,7 @@ class _GlobalExecuter(Executer, skip=True):
         register: bool = True,
         record: bool = True,
         ignore_errors: bool = False,
-    ) -> Callable[[Callable[P, R]], Callable[P, R]]:
-        ...
+    ) -> Callable[[Callable[P, R]], Callable[P, R]]: ...
 
     def __call__(
         self,
@@ -103,8 +101,7 @@ class TeardownExecuter(_GlobalExecuter):
 
 class TaskExecuter(Executer):
     @overload
-    def __call__(self, f: Callable[P, R]) -> Callable[P, R]:
-        ...
+    def __call__(self, f: Callable[P, R]) -> Callable[P, R]: ...
 
     @overload
     def __call__(
@@ -114,8 +111,7 @@ class TaskExecuter(Executer):
         register: bool = True,
         record: bool = False,
         trusted: bool = False,
-    ) -> Callable[[Callable[P, R]], Callable[P, R]]:
-        ...
+    ) -> Callable[[Callable[P, R]], Callable[P, R]]: ...
 
     def __call__(
         self,
@@ -185,8 +181,7 @@ class TaskExecuter(Executer):
 
 class ThreadExecuter(Executer):
     @overload
-    def __call__(self, f: Callable[P, R]) -> Callable[P, R]:
-        ...
+    def __call__(self, f: Callable[P, R]) -> Callable[P, R]: ...
 
     @overload
     def __call__(
@@ -195,8 +190,7 @@ class ThreadExecuter(Executer):
         minify: bool = True,
         register: bool = True,
         record: bool = True,
-    ) -> Callable[[Callable[P, R]], Callable[P, R]]:
-        ...
+    ) -> Callable[[Callable[P, R]], Callable[P, R]]: ...
 
     def __call__(
         self,

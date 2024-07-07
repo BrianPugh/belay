@@ -4,6 +4,7 @@ Inspired by mCoding example::
 
     https://github.com/mCodingLLC/VideosSampleCode/blob/master/videos/077_metaclasses_in_python/overloading.py
 """
+
 from autoregistry import RegistryMeta
 
 from .exceptions import NoMatchingExecuterError

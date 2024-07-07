@@ -66,15 +66,16 @@ from pathlib import Path
 from threading import Lock, Thread
 from typing import Union
 
+from .exceptions import BelayException, ConnectionFailedError, DeviceNotFoundError
+from .usb_specifier import UsbSpecifier
+from .utils import env_parse_bool
+from .webrepl import WebreplToSerial
+
 try:
     from pydantic.v1.error_wrappers import ValidationError
 except ImportError:
     from pydantic import ValidationError
 
-from .exceptions import BelayException, ConnectionFailedError, DeviceNotFoundError
-from .usb_specifier import UsbSpecifier
-from .utils import env_parse_bool
-from .webrepl import WebreplToSerial
 
 try:
     stdout = sys.stdout.buffer
@@ -309,7 +310,7 @@ class Pyboard:
         Parameters
         ----------
         device: str
-            Some device specificier like ``'/dev/ttyACM0'`` or ``'192.168.1.1'``.
+            Some device specifier like ``'/dev/ttyACM0'`` or ``'192.168.1.1'``.
         baudrate: int
             If a serial-like connection, this baudrate will be used.
         user: str
@@ -573,7 +574,7 @@ class Pyboard:
         # check if we could exec command
         data = self.serial.read(2)
         if data != b"OK":
-            raise PyboardError("could not exec command (response: %r)" % data)
+            raise PyboardError(f"could not exec command (response: {data!r})")
 
     def exec_raw(self, command, timeout=None, data_consumer=None):
         self.exec_raw_no_follow(command)
@@ -602,7 +603,7 @@ class Pyboard:
         cmd = (
             "import uos\nfor f in uos.ilistdir(%s):\n"
             " print('{:12} {}{}'.format(f[3]if len(f)>3 else 0,f[0],'/'if f[1]&0x4000 else ''))"
-            % (("'%s'" % src) if src else "")
+            % ((f"'{src}'") if src else "")
         )
         self.exec(cmd, data_consumer=stdout_write_bytes)
 
@@ -617,8 +618,8 @@ class Pyboard:
         dest = Path(dest)
         written = 0
         if progress_callback:
-            src_size = int(self.exec("import os\nprint(os.stat('%s')[6])" % src))
-        self.exec("f=open('%s','rb')\nr=f.read" % src)
+            src_size = int(self.exec(f"import os\nprint(os.stat('{src}')[6])"))
+        self.exec(f"f=open('{src}','rb')\nr=f.read")
         with dest.open("wb") as f:
             while True:
                 data = bytearray()
@@ -649,7 +650,7 @@ class Pyboard:
         src = Path(src)
         written = 0
         src_size = src.stat().st_size
-        self.exec("f=open('%s','wb')\nw=f.write" % dest)
+        self.exec(f"f=open('{dest}','wb')\nw=f.write")
         with src.open("rb") as f:
             while True:
                 data = f.read(chunk_size)
@@ -662,10 +663,10 @@ class Pyboard:
         self.exec("f.close()")
 
     def fs_mkdir(self, dir):
-        self.exec("import uos\nuos.mkdir('%s')" % dir)
+        self.exec(f"import uos\nuos.mkdir('{dir}')")
 
     def fs_rmdir(self, dir):
-        self.exec("import uos\nuos.rmdir('%s')" % dir)
+        self.exec(f"import uos\nuos.rmdir('{dir}')")
 
     def fs_rm(self, src):
-        self.exec("import uos\nuos.remove('%s')" % src)
+        self.exec(f"import uos\nuos.remove('{src}')")

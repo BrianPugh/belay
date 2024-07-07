@@ -562,15 +562,13 @@ class Device(metaclass=DeviceMeta):
 
     @overload
     @staticmethod
-    def setup(f: Callable[P, R]) -> Callable[P, R]:
-        ...
+    def setup(f: Callable[P, R]) -> Callable[P, R]: ...
 
     @overload
     @staticmethod
     def setup(
         *, autoinit: bool = False, implementation: str = "", **kwargs
-    ) -> Callable[[Callable[P, R]], Callable[P, R]]:
-        ...
+    ) -> Callable[[Callable[P, R]], Callable[P, R]]: ...
 
     @staticmethod
     def setup(
@@ -626,13 +624,11 @@ class Device(metaclass=DeviceMeta):
 
     @overload
     @staticmethod
-    def teardown(f: Callable[P, R]) -> Callable[P, R]:
-        ...
+    def teardown(f: Callable[P, R]) -> Callable[P, R]: ...
 
     @overload
     @staticmethod
-    def teardown(*, implementation: str = "", **kwargs) -> Callable[[Callable[P, R]], Callable[P, R]]:
-        ...
+    def teardown(*, implementation: str = "", **kwargs) -> Callable[[Callable[P, R]], Callable[P, R]]: ...
 
     @staticmethod
     def teardown(
@@ -677,13 +673,11 @@ class Device(metaclass=DeviceMeta):
 
     @overload
     @staticmethod
-    def task(f: Callable[P, R]) -> Callable[P, R]:
-        ...
+    def task(f: Callable[P, R]) -> Callable[P, R]: ...
 
     @overload
     @staticmethod
-    def task(*, implementation: str = "", **kwargs) -> Callable[[Callable[P, R]], Callable[P, R]]:
-        ...
+    def task(*, implementation: str = "", **kwargs) -> Callable[[Callable[P, R]], Callable[P, R]]: ...
 
     @staticmethod
     def task(
@@ -731,13 +725,11 @@ class Device(metaclass=DeviceMeta):
 
     @overload
     @staticmethod
-    def thread(f: Callable[P, R]) -> Callable[P, R]:
-        ...
+    def thread(f: Callable[P, R]) -> Callable[P, R]: ...
 
     @overload
     @staticmethod
-    def thread(*, implementation: str = "", **kwargs) -> Callable[[Callable[P, R]], Callable[P, R]]:
-        ...
+    def thread(*, implementation: str = "", **kwargs) -> Callable[[Callable[P, R]], Callable[P, R]]: ...
 
     @staticmethod
     def thread(
