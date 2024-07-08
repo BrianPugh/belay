@@ -12,7 +12,7 @@ Belay is:
 
 * A command-line tool for developing standalone MicroPython projects.
 
-* A MicroPython package manager.
+* A `Poetry`_-inspired `MicroPython package manager <https://belay.readthedocs.io/en/latest/Package%20Manager.html>`_.
 
 Belay supports wired serial connections (USB) and wireless connections via WebREPL over WiFi.
 
@@ -107,3 +107,4 @@ Outputs from ``print`` calls from on-device user-code are forwarded to host ``st
 .. _Quick Video of Belay in 22 seconds.: https://www.youtube.com/watch?v=wq3cyjSE8ek
 .. _the documentation: https://belay.readthedocs.io
 .. _For more examples, see the examples folder.:  https://github.com/BrianPugh/belay/tree/main/examples
+.. _Poetry: https://python-poetry.org
