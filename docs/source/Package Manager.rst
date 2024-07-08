@@ -232,7 +232,7 @@ This is not a true virtual environment; currently the ``micropython`` binary mus
 
 clean
 -----
-Removes any previously downloaded dependencies no longer specified in ``tool.belay.dependecies``.
+Removes any previously downloaded dependencies no longer specified in ``tool.belay.dependencies``.
 
 .. code-block:: bash
 

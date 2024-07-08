@@ -11,7 +11,7 @@ def test_setup_basic(emulated_device):
 
     setup({"bar": 25})
 
-    assert {"bar": 25} == emulated_device("config")
+    assert emulated_device("config") == {"bar": 25}
     assert emulated_device("foo") == 25
 
 
@@ -79,7 +79,7 @@ def test_task_generators_communicate(emulated_device):
     actual.append(generator.send(25))
     with pytest.raises(StopIteration):
         generator.send(50)
-    assert [5, 25] == actual
+    assert actual == [5, 25]
 
 
 def test_teardown(emulated_device, mocker):

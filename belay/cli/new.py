@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 from packaging.utils import canonicalize_name
-from typer import Argument, Option
+from typer import Argument
 
 if sys.version_info < (3, 9, 0):
     import importlib_resources
@@ -18,7 +18,7 @@ def new(project_name: str = Argument(..., help="Project Name.")):
     dst_dir = Path() / project_name
     template_dir = importlib_resources.files("belay") / "cli" / "new_template"
 
-    shutil.copytree(str(template_dir), str(dst_dir))
+    shutil.copytree(str(template_dir), str(dst_dir), ignore=shutil.ignore_patterns("*.pyc", "__pycache__"))
 
     # Find/Replace Engine
     replacements: dict[str, str] = {
@@ -33,7 +33,8 @@ def new(project_name: str = Argument(..., help="Project Name.")):
         def _replace(match):
             return replacements[match.group(0)]
 
-        return re.sub("|".join(r"\b%s\b" % re.escape(s) for s in replacements), _replace, string)
+        pattern = "|".join(rf"\b{re.escape(s)}\b" if " " not in s else re.escape(s) for s in replacements)
+        return re.sub(pattern, _replace, string)
 
     for path in paths:
         if path.is_dir():
