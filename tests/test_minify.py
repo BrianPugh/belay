@@ -111,3 +111,50 @@ def test_minify_ops():
  return "test test"
 """
     assert res == expected
+
+
+def test_minify_newline_pass_0():
+    """Replicated issue https://github.com/BrianPugh/belay/issues/167."""
+    res = minify(
+        """
+print(src_code)
+l1 =[
+'foo','bar']
+l2 =['foo','bar']
+l3 =['foo',
+'bar']
+l4 =['foo',
+'bar',
+'baz']
+l5 =[
+'foo','foo',
+'bar','bar',
+'baz','baz']
+print ('l1',l1 )
+print ('l2',l2 )
+print ('l3',l3 )
+print ('l4',l4 )
+print ('l5',l5 )
+"""
+    )
+    expected = """
+print(src_code)
+l1=[
+'foo','bar']
+l2=['foo','bar']
+l3=['foo',
+'bar']
+l4=['foo',
+'bar',
+'baz']
+l5=[
+'foo','foo',
+'bar','bar',
+'baz','baz']
+print('l1',l1)
+print('l2',l2)
+print('l3',l3)
+print('l4',l4)
+print('l5',l5)
+"""
+    assert res == expected
