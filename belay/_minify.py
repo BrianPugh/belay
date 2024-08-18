@@ -34,6 +34,7 @@ def minify(code: str) -> str:
     level = 0
     global_start_col = 0
     prev_token_types = deque([INDENT], maxlen=2)
+    container_level = 0
 
     for (
         token_type,
@@ -60,8 +61,17 @@ def minify(code: str) -> str:
             continue
         elif token_type == COMMENT:
             continue
+        elif token_type == OP:
+            if string in "([{":
+                container_level += 1
+            elif string in ")]}":
+                container_level = max(0, container_level - 1)
 
-        if token_type == STRING and (prev_token_type in (NEWLINE, INDENT) or start_col == global_start_col):
+        if (
+            token_type == STRING
+            and container_level == 0
+            and (prev_token_type in (NEWLINE, INDENT) or start_col == global_start_col)
+        ):
             # Docstring
             out.append(" " * level + "0" + "\n" * string.count("\n"))
         elif start_line > prev_start_line and token_type != NEWLINE:
