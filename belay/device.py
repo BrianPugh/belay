@@ -374,59 +374,59 @@ class Device(metaclass=DeviceMeta):
         if not folder.exists():
             raise ValueError(f'"{folder}" does not exist.')
 
-        # Create a list of all files and dirs (on-device).
-        # This is so we know what to clean up after done syncing.
-        snippets_to_execute = []
-
-        if progress_update:
-            progress_update(description="Bootstrapping sync...")
-        if "viper" in self.implementation.emitters:
-            snippets_to_execute.append("hf_viper")
-        elif "native" in self.implementation.emitters:
-            snippets_to_execute.append("hf_native")
-        else:
-            snippets_to_execute.append("hf")
-
-        if self.implementation.name == "circuitpython":
-            snippets_to_execute.append("ilistdir_circuitpython")
-        else:
-            snippets_to_execute.append("ilistdir_micropython")
-        snippets_to_execute.append("sync_begin")
-        self._exec_snippet(*snippets_to_execute)
-
-        # Remove the keep files from the on-device ``all_files`` set
-        # so they don't get deleted.
-        keep_all = folder.is_file() or keep is True
-        keep = preprocess_keep(keep, dst)
-        ignore = preprocess_ignore(ignore)
-
-        src_files, src_dirs, dst_files = discover_files_dirs(dst, folder, ignore)
-
-        if mpy_cross_binary:
-            dst_files = [
-                dst_file.with_suffix(".mpy") if dst_file.suffix == ".py" else dst_file for dst_file in dst_files
-            ]
-        dst_files = [dst_file.as_posix() for dst_file in dst_files]
-        dst_dirs = generate_dst_dirs(dst, folder, src_dirs)
-
-        if keep_all:
-            self("del __belay_del_fs")
-        else:
-            self(f"__belay_del_fs({repr(dst)}, {repr(set(keep + dst_files))}); del __belay_del_fs")
-
-        # Try and make all remote dirs
-        if dst_dirs:
-            if progress_update:
-                progress_update(description="Creating remote directories...")
-            self(f"__belay_mkdirs({repr(dst_dirs)})")
-
         with TemporaryDirectory() as tmp_dir, concurrent.futures.ThreadPoolExecutor() as executor:
             tmp_dir = Path(tmp_dir)
+
+            # Create a list of all files and dirs (on-device).
+            # This is so we know what to clean up after done syncing.
+            snippets_to_execute = []
+
+            # Remove the keep files from the on-device ``all_files`` set
+            # so they don't get deleted.
+            keep_all = folder.is_file() or keep is True
+            keep = preprocess_keep(keep, dst)
+            ignore = preprocess_ignore(ignore)
+
+            src_files, src_dirs, dst_files = discover_files_dirs(dst, folder, ignore)
 
             def _preprocess_src_file_hash_helper(src_file):
                 return preprocess_src_file_hash(tmp_dir, src_file, minify, mpy_cross_binary)
 
-            src_files_and_hashes = executor.map(_preprocess_src_file_hash_helper, src_files)
+            futures = [executor.submit(_preprocess_src_file_hash_helper, src_file) for src_file in src_files]
+
+            if progress_update:
+                progress_update(description="Bootstrapping sync...")
+            if "viper" in self.implementation.emitters:
+                snippets_to_execute.append("hf_viper")
+            elif "native" in self.implementation.emitters:
+                snippets_to_execute.append("hf_native")
+            else:
+                snippets_to_execute.append("hf")
+
+            if self.implementation.name == "circuitpython":
+                snippets_to_execute.append("ilistdir_circuitpython")
+            else:
+                snippets_to_execute.append("ilistdir_micropython")
+            snippets_to_execute.append("sync_begin")
+            self._exec_snippet(*snippets_to_execute)
+
+            if mpy_cross_binary:
+                dst_files = [
+                    dst_file.with_suffix(".mpy") if dst_file.suffix == ".py" else dst_file for dst_file in dst_files
+                ]
+            dst_files = [dst_file.as_posix() for dst_file in dst_files]
+            dst_dirs = generate_dst_dirs(dst, folder, src_dirs)
+
+            if keep_all:
+                self("del __belay_del_fs")
+            else:
+                self(f"__belay_del_fs({repr(dst)}, {repr(set(keep + dst_files))}); del __belay_del_fs")
+
+            # Try and make all remote dirs
+            if dst_dirs:
+                if progress_update:
+                    progress_update(description="Creating remote directories...")
+                self(f"__belay_mkdirs({repr(dst_dirs)})")
 
             # Get all remote hashes
             if progress_update:
@@ -436,6 +436,7 @@ class Device(metaclass=DeviceMeta):
             if len(dst_hashes) != len(dst_files):
                 raise InternalError
 
+            src_files_and_hashes = [future.result() for future in futures]
             puts = []
             for (src_file, src_hash), dst_file, dst_hash in zip(src_files_and_hashes, dst_files, dst_hashes):
                 if src_hash != dst_hash:
