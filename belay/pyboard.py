@@ -115,17 +115,33 @@ class PyboardException(BelayException):  # noqa: N818
         return "\n\n" + self.args[0]
 
 
+def _extract_ip_port(uri):
+    fragments = uri.split(":")
+    if len(fragments) == 1:
+        return fragments[0], None
+    elif len(fragments) == 2:
+        return fragments[0], fragments[1]
+    else:
+        raise ValueError(f"Unable to extract ip/port from {uri!r}.")
+
+
 class TelnetToSerial:
     def __init__(self, ip, user, password, read_timeout=None):
-        self.tn = None
         import telnetlib
+        from collections import deque
 
-        self.tn = telnetlib.Telnet(ip, timeout=15)
+        address, port = _extract_ip_port(ip)
+        if port is None:
+            self.tn = telnetlib.Telnet(address, timeout=15)
+        else:
+            self.tn = telnetlib.Telnet(address, port=port, timeout=15)
+
+        self.fifo = deque()
         self.read_timeout = read_timeout
-        if b"Login as:" in self.tn.read_until(b"Login as:", timeout=read_timeout):
+        if user and b"Login as:" in self.tn.read_until(b"Login as:", timeout=read_timeout):
             self.tn.write(bytes(user, "ascii") + b"\r\n")
 
-            if b"Password:" in self.tn.read_until(b"Password:", timeout=read_timeout):
+            if password and b"Password:" in self.tn.read_until(b"Password:", timeout=read_timeout):
                 # needed because of internal implementation details of the telnet server
                 time.sleep(0.2)
                 self.tn.write(bytes(password, "ascii") + b"\r\n")
@@ -134,12 +150,9 @@ class TelnetToSerial:
                     b'Type "help()" for more information.', timeout=read_timeout
                 ):
                     # login successful
-                    from collections import deque
-
-                    self.fifo = deque()
                     return
-
-        raise ConnectionFailedError
+                else:
+                    raise ConnectionFailedError
 
     def __del__(self):
         self.close()
