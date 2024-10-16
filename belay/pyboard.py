@@ -127,14 +127,15 @@ def _extract_ip_port(uri):
 
 class TelnetToSerial:
     def __init__(self, ip, user, password, read_timeout=None):
-        import telnetlib
         from collections import deque
+
+        from belay.telnetlib import Telnet
 
         address, port = _extract_ip_port(ip)
         if port is None:
-            self.tn = telnetlib.Telnet(address, timeout=15)
+            self.tn = Telnet(address, timeout=15)
         else:
-            self.tn = telnetlib.Telnet(address, port=port, timeout=15)
+            self.tn = Telnet(address, port=port, timeout=15)
 
         self.fifo = deque()
         self.read_timeout = read_timeout
@@ -169,7 +170,7 @@ class TelnetToSerial:
                 self.fifo.extend(data)
                 timeout_count = 0
             else:
-                time.sleep(0.25)
+                time.sleep(0.0001)
                 if self.read_timeout is not None and timeout_count > 4 * self.read_timeout:
                     break
                 timeout_count += 1
