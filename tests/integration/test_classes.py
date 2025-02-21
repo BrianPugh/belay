@@ -1,4 +1,5 @@
 from inspect import isfunction
+from textwrap import dedent
 
 import pytest
 
@@ -359,3 +360,54 @@ def test_classes_executer_implementation_overload_mixins_per_method(emulate_comm
             assert device.get_setup_var() == "circuitpython_setup_return_value"
         else:
             raise NotImplementedError
+
+
+def test_proxy_class(emulated_device):
+    emulated_device(
+        dedent(
+            """\
+            class Klass:
+                foo = 1
+                bar = 2
+                def some_method(self, value):
+                    return 2 * value
+            klass = Klass()
+            """
+        )
+    )
+
+    class ProxyObject:
+        def __init__(self, device: Device, name: str):
+            object.__setattr__(self, "_belay_device", device)
+            object.__setattr__(self, "_belay_target_name", name)
+
+        def __getattribute__(self, name):
+            device = object.__getattribute__(self, "_belay_device")
+            target_obj = object.__getattribute__(self, "_belay_target_name")
+            full_name = f"{target_obj}.{name}"
+            try:
+                return device(full_name)
+            except SyntaxError:
+                # It could be a method; create another proxy object
+                return ProxyObject(device, full_name)
+
+        def __setattr__(self, name, value):
+            device = object.__getattribute__(self, "_belay_device")
+            target_name = object.__getattribute__(self, "_belay_target_name")
+            return device(f"{target_name}.{name} = {value!r}")
+
+        def __call__(self, *args, **kwargs):
+            # TODO: this won't handle generators properly
+            device = object.__getattribute__(self, "_belay_device")
+            target_name = object.__getattribute__(self, "_belay_target_name")
+            cmd = f"{target_name}(*{args!r}, **{kwargs!r})"
+            return device(cmd)
+
+    obj = ProxyObject(emulated_device, "klass")
+
+    assert obj.foo == 1
+    assert obj.bar == 2
+
+    assert obj.some_method(3) == 6
+    obj.foo = 4
+    assert obj.foo == 4
