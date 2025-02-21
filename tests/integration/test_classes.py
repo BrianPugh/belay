@@ -3,7 +3,7 @@ from textwrap import dedent
 
 import pytest
 
-from belay import Device, PyboardException
+from belay import Device, ProxyObject, PyboardException
 from belay.device_meta import DeviceMeta
 
 
@@ -375,37 +375,6 @@ def test_proxy_class(emulated_device):
             """
         )
     )
-
-    class ProxyObject:
-        def __init__(self, device: Device, name: str):
-            object.__setattr__(self, "_belay_device", device)
-            object.__setattr__(self, "_belay_target_name", name)
-
-        def __getattribute__(self, name):
-            device = object.__getattribute__(self, "_belay_device")
-            target_obj = object.__getattribute__(self, "_belay_target_name")
-            full_name = f"{target_obj}.{name}"
-            try:
-                return device(full_name)
-            except SyntaxError:
-                # It could be a method; create another proxy object
-                return ProxyObject(device, full_name)
-            except PyboardException as e:
-                if "AttributeError: " in e.args[0]:
-                    raise AttributeError from e
-                raise
-
-        def __setattr__(self, name, value):
-            device = object.__getattribute__(self, "_belay_device")
-            target_name = object.__getattribute__(self, "_belay_target_name")
-            return device(f"{target_name}.{name} = {value!r}")
-
-        def __call__(self, *args, **kwargs):
-            # TODO: this won't handle generators properly
-            device = object.__getattribute__(self, "_belay_device")
-            target_name = object.__getattribute__(self, "_belay_target_name")
-            cmd = f"{target_name}(*{args!r}, **{kwargs!r})"
-            return device(cmd)
 
     obj = ProxyObject(emulated_device, "klass")
 
