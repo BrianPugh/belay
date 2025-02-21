@@ -390,6 +390,10 @@ def test_proxy_class(emulated_device):
             except SyntaxError:
                 # It could be a method; create another proxy object
                 return ProxyObject(device, full_name)
+            except PyboardException as e:
+                if "AttributeError: " in e.args[0]:
+                    raise AttributeError from e
+                raise
 
         def __setattr__(self, name, value):
             device = object.__getattribute__(self, "_belay_device")
@@ -411,3 +415,6 @@ def test_proxy_class(emulated_device):
     assert obj.some_method(3) == 6
     obj.foo = 4
     assert obj.foo == 4
+
+    with pytest.raises(AttributeError):
+        obj.non_existant_attribute  # noqa: B018
