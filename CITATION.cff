@@ -1,6 +1,6 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it using these metadata."
-title: "Belay"
+title: "Belay: A Python Library for Rapid Hardware Development with MicroPython and CircuitPython"
 abstract: "Task and dependency management system for Python."
 type: software
 authors:
