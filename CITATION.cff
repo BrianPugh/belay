@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using these metadata."
+title: "Belay: A Python Library for Rapid Hardware Development with MicroPython and CircuitPython"
+abstract: "Task and dependency management system for Python."
+type: software
+authors:
+  - family-names: "Pugh"
+    given-names: "Brian"
+    orcid: 0000-0003-0561-3829
+repository-code: "https://github.com/BrianPugh/belay"
+url: "https://github.com/BrianPugh/belay"
+keywords:
+  - python
+  - micropython
+  - robotics
+  - hardware
+  - physical-computing
+license: Apache-2.0
