@@ -24,7 +24,7 @@ def proxy_object(emulated_device):
     return obj
 
 
-def test_proxy_class_basic(proxy_object):
+def test_proxy_object_basic(proxy_object):
     assert proxy_object.foo == 1
     assert proxy_object.bar == 2
 
@@ -36,14 +36,14 @@ def test_proxy_class_basic(proxy_object):
         proxy_object.non_existant_attribute  # noqa: B018
 
 
-def test_proxy_class_dir(proxy_object):
+def test_proxy_object_dir(proxy_object):
     result = dir(proxy_object)
     result = set(result)
     expected = {"__init__", "__module__", "__new__", "__qualname__", "bar", "foo", "some_method"}
     assert expected.issubset(result)
 
 
-def test_proxy_class_getitem(emulated_device, proxy_object):
+def test_proxy_object_getitem(emulated_device, proxy_object):
     emulated_device("klass.demo_list = [1,2,3]")
     assert proxy_object.demo_list == [1, 2, 3]
     assert proxy_object.demo_list[1] == 2
@@ -54,6 +54,20 @@ def test_proxy_class_getitem(emulated_device, proxy_object):
         proxy_object.demo_list[100]
 
 
-def test_proxy_class_len(emulated_device, proxy_object):
+def test_proxy_object_len(emulated_device, proxy_object):
     emulated_device("klass.demo_list = [1,2,3]")
     assert len(proxy_object.demo_list) == 3
+
+
+def test_proxy_object_subclassing(emulated_device):
+    class CustomProxyObject(ProxyObject):
+        def __init__(self, device, name):
+            super().__init__(device, name)
+            object.__setattr__(self, "fizz", 200)
+
+        def foo(self):
+            return 100
+
+    obj = CustomProxyObject(emulated_device, "klass")
+    assert obj.foo() == 100
+    assert obj.fizz == 200

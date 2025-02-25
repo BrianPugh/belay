@@ -16,6 +16,15 @@ class ProxyObject:
     def __getattribute__(self, name):
         device = object.__getattribute__(self, "_belay_device")
         target_obj = object.__getattribute__(self, "_belay_target_name")
+
+        if not (name.startswith("__") and name.endswith("__")):
+            # If it's not a magic-method, try to see if
+            # this class directlky has the attribute.
+            try:
+                return object.__getattribute__(self, name)
+            except AttributeError:
+                pass
+
         full_name = f"{target_obj}.{name}"
         try:
             return device(full_name)
