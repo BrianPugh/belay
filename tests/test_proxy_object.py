@@ -13,6 +13,7 @@ def proxy_object(emulated_device):
             class Klass:
                 foo = 1
                 bar = 2
+                some_dict = {"a": 1, "b": 2, "c": 3}
                 def some_method(self, value):
                     return 2 * value
             klass = Klass()
@@ -39,8 +40,18 @@ def test_proxy_object_basic(proxy_object):
 def test_proxy_object_dir(proxy_object):
     result = dir(proxy_object)
     result = set(result)
-    expected = {"__init__", "__module__", "__new__", "__qualname__", "bar", "foo", "some_method"}
+    expected = {"__init__", "__module__", "__new__", "__qualname__", "bar", "foo", "some_method", "some_dict"}
     assert expected.issubset(result)
+
+
+def test_proxy_object_dict_keys(proxy_object):
+    result = proxy_object.some_dict.keys()
+    assert {"a", "b", "c"} == set(result)
+
+
+def test_proxy_object_dict_values(proxy_object):
+    result = proxy_object.some_dict.values()
+    assert {1, 2, 3} == set(result)
 
 
 def test_proxy_object_getitem(emulated_device, proxy_object):
@@ -71,3 +82,7 @@ def test_proxy_object_subclassing(emulated_device):
     obj = CustomProxyObject(emulated_device, "klass")
     assert obj.foo() == 100
     assert obj.fizz == 200
+
+    # Subsequent setting of a set-attribute should work.
+    obj.fizz = 300
+    assert object.__getattribute__(obj, "fizz") == 300

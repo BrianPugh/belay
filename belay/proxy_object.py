@@ -2,8 +2,8 @@ from belay.device import Device
 from belay.pyboard import PyboardException
 
 
-def _eval(device, target_obj):
-    pass
+def _is_magic(name) -> bool:
+    return name.startswith("__") and name.endswith("__")
 
 
 class ProxyObject:
@@ -17,9 +17,9 @@ class ProxyObject:
         device = object.__getattribute__(self, "_belay_device")
         target_obj = object.__getattribute__(self, "_belay_target_name")
 
-        if not (name.startswith("__") and name.endswith("__")):
+        if not _is_magic(name):
             # If it's not a magic-method, try to see if
-            # this class directlky has the attribute.
+            # this class directly has the attribute.
             try:
                 return object.__getattribute__(self, name)
             except AttributeError:
@@ -30,7 +30,7 @@ class ProxyObject:
             return device(full_name)
         except SyntaxError:
             # It could be a method; create another proxy object
-            return ProxyObject(device, full_name)
+            return type(self)(device, full_name)
         except PyboardException as e:
             # semi-jank way of promoting to an AttributeError
             if "AttributeError: " in e.args[0]:
@@ -40,7 +40,19 @@ class ProxyObject:
     def __setattr__(self, name, value):
         device = object.__getattribute__(self, "_belay_device")
         target_name = object.__getattribute__(self, "_belay_target_name")
-        return device(f"{target_name}.{name} = {value!r}")
+
+        if not _is_magic(name):
+            # If it's not a magic-method, try to see if
+            # this class directly has the attribute.
+            try:
+                object.__getattribute__(self, name)
+            except AttributeError:
+                pass
+            else:
+                object.__setattr__(self, name, value)
+                return
+
+        device(f"{target_name}.{name} = {value!r}")
 
     def __getitem__(self, key):
         device = object.__getattribute__(self, "_belay_device")
@@ -50,7 +62,7 @@ class ProxyObject:
             return device(expression)
         except SyntaxError:
             # It could be a method; create another proxy object
-            return ProxyObject(device, expression)
+            return type(self)(device, expression)
 
     def __len__(self) -> int:
         device = object.__getattribute__(self, "_belay_device")
