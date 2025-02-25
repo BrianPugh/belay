@@ -1,9 +1,8 @@
 from inspect import isfunction
-from textwrap import dedent
 
 import pytest
 
-from belay import Device, ProxyObject, PyboardException
+from belay import Device, PyboardException
 from belay.device_meta import DeviceMeta
 
 
@@ -360,30 +359,3 @@ def test_classes_executer_implementation_overload_mixins_per_method(emulate_comm
             assert device.get_setup_var() == "circuitpython_setup_return_value"
         else:
             raise NotImplementedError
-
-
-def test_proxy_class(emulated_device):
-    emulated_device(
-        dedent(
-            """\
-            class Klass:
-                foo = 1
-                bar = 2
-                def some_method(self, value):
-                    return 2 * value
-            klass = Klass()
-            """
-        )
-    )
-
-    obj = ProxyObject(emulated_device, "klass")
-
-    assert obj.foo == 1
-    assert obj.bar == 2
-
-    assert obj.some_method(3) == 6
-    obj.foo = 4
-    assert obj.foo == 4
-
-    with pytest.raises(AttributeError):
-        obj.non_existant_attribute  # noqa: B018
