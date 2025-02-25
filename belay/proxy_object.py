@@ -2,6 +2,10 @@ from belay.device import Device
 from belay.pyboard import PyboardException
 
 
+def _eval(device, target_obj):
+    pass
+
+
 class ProxyObject:
     """Proxy object for interacting/mimicking a remote micropythonobject."""
 
@@ -28,6 +32,22 @@ class ProxyObject:
         device = object.__getattribute__(self, "_belay_device")
         target_name = object.__getattribute__(self, "_belay_target_name")
         return device(f"{target_name}.{name} = {value!r}")
+
+    def __getitem__(self, key):
+        device = object.__getattribute__(self, "_belay_device")
+        target_name = object.__getattribute__(self, "_belay_target_name")
+        expression = f"{target_name}[{key!r}]"
+        try:
+            return device(expression)
+        except SyntaxError:
+            # It could be a method; create another proxy object
+            return ProxyObject(device, expression)
+
+    def __len__(self) -> int:
+        device = object.__getattribute__(self, "_belay_device")
+        target_name = object.__getattribute__(self, "_belay_target_name")
+        expression = f"len({target_name})"
+        return device(expression)
 
     def __call__(self, *args, **kwargs):
         # TODO: this won't handle generators properly

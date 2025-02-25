@@ -54,9 +54,32 @@ P = ParamSpec("P")
 R = TypeVar("R")
 
 
+def remove_call(expression: str, func_name: str, required=False) -> str:
+    expression = expression.strip()
+    func_name_with_parenthesis = func_name + "("
+    if expression.startswith(func_name_with_parenthesis) and expression[-1] == ")":
+        return expression[len(func_name_with_parenthesis) : -1]
+
+    if required:
+        raise ValueError
+
+    return expression
+
+
+def extended_literal_eval(expression):
+    """
+    Extended version of ast.literal_eval that also handles other common builtins.
+    """
+    # If it's a string that looks like dict_keys, convert it to a list
+    if isinstance(expression, str) and expression.startswith("dict_keys("):
+        return list(ast.literal_eval(remove_call(expression, "dict_keys")))
+
+    return ast.literal_eval(expression)
+
+
 def parse_belay_response(
     line: str,
-    result_parser: Callable[[str], Any] = ast.literal_eval,
+    result_parser: Callable[[str], Any] = extended_literal_eval,
 ):
     """Parse a Belay response string into a python object.
 

@@ -24,7 +24,7 @@ def proxy_object(emulated_device):
     return obj
 
 
-def test_proxy_class(proxy_object):
+def test_proxy_class_basic(proxy_object):
     assert proxy_object.foo == 1
     assert proxy_object.bar == 2
 
@@ -34,3 +34,26 @@ def test_proxy_class(proxy_object):
 
     with pytest.raises(AttributeError):
         proxy_object.non_existant_attribute  # noqa: B018
+
+
+def test_proxy_class_dir(proxy_object):
+    result = dir(proxy_object)
+    result = set(result)
+    expected = {"__init__", "__module__", "__new__", "__qualname__", "bar", "foo", "some_method"}
+    assert expected.issubset(result)
+
+
+def test_proxy_class_getitem(emulated_device, proxy_object):
+    emulated_device("klass.demo_list = [1,2,3]")
+    assert proxy_object.demo_list == [1, 2, 3]
+    assert proxy_object.demo_list[1] == 2
+    assert proxy_object.demo_list[-1] == 3
+    assert proxy_object.demo_list[:2] == [1, 2]
+
+    with pytest.raises(IndexError):
+        proxy_object.demo_list[100]
+
+
+def test_proxy_class_len(emulated_device, proxy_object):
+    emulated_device("klass.demo_list = [1,2,3]")
+    assert len(proxy_object.demo_list) == 3
