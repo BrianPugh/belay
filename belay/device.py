@@ -41,6 +41,7 @@ from .executers import (
 )
 from .helpers import read_snippet, wraps_partial
 from .inspect import isexpression
+from .proxy_object import ProxyObject
 from .pyboard import Pyboard, PyboardError, PyboardException
 from .typing import BelayReturn, PathType
 from .webrepl import WebreplToSerial
@@ -344,6 +345,9 @@ class Device(metaclass=DeviceMeta):
                 raise ConnectionLost from e
 
         return out
+
+    def create_proxy(self, name: str) -> ProxyObject:
+        return ProxyObject(self, name)
 
     def sync(
         self,

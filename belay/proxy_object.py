@@ -1,5 +1,9 @@
-from belay.device import Device
+from typing import TYPE_CHECKING
+
 from belay.pyboard import PyboardException
+
+if TYPE_CHECKING:
+    from belay.device import Device
 
 
 def _is_magic(name) -> bool:
@@ -9,7 +13,7 @@ def _is_magic(name) -> bool:
 class ProxyObject:
     """Proxy object for interacting/mimicking a remote micropythonobject."""
 
-    def __init__(self, device: Device, name: str):
+    def __init__(self, device: "Device", name: str):
         object.__setattr__(self, "_belay_device", device)
         object.__setattr__(self, "_belay_target_name", name)
 
