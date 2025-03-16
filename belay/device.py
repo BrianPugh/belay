@@ -347,6 +347,13 @@ class Device(metaclass=DeviceMeta):
         return out
 
     def create_proxy(self, name: str) -> ProxyObject:
+        """Create a :class:`.ProxyObject` that uses this :class:`Device`.
+
+        Parameters
+        ----------
+        name: str
+            Name of the remote object for the proxy-object to interact with.
+        """
         return ProxyObject(self, name)
 
     def sync(

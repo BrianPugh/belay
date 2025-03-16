@@ -11,9 +11,27 @@ def _is_magic(name) -> bool:
 
 
 class ProxyObject:
-    """Proxy object for interacting/mimicking a remote micropythonobject."""
+    """Proxy object for interacting/mimicking a remote micropython object.
+
+    If subclassing :class:`ProxyObject`:
+
+    1. Be sure to call ``super().__init__(device, name)`` first.
+    2. Use ``object.__setattr__(self, "some_attribute_name", value)`` to create/set a local attribute.
+       Attributes created this way will *only* be stored locally in CPython and will not interact
+       with the micropython board. Subsequent writes to this attribute can be done "normally"
+       (without ``object.__setattr__``).
+    """
 
     def __init__(self, device: "Device", name: str):
+        """Create a :class:`ProxyObject`.
+
+        Parameters
+        ----------
+        device: belay.Device
+            Belay :class:`Device` object for interacting with the micropython board.
+        name: str
+            Name of the remote object for the proxy-object to interact with.
+        """
         object.__setattr__(self, "_belay_device", device)
         object.__setattr__(self, "_belay_target_name", name)
 

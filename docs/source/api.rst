@@ -8,6 +8,9 @@ Device
    :undoc-members:
    :exclude-members: clear, get, items, keys, values
 
+.. autoclass:: belay.ProxyObject
+   :members:
+
 .. autoclass:: belay.Implementation
    :members:
    :undoc-members:
