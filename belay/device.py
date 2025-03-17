@@ -346,7 +346,7 @@ class Device(metaclass=DeviceMeta):
 
         return out
 
-    def create_proxy(self, name: str) -> ProxyObject:
+    def proxy(self, name: str) -> ProxyObject:
         """Create a :class:`.ProxyObject` that uses this :class:`Device`.
 
         Parameters

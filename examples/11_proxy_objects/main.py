@@ -25,7 +25,7 @@ setup()
 
 # Create a ProxyObject for the micropython object "user" that was defined in setup() .
 # This is just a thin wrapper for calling belay.ProxyObject(device, "user") .
-user = device.create_proxy("user")
+user = device.proxy("user")
 
 user_name = user.name
 print(f'We got the attribute "{user_name}".')
