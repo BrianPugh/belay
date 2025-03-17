@@ -5,7 +5,7 @@ Welcome to Belay's documentation!
   :start-after: inclusion-marker-do-not-remove
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
    :caption: Contents:
 
    Installation

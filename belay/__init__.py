@@ -14,6 +14,7 @@ __all__ = [
     "MaxHistoryLengthError",
     "NoMatchingExecuterError",
     "NotBelayResponseError",
+    "ProxyObject",
     "PyboardException",
     "SpecialFunctionNameError",
     "UsbSpecifier",
@@ -35,5 +36,6 @@ from .exceptions import (
     NotBelayResponseError,
     SpecialFunctionNameError,
 )
+from .proxy_object import ProxyObject
 from .pyboard import PyboardException
 from .usb_specifier import UsbSpecifier, list_devices
