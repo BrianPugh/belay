@@ -89,7 +89,7 @@ def test_device_traceback_execute(mocker, mock_device, tmp_path):
 
     src_lineno = 2
     name = "foo"
-    cmd = None  # Doesn't matter; mocked
+    cmd = ""  # Doesn't matter; mocked
     expected_msg = (
         "Traceback (most recent call last):\r\n"
         '  File "<stdin>", line 1, in <module>\r\n'

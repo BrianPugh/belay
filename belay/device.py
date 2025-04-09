@@ -9,6 +9,7 @@ import sys
 from inspect import signature
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from textwrap import dedent
 from types import ModuleType
 from typing import Any, Callable, Optional, TextIO, TypeVar, Union, overload
 
@@ -301,6 +302,8 @@ class Device(metaclass=DeviceMeta):
         -------
             Correctly interpreted return value from executing code on-device.
         """
+        cmd = dedent(cmd)
+
         if minify:
             cmd = minify_code(cmd)
 
