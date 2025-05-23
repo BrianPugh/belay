@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 from belay.pyboard import PyboardException
 
@@ -22,7 +22,9 @@ class ProxyObject:
        (without ``object.__setattr__``).
     """
 
-    def __init__(self, device: "Device", name: str):
+    # TODO: when going out of scope, delete the remote object?
+
+    def __init__(self, device: "Device", name: Union[str, int]):
         """Create a :class:`ProxyObject`.
 
         Parameters
@@ -37,7 +39,7 @@ class ProxyObject:
 
     def __getattribute__(self, name):
         device = object.__getattribute__(self, "_belay_device")
-        target_obj = object.__getattribute__(self, "_belay_target_name")
+        target_name = get_proxy_object_target_name(self)
 
         if not _is_magic(name):
             # If it's not a magic-method, try to see if
@@ -47,7 +49,7 @@ class ProxyObject:
             except AttributeError:
                 pass
 
-        full_name = f"{target_obj}.{name}"
+        full_name = f"{target_name}.{name}"
         try:
             return device(full_name)
         except SyntaxError:
@@ -61,7 +63,7 @@ class ProxyObject:
 
     def __setattr__(self, name, value):
         device = object.__getattribute__(self, "_belay_device")
-        target_name = object.__getattribute__(self, "_belay_target_name")
+        target_name = get_proxy_object_target_name(self)
 
         if not _is_magic(name):
             # If it's not a magic-method, try to see if
@@ -78,7 +80,7 @@ class ProxyObject:
 
     def __getitem__(self, key):
         device = object.__getattribute__(self, "_belay_device")
-        target_name = object.__getattribute__(self, "_belay_target_name")
+        target_name = get_proxy_object_target_name(self)
         expression = f"{target_name}[{key!r}]"
         try:
             return device(expression)
@@ -88,13 +90,28 @@ class ProxyObject:
 
     def __len__(self) -> int:
         device = object.__getattribute__(self, "_belay_device")
-        target_name = object.__getattribute__(self, "_belay_target_name")
+        target_name = get_proxy_object_target_name(self)
         expression = f"len({target_name})"
         return device(expression)
 
     def __call__(self, *args, **kwargs):
         # TODO: this won't handle generators properly
         device = object.__getattribute__(self, "_belay_device")
-        target_name = object.__getattribute__(self, "_belay_target_name")
-        cmd = f"{target_name}(*{args!r}, **{kwargs!r})"
+        target_name = get_proxy_object_target_name(self)
+
+        # Resolve nested ProxyObjects to their micropython equivalent.
+        resolved_args = tuple(
+            get_proxy_object_target_name(arg) if isinstance(arg, ProxyObject) else arg for arg in args
+        )
+        resolved_kwargs = {
+            k: get_proxy_object_target_name(v) if isinstance(v, ProxyObject) else v for k, v in kwargs.items()
+        }
+        cmd = f"{target_name}(*{resolved_args!r}, **{resolved_kwargs!r})"
         return device(cmd)
+
+
+def get_proxy_object_target_name(proxy_object: ProxyObject) -> str:
+    target_name = object.__getattribute__(proxy_object, "_belay_target_name")
+    if isinstance(target_name, int):
+        target_name = f"__belay_get_obj_by_id({target_name})"
+    return target_name

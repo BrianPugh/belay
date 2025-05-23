@@ -55,6 +55,8 @@ else:
 P = ParamSpec("P")
 R = TypeVar("R")
 
+UNPARSABLE_RESULT = object()
+
 
 def remove_call(expression: str, func_name: str, required=False) -> str:
     expression = expression.strip()
@@ -100,7 +102,13 @@ def parse_belay_response(
 
     if code == "R":
         # Result
-        return result_parser(line)
+        id_, line = line.split("|", 1)
+        id_ = int(id_)
+        try:
+            parsed_result = result_parser(line)
+        except Exception:
+            parsed_result = UNPARSABLE_RESULT
+        return id_, parsed_result
     elif code == "S":
         # StopIteration
         raise StopIteration
@@ -309,17 +317,17 @@ class Device(metaclass=DeviceMeta):
 
         if isexpression(cmd):
             # Belay Tasks are inherently expressions as well.
-            cmd = f"print('_BELAYR' + repr({cmd}))"
+            cmd = f"__belay_print({cmd})"
 
         if record and self.attempts and len(self._cmd_history) < self.MAX_CMD_HISTORY_LEN:
             self._cmd_history.append(cmd)
 
-        out = None  # Used to store the parsed response object.
+        id_, result = 0, UNPARSABLE_RESULT  # Used to store the parsed response object.
         data_consumer_buffer = bytearray()
 
         def data_consumer(data):
             """Handle input data stream immediately."""
-            nonlocal out
+            nonlocal id_, result
             data = data.replace(b"\x04", b"")
             if not data:
                 return
@@ -330,9 +338,9 @@ class Device(metaclass=DeviceMeta):
                 data_consumer_buffer[:] = data_consumer_buffer[i:]
                 try:
                     if trusted:
-                        out = parse_belay_response(line, result_parser=eval)
+                        id_, result = parse_belay_response(line, result_parser=eval)
                     else:
-                        out = parse_belay_response(line)
+                        id_, result = parse_belay_response(line)
                 except NotBelayResponseError:
                     if stream_out:
                         stream_out.write(line)
@@ -347,9 +355,11 @@ class Device(metaclass=DeviceMeta):
             else:
                 raise ConnectionLost from e
 
-        return out
+        if result is UNPARSABLE_RESULT:
+            result = self.proxy(id_)
+        return result
 
-    def proxy(self, name: str) -> ProxyObject:
+    def proxy(self, name: Union[str, int]) -> ProxyObject:
         """Create a :class:`.ProxyObject` that uses this :class:`Device`.
 
         Parameters
