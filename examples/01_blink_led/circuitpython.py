@@ -29,6 +29,7 @@ def set_led(state):
     print(f"Printing from device; turning LED to {state}.")
     led.value = state
 
+setup()
 
 while True:
     set_led(True)
