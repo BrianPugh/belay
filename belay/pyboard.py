@@ -230,11 +230,11 @@ class ProcessToSerial:
 
         atexit.register(self.close)
 
-        t_deadline = time.time() + 1
+        t_deadline = time.monotonic() + 1
         while b">>>" not in self.buf:
             time.sleep(0.0001)
-            if env_parse_bool("BELAY_DEBUG_PROCESS_BUFFER") and time.time() > t_deadline:
-                t_deadline = time.time() + 1
+            if env_parse_bool("BELAY_DEBUG_PROCESS_BUFFER") and time.monotonic() > t_deadline:
+                t_deadline = time.monotonic() + 1
                 print(self.buf)
 
     def close(self):
@@ -432,7 +432,7 @@ class Pyboard:
 
         if timeout is None:
             timeout = float("inf")
-        deadline = time.time() + timeout
+        deadline = time.monotonic() + timeout
 
         def find(buf):
             # slice up to this index
@@ -471,7 +471,7 @@ class Pyboard:
 
             while not self._unconsumed_buf:
                 # loop until new data has arrived.
-                if time.time() > deadline:
+                if time.monotonic() > deadline:
                     raise PyboardError(
                         f"Timed out reading until {repr(ending)}\n    Received: {repr(self._consumed_buf)}"
                     )
