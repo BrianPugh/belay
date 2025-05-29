@@ -322,7 +322,7 @@ class Device(metaclass=DeviceMeta):
         if record and self.attempts and len(self._cmd_history) < self.MAX_CMD_HISTORY_LEN:
             self._cmd_history.append(cmd)
 
-        id_, result = 0, UNPARSABLE_RESULT  # Used to store the parsed response object.
+        id_, result = 999, object()
         data_consumer_buffer = bytearray()
 
         def data_consumer(data):

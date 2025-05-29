@@ -100,6 +100,16 @@ class ProxyObject:
         expression = f"len({target_name})"
         return device(expression)
 
+    def __del__(self):
+        """Delete reference to micropython object."""
+        device = object.__getattribute__(self, "_belay_device")
+        target_name = object.__getattribute__(self, "_belay_target_name")
+        if not isinstance(target_name, int):
+            # No remote object to delete.
+            return
+        cmd = f"del __belay_obj_{target_name}"
+        device(cmd)
+
     def __call__(self, *args, **kwargs):
         # TODO: this won't handle generators properly
         device = object.__getattribute__(self, "_belay_device")
