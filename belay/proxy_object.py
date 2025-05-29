@@ -88,6 +88,12 @@ class ProxyObject:
             # It could be a method; create another proxy object
             return type(self)(device, expression)
 
+    def __setitem__(self, key, value):
+        device = object.__getattribute__(self, "_belay_device")
+        target_name = get_proxy_object_target_name(self)
+        expression = f"{target_name}[{key!r}]={value!r}"
+        device(expression)
+
     def __len__(self) -> int:
         device = object.__getattribute__(self, "_belay_device")
         target_name = get_proxy_object_target_name(self)
@@ -99,19 +105,36 @@ class ProxyObject:
         device = object.__getattribute__(self, "_belay_device")
         target_name = get_proxy_object_target_name(self)
 
+        cmd = f"{target_name}("
+
         # Resolve nested ProxyObjects to their micropython equivalent.
-        resolved_args = tuple(
-            get_proxy_object_target_name(arg) if isinstance(arg, ProxyObject) else arg for arg in args
-        )
-        resolved_kwargs = {
-            k: get_proxy_object_target_name(v) if isinstance(v, ProxyObject) else v for k, v in kwargs.items()
-        }
-        cmd = f"{target_name}(*{resolved_args!r}, **{resolved_kwargs!r})"
+        resolved_args = []
+        for arg in args:
+            if isinstance(arg, ProxyObject):
+                resolved_args.append(get_proxy_object_target_name(arg))
+            else:
+                resolved_args.append(repr(arg))
+        resolved_args = ",".join(resolved_args)
+        if resolved_args:
+            cmd += f"{resolved_args},"
+
+        resolved_kwargs = []
+        for k, v in kwargs.items():
+            if isinstance(v, ProxyObject):
+                resolved_kwargs.append(f"{k}={get_proxy_object_target_name(v)}")
+            else:
+                resolved_kwargs.append(f"{k}={v!r}")
+        if resolved_kwargs:
+            resolved_kwargs = ",".join(resolved_kwargs)
+            cmd += f"{resolved_kwargs}"
+        cmd = cmd.rstrip(",")
+        cmd += ")"
+
         return device(cmd)
 
 
 def get_proxy_object_target_name(proxy_object: ProxyObject) -> str:
     target_name = object.__getattribute__(proxy_object, "_belay_target_name")
     if isinstance(target_name, int):
-        target_name = f"__belay_get_obj_by_id({target_name})"
+        target_name = f"__belay_obj_{target_name}"
     return target_name
