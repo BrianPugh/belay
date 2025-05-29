@@ -10,6 +10,21 @@ def _is_magic(name) -> bool:
     return name.startswith("__") and name.endswith("__")
 
 
+def _promote_exception(e: PyboardException):
+    # semi-jank way of promoting exceptions
+    if "AttributeError: " in e.args[0]:
+        raise AttributeError from e
+    if "KeyError: " in e.args[0]:
+        raise KeyError from e
+    if "IndexError: " in e.args[0]:
+        raise IndexError from e
+    if "ValueError: " in e.args[0]:
+        raise ValueError from e
+    if "TypeError: " in e.args[0]:
+        raise TypeError from e
+    raise e
+
+
 class ProxyObject:
     """Proxy object for interacting/mimicking a remote micropython object.
 
@@ -22,9 +37,7 @@ class ProxyObject:
        (without ``object.__setattr__``).
     """
 
-    # TODO: when going out of scope, delete the remote object?
-
-    def __init__(self, device: "Device", name: Union[str, int]):
+    def __init__(self, device: "Device", name: str, delete: bool = True):
         """Create a :class:`ProxyObject`.
 
         Parameters
@@ -33,9 +46,12 @@ class ProxyObject:
             Belay :class:`Device` object for interacting with the micropython board.
         name: str
             Name of the remote object for the proxy-object to interact with.
+        delete: bool
+            Delete micropython reference on cpython delete.
         """
         object.__setattr__(self, "_belay_device", device)
         object.__setattr__(self, "_belay_target_name", name)
+        object.__setattr__(self, "_belay_delete", delete)
 
     def __getattribute__(self, name):
         device = object.__getattribute__(self, "_belay_device")
@@ -51,15 +67,9 @@ class ProxyObject:
 
         full_name = f"{target_name}.{name}"
         try:
-            return device(full_name)
-        except SyntaxError:
-            # It could be a method; create another proxy object
-            return type(self)(device, full_name)
+            return device(full_name, proxy=True, delete=True)
         except PyboardException as e:
-            # semi-jank way of promoting to an AttributeError
-            if "AttributeError: " in e.args[0]:
-                raise AttributeError from e
-            raise
+            _promote_exception(e)
 
     def __setattr__(self, name, value):
         device = object.__getattribute__(self, "_belay_device")
@@ -67,12 +77,13 @@ class ProxyObject:
 
         if not _is_magic(name):
             # If it's not a magic-method, try to see if
-            # this class directly has the attribute.
+            # this ProxyObject itself directly has the attribute.
             try:
                 object.__getattribute__(self, name)
             except AttributeError:
                 pass
             else:
+                # Set the local cpython ProxyObject object attribute.
                 object.__setattr__(self, name, value)
                 return
 
@@ -83,31 +94,33 @@ class ProxyObject:
         target_name = get_proxy_object_target_name(self)
         expression = f"{target_name}[{key!r}]"
         try:
-            return device(expression)
-        except SyntaxError:
-            # It could be a method; create another proxy object
-            return type(self)(device, expression)
+            return device(expression, proxy=True, delete=True)
+        except PyboardException as e:
+            _promote_exception(e)
 
     def __setitem__(self, key, value):
         device = object.__getattribute__(self, "_belay_device")
         target_name = get_proxy_object_target_name(self)
         expression = f"{target_name}[{key!r}]={value!r}"
-        device(expression)
+        try:
+            device(expression)
+        except PyboardException as e:
+            _promote_exception(e)
 
     def __len__(self) -> int:
         device = object.__getattribute__(self, "_belay_device")
         target_name = get_proxy_object_target_name(self)
         expression = f"len({target_name})"
-        return device(expression)
+        return device(expression)  # Do not proxy; we want the integer value.
 
     def __del__(self):
         """Delete reference to micropython object."""
+        delete = object.__getattribute__(self, "_belay_delete")
+        if not delete:
+            return
         device = object.__getattribute__(self, "_belay_device")
         target_name = object.__getattribute__(self, "_belay_target_name")
-        if not isinstance(target_name, int):
-            # No remote object to delete.
-            return
-        cmd = f"del __belay_obj_{target_name}"
+        cmd = f"del {target_name}"
         device(cmd)
 
     def __call__(self, *args, **kwargs):
@@ -140,11 +153,9 @@ class ProxyObject:
         cmd = cmd.rstrip(",")
         cmd += ")"
 
-        return device(cmd)
+        return device(cmd, proxy=True)
 
 
 def get_proxy_object_target_name(proxy_object: ProxyObject) -> str:
     target_name = object.__getattribute__(proxy_object, "_belay_target_name")
-    if isinstance(target_name, int):
-        target_name = f"__belay_obj_{target_name}"
     return target_name
