@@ -126,6 +126,12 @@ class ProxyObject:
         cmd = f"del {target_name}"
         device(cmd)
 
+    def __str__(self):
+        """String representation of remote object."""
+        device = object.__getattribute__(self, "_belay_device")
+        target_name = get_proxy_object_target_name(self)
+        return str(device(f"str({target_name})"))
+
     def __call__(self, *args, **kwargs):
         # TODO: this won't handle generators properly
         device = object.__getattribute__(self, "_belay_device")
