@@ -295,7 +295,7 @@ class Device(metaclass=DeviceMeta):
         record=True,
         trusted: bool = False,
         proxy: bool = False,
-        delete: bool = True,
+        delete: Optional[bool] = None,
     ):
         """Execute code on-device.
 
@@ -324,7 +324,9 @@ class Device(metaclass=DeviceMeta):
         delete: bool
             When ``proxy=True``, whether or not to delete the remote micropython reference when the
             cpython object is deleted.
-            Defaults to :obj:`True`.
+            If :obj:`None` (default):
+                * Will be :obj:`False` if ``cmd`` is an import-statement.
+                * :obj:`True` otherwise.
 
         Returns
         -------
@@ -340,6 +342,11 @@ class Device(metaclass=DeviceMeta):
 
         is_expression = isexpression(cmd)
         imported_names = import_names(cmd)
+        if delete is None:
+            if imported_names:
+                delete = False
+            else:
+                delete = True
         if is_expression:
             # Belay Tasks are inherently expressions as well.
             if proxy:
@@ -424,8 +431,6 @@ class Device(metaclass=DeviceMeta):
                 delete = False
             return ProxyObject(self, cmd, delete=delete)
         else:
-            if delete is None:
-                delete = True
             return self(cmd, proxy=True, delete=delete)
 
     def sync(
