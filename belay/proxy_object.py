@@ -111,7 +111,10 @@ class ProxyObject:
         device = object.__getattribute__(self, "_belay_device")
         target_name = get_proxy_object_target_name(self)
         expression = f"len({target_name})"
-        return device(expression)  # Do not proxy; we want the integer value.
+        try:
+            return device(expression)  # Do not proxy; we want the integer value.
+        except PyboardException as e:
+            _promote_exception(e)
 
     def __del__(self):
         """Delete reference to micropython object."""
