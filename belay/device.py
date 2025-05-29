@@ -41,7 +41,7 @@ from .executers import (
     ThreadExecuter,
 )
 from .helpers import read_snippet, wraps_partial
-from .inspect import isexpression
+from .inspect import import_names, isexpression
 from .proxy_object import ProxyObject
 from .pyboard import Pyboard, PyboardError, PyboardException
 from .typing import BelayReturn, PathType
@@ -56,6 +56,7 @@ P = ParamSpec("P")
 R = TypeVar("R")
 
 UNPARSABLE_RESULT = object()
+NO_RESULT = object()
 
 
 def remove_call(expression: str, func_name: str, required=False) -> str:
@@ -320,6 +321,7 @@ class Device(metaclass=DeviceMeta):
             cmd = minify_code(cmd)
 
         is_expression = isexpression(cmd)
+        imported_names = import_names(cmd)
         if is_expression:
             # Belay Tasks are inherently expressions as well.
             cmd = f"__belay_print({cmd})"
@@ -327,7 +329,7 @@ class Device(metaclass=DeviceMeta):
         if record and self.attempts and len(self._cmd_history) < self.MAX_CMD_HISTORY_LEN:
             self._cmd_history.append(cmd)
 
-        id_, result = 999, object()
+        id_, result = -1, NO_RESULT
         data_consumer_buffer = bytearray()
 
         def data_consumer(data):
@@ -364,6 +366,12 @@ class Device(metaclass=DeviceMeta):
             if not is_expression or not proxy:
                 raise ValueError("Unable to parse device response.")  # TODO: better exception
             result = self.proxy(id_)
+        elif result is NO_RESULT and proxy and imported_names:
+            # Create a ProxyObject for the imported objects.
+            if len(imported_names) == 1:
+                return self(imported_names[0])
+            else:
+                return tuple(self(x) for x in imported_names)
         return result
 
     def proxy(self, name: Union[str, int]) -> ProxyObject:
