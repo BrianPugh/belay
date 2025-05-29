@@ -284,6 +284,7 @@ class Device(metaclass=DeviceMeta):
         stream_out: TextIO = sys.stdout,
         record=True,
         trusted: bool = False,
+        proxy: bool = True,
     ):
         """Execute code on-device.
 
@@ -305,6 +306,9 @@ class Device(metaclass=DeviceMeta):
             When set to ``True``, any value who's ``repr`` can be evaluated to create a python object can be
             returned. However, **this also allows the remote device to execute arbitrary code on host**.
             Defaults to ``False``.
+        proxy: bool
+            Create a proxy object for expression results.
+            Defaults to :obj:`True`.
 
         Returns
         -------
@@ -315,7 +319,8 @@ class Device(metaclass=DeviceMeta):
         if minify:
             cmd = minify_code(cmd)
 
-        if isexpression(cmd):
+        is_expression = isexpression(cmd)
+        if is_expression:
             # Belay Tasks are inherently expressions as well.
             cmd = f"__belay_print({cmd})"
 
@@ -356,6 +361,8 @@ class Device(metaclass=DeviceMeta):
                 raise ConnectionLost from e
 
         if result is UNPARSABLE_RESULT:
+            if not is_expression or not proxy:
+                raise ValueError("Unable to parse device response.")  # TODO: better exception
             result = self.proxy(id_)
         return result
 
