@@ -11,7 +11,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from textwrap import dedent
 from types import ModuleType
-from typing import Any, Callable, Optional, TextIO, TypeVar, Union, overload
+from typing import Any, Callable, Optional, TextIO, Tuple, TypeVar, Union, overload
 
 from serial import SerialException
 from serial.tools.miniterm import Miniterm
@@ -41,10 +41,11 @@ from .executers import (
     ThreadExecuter,
 )
 from .helpers import read_snippet, wraps_partial
-from .inspect import isexpression
-from .proxy_object import ProxyObject
+from .inspect import import_names, isexpression
+from .proxy_object import ProxyObject, get_proxy_object_target_name
 from .pyboard import Pyboard, PyboardError, PyboardException
 from .typing import BelayReturn, PathType
+from .utils import Sentinel
 from .webrepl import WebreplToSerial
 
 if sys.version_info < (3, 9, 0):
@@ -54,6 +55,14 @@ else:
 
 P = ParamSpec("P")
 R = TypeVar("R")
+
+
+class UNPARSABLE_RESULT(Sentinel):  # noqa: N801
+    """Could not parse the micropython repr return value; could be a non-AST object."""
+
+
+class NO_RESULT(Sentinel):  # noqa: N801
+    """No result."""
 
 
 def remove_call(expression: str, func_name: str, required=False) -> str:
@@ -95,12 +104,21 @@ def parse_belay_response(
     """
     if not line.startswith("_BELAY"):
         raise NotBelayResponseError
+    line = line.rstrip()
     line = line[6:]
     code, line = line[0], line[1:]
 
     if code == "R":
         # Result
-        return result_parser(line)
+        id_, line = line.split("|", 1)
+        id_ = int(id_) if id_ else NO_RESULT
+        if not line:
+            return id_, NO_RESULT
+        try:
+            parsed_result = result_parser(line)
+        except Exception:
+            parsed_result = UNPARSABLE_RESULT
+        return id_, parsed_result
     elif code == "S":
         # StopIteration
         raise StopIteration
@@ -270,12 +288,14 @@ class Device(metaclass=DeviceMeta):
 
     def __call__(
         self,
-        cmd: str,
+        cmd: Union[str, ProxyObject],
         *,
         minify: bool = True,
         stream_out: TextIO = sys.stdout,
         record=True,
         trusted: bool = False,
+        proxy: bool = False,
+        delete: Optional[bool] = None,
     ):
         """Execute code on-device.
 
@@ -283,6 +303,7 @@ class Device(metaclass=DeviceMeta):
         ----------
         cmd: str
             Python code to execute. May be a statement or expression.
+            If a :class:`ProxyObject`, will attempt to resolve it.
         minify: bool
             Minify ``cmd`` code prior to sending.
             Reduces the number of characters that need to be transmitted.
@@ -297,29 +318,51 @@ class Device(metaclass=DeviceMeta):
             When set to ``True``, any value who's ``repr`` can be evaluated to create a python object can be
             returned. However, **this also allows the remote device to execute arbitrary code on host**.
             Defaults to ``False``.
+        proxy: bool
+            Create a proxy object for expression results.
+            Defaults to :obj:`False`.
+        delete: bool
+            When ``proxy=True``, whether or not to delete the remote micropython reference when the
+            cpython object is deleted.
+            If :obj:`None` (default):
+                * Will be :obj:`False` if ``cmd`` is an import-statement.
+                * :obj:`True` otherwise.
 
         Returns
         -------
             Correctly interpreted return value from executing code on-device.
         """
+        if isinstance(cmd, ProxyObject):
+            cmd = get_proxy_object_target_name(cmd)
+
         cmd = dedent(cmd)
 
         if minify:
             cmd = minify_code(cmd)
 
-        if isexpression(cmd):
+        is_expression = isexpression(cmd)
+        imported_names = import_names(cmd)
+        if delete is None:
+            if imported_names:
+                delete = False
+            else:
+                delete = True
+        if is_expression:
             # Belay Tasks are inherently expressions as well.
-            cmd = f"print('_BELAYR' + repr({cmd}))"
+            if proxy:
+                cmd = f"__belay_obj_create({cmd})"
+            else:
+                cmd = f'print("_BELAYR|"+repr({cmd}))'
 
         if record and self.attempts and len(self._cmd_history) < self.MAX_CMD_HISTORY_LEN:
             self._cmd_history.append(cmd)
 
-        out = None  # Used to store the parsed response object.
+        id_, result = NO_RESULT, NO_RESULT
         data_consumer_buffer = bytearray()
 
         def data_consumer(data):
             """Handle input data stream immediately."""
-            nonlocal out
+            nonlocal id_, result
             data = data.replace(b"\x04", b"")
             if not data:
                 return
@@ -330,9 +373,9 @@ class Device(metaclass=DeviceMeta):
                 data_consumer_buffer[:] = data_consumer_buffer[i:]
                 try:
                     if trusted:
-                        out = parse_belay_response(line, result_parser=eval)
+                        id_, result = parse_belay_response(line, result_parser=eval)
                     else:
-                        out = parse_belay_response(line)
+                        id_, result = parse_belay_response(line)
                 except NotBelayResponseError:
                     if stream_out:
                         stream_out.write(line)
@@ -347,17 +390,48 @@ class Device(metaclass=DeviceMeta):
             else:
                 raise ConnectionLost from e
 
-        return out
+        if id_ is not NO_RESULT:
+            result = ProxyObject(self, f"__belay_obj_{id_}", delete=True)
+        elif result is NO_RESULT:
+            if proxy:
+                if imported_names:
+                    # Create a ProxyObject for the imported objects.
+                    if len(imported_names) == 1:
+                        return self(imported_names[0], proxy=True, delete=False)
+                    else:
+                        return tuple(self(x, proxy=True, delete=False) for x in imported_names)
+                else:
+                    raise NotImplementedError("Unreachable: NO_RESULT, proxy=True, not import.")
+            else:
+                # Happens for non-expressions.
+                pass
+        else:
+            # Typical AST-parsed result.
+            pass
 
-    def proxy(self, name: str) -> ProxyObject:
+        return result
+
+    def proxy(self, cmd: str, delete: Optional[bool] = None) -> Union[ProxyObject, Tuple[ProxyObject, ...]]:
         """Create a :class:`.ProxyObject` that uses this :class:`Device`.
 
         Parameters
         ----------
         name: str
             Name of the remote object for the proxy-object to interact with.
+        delete: Optional[bool]
+            Delete the remote micropython reference when the cpython object is deleted.
+            If :obj:`None` (default):
+
+                * if ``cmd`` is a python identifier, defaults to :obj:`False`.
+                * Otherwise, defaults to :obj:`True`.
+
         """
-        return ProxyObject(self, name)
+        if cmd.isidentifier():
+            if delete is None:
+                delete = False
+            return ProxyObject(self, cmd, delete=delete)
+        else:
+            return self(cmd, proxy=True, delete=delete)
 
     def sync(
         self,

@@ -158,3 +158,8 @@ print('l4',l4)
 print('l5',l5)
 """
     assert res == expected
+
+
+def test_minify_leading_string_expression():
+    res = minify("'b' in foo")
+    assert res == "'b' in foo"
