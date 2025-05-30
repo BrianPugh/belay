@@ -1,3 +1,4 @@
+from contextlib import contextmanager, suppress
 from typing import TYPE_CHECKING, Union
 
 from belay.pyboard import PyboardException
@@ -10,19 +11,24 @@ def _is_magic(name) -> bool:
     return name.startswith("__") and name.endswith("__")
 
 
-def _promote_exception(e: PyboardException):
-    # semi-jank way of promoting exceptions
-    if "AttributeError: " in e.args[0]:
-        raise AttributeError from e
-    if "KeyError: " in e.args[0]:
-        raise KeyError from e
-    if "IndexError: " in e.args[0]:
-        raise IndexError from e
-    if "ValueError: " in e.args[0]:
-        raise ValueError from e
-    if "TypeError: " in e.args[0]:
-        raise TypeError from e
-    raise e
+@contextmanager
+def _promote_exceptions():
+    """Context manager that promotes PyboardException to more specific exception types."""
+    try:
+        yield
+    except PyboardException as e:
+        # semi-jank way of promoting exceptions
+        if "AttributeError: " in e.args[0]:
+            raise AttributeError from e
+        if "KeyError: " in e.args[0]:
+            raise KeyError from e
+        if "IndexError: " in e.args[0]:
+            raise IndexError from e
+        if "ValueError: " in e.args[0]:
+            raise ValueError from e
+        if "TypeError: " in e.args[0]:
+            raise TypeError from e
+        raise
 
 
 class ProxyObject:
@@ -66,10 +72,8 @@ class ProxyObject:
                 pass
 
         full_name = f"{target_name}.{name}"
-        try:
+        with _promote_exceptions():
             return device(full_name, proxy=True, delete=True)
-        except PyboardException as e:
-            _promote_exception(e)
 
     def __setattr__(self, name, value):
         device = object.__getattribute__(self, "_belay_device")
@@ -93,28 +97,22 @@ class ProxyObject:
         device = object.__getattribute__(self, "_belay_device")
         target_name = get_proxy_object_target_name(self)
         expression = f"{target_name}[{key!r}]"
-        try:
+        with _promote_exceptions():
             return device(expression, proxy=True, delete=True)
-        except PyboardException as e:
-            _promote_exception(e)
 
     def __setitem__(self, key, value):
         device = object.__getattribute__(self, "_belay_device")
         target_name = get_proxy_object_target_name(self)
         expression = f"{target_name}[{key!r}]={value!r}"
-        try:
+        with _promote_exceptions():
             device(expression)
-        except PyboardException as e:
-            _promote_exception(e)
 
     def __len__(self) -> int:
         device = object.__getattribute__(self, "_belay_device")
         target_name = get_proxy_object_target_name(self)
         expression = f"len({target_name})"
-        try:
+        with _promote_exceptions():
             return device(expression)  # Do not proxy; we want the integer value.
-        except PyboardException as e:
-            _promote_exception(e)
 
     def __del__(self):
         """Delete reference to micropython object."""
@@ -124,19 +122,32 @@ class ProxyObject:
         device = object.__getattribute__(self, "_belay_device")
         target_name = object.__getattribute__(self, "_belay_target_name")
         cmd = f"del {target_name}"
-        device(cmd)
+        with suppress(Exception):
+            device(cmd)
 
     def __str__(self):
         """String representation of remote object."""
         device = object.__getattribute__(self, "_belay_device")
         target_name = get_proxy_object_target_name(self)
-        return device(f"str({target_name})")
+        with _promote_exceptions():
+            return device(f"str({target_name})")
 
     def __repr__(self):
         device = object.__getattribute__(self, "_belay_device")
         target_name = get_proxy_object_target_name(self)
         remote_repr = device(f"repr({target_name})")
-        return f"<{type(self).__name__} {remote_repr}>"
+        with _promote_exceptions():
+            return f"<{type(self).__name__} {remote_repr}>"
+
+    def __contains__(self, item):
+        device = object.__getattribute__(self, "_belay_device")
+        target_name = get_proxy_object_target_name(self)
+        item = get_proxy_object_target_name(item) if isinstance(item, ProxyObject) else repr(item)
+        expression = f"{item} in {target_name}"
+        print(expression)
+        with _promote_exceptions():
+            res = device(expression)
+        return res
 
     def __call__(self, *args, **kwargs):
         # TODO: this won't handle generators properly
@@ -168,7 +179,8 @@ class ProxyObject:
         cmd = cmd.rstrip(",")
         cmd += ")"
 
-        return device(cmd, proxy=True)
+        with _promote_exceptions():
+            return device(cmd, proxy=True)
 
 
 def get_proxy_object_target_name(proxy_object: ProxyObject) -> str:
