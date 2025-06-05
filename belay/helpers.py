@@ -25,4 +25,4 @@ def random_python_identifier(n=16):
 @lru_cache
 def read_snippet(name):
     resource = f"{name}.py"
-    return importlib_resources.files(snippets).joinpath(resource).read_text()
+    return importlib_resources.files(snippets).joinpath(resource).read_text(encoding="utf-8")

@@ -22,6 +22,6 @@ def run(
             belay run micropython -m unittest
 
     """
-    content = file.read_text()
+    content = file.read_text(encoding="utf-8")
     with Device(port, password=password) as device, remove_stacktrace():
         device(content)

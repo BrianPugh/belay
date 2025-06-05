@@ -40,7 +40,7 @@ def new(project_name: str = Argument(..., help="Project Name.")):
         if path.is_dir():
             continue
 
-        contents = path.read_text()
+        contents = path.read_text(encoding="utf-8")
         contents = replace(contents)
         path.write_text(contents)
         if path.stem in replacements:
