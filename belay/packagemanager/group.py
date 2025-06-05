@@ -153,7 +153,7 @@ def _verify_files(path: PathType):
 
     for f in gen:
         if f.suffix == ".py":
-            code = f.read_text()
+            code = f.read_text(encoding="utf-8")
             ast.parse(code)
 
 
