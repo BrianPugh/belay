@@ -239,3 +239,19 @@ def test_remove_signature_multiline():
     res, lines_removed = belay.inspect._remove_signature(code)
     assert lines_removed == 3
     assert res == "    arg1 += 1\n    return arg1 + arg2\n"
+
+
+@pytest.mark.parametrize(
+    "statement,expected",
+    [
+        ("import foo", ["foo"]),
+        ("from foo import bar", ["bar"]),
+        ("from foo.bar import fizz", ["fizz"]),
+        ("from foo import fizz, buzz", ["fizz", "buzz"]),
+        ("import foo as buzz", ["buzz"]),
+        ("from foo import *", []),  # Don't return any objects for a * import
+        ("foo", []),  # Non import statements return an empty list
+    ],
+)
+def test_import_names(statement, expected):
+    assert belay.inspect.import_names(statement) == expected
