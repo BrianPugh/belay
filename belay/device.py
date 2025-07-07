@@ -439,7 +439,17 @@ class Device(metaclass=DeviceMeta):
             fnv1a32_native_path = get_fnv1a32_native_path(self.implementation)
             if fnv1a32_native_path:
                 # Sync a pre-compiled native fnv1a32 hashing module.
-                self._board.fs_put(str(fnv1a32_native_path), "/_belay_fnv1a32.mpy")
+                src_size = fnv1a32_native_path.stat().st_size
+                try:
+                    # Check if file exists and has the same size
+                    remote_size = self("os.stat('/_belay_fnv1a32.mpy')[6]")
+                    sync_nativemodule = remote_size != src_size
+                except PyboardException:
+                    sync_nativemodule = True
+
+                if sync_nativemodule:
+                    self._board.fs_put(str(fnv1a32_native_path), "/_belay_fnv1a32.mpy")
+
                 snippets_to_execute.append("hf_nativemodule")
             elif "viper" in self.implementation.emitters:
                 snippets_to_execute.append("hf_viper")
