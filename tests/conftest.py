@@ -1,5 +1,5 @@
 import os
-from distutils import dir_util
+import shutil
 from functools import partial
 from pathlib import Path
 
@@ -98,7 +98,7 @@ def data_path(tmp_path, request):
     filename = Path(request.module.__file__)
     test_dir = filename.parent / filename.stem
     if test_dir.is_dir():
-        dir_util.copy_tree(str(test_dir), str(tmp_path))
+        shutil.copytree(test_dir, tmp_path, dirs_exist_ok=True)
 
     return tmp_path
 
