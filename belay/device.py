@@ -475,7 +475,9 @@ class Device(metaclass=DeviceMeta):
             if keep_all:
                 self("del __belay_del_fs")
             else:
-                self(f"__belay_del_fs({repr(dst)}, {repr(set(keep + dst_files))}); del __belay_del_fs")
+                self(
+                    f"__belay_del_fs({repr(dst)}, {repr(set(keep + dst_files + ['/_belay_fnv1a32.mpy']))}); del __belay_del_fs"
+                )
 
             # Try and make all remote dirs
             if dst_dirs:
