@@ -40,7 +40,7 @@ from .executers import (
     TeardownExecuter,
     ThreadExecuter,
 )
-from .helpers import read_snippet, wraps_partial
+from .helpers import get_fnv1a32_native_path, read_snippet, wraps_partial
 from .inspect import isexpression
 from .proxy_object import ProxyObject
 from .pyboard import Pyboard, PyboardError, PyboardException
@@ -150,7 +150,9 @@ class Device(metaclass=DeviceMeta):
 
         # Obtain implementation early on so implementation-specific executers can be bound.
         self.implementation = Implementation(
-            *self("(sys.implementation.name, sys.implementation.version, sys.platform)"),
+            *self(
+                "(sys.implementation.name, sys.implementation.version, sys.platform, getattr(sys.implementation, '_mpy', None))"
+            ),
             emitters=self._emitter_check(),
         )
 
@@ -433,7 +435,23 @@ class Device(metaclass=DeviceMeta):
 
             if progress_update:
                 progress_update(description="Bootstrapping sync...")
-            if "viper" in self.implementation.emitters:
+
+            fnv1a32_native_path = get_fnv1a32_native_path(self.implementation)
+            if fnv1a32_native_path:
+                # Sync a pre-compiled native fnv1a32 hashing module.
+                src_size = fnv1a32_native_path.stat().st_size
+                try:
+                    # Check if file exists and has the same size
+                    remote_size = self("os.stat('/_belay_fnv1a32.mpy')[6]")
+                    sync_nativemodule = remote_size != src_size
+                except PyboardException:
+                    sync_nativemodule = True
+
+                if sync_nativemodule:
+                    self._board.fs_put(str(fnv1a32_native_path), "/_belay_fnv1a32.mpy")
+
+                snippets_to_execute.append("hf_nativemodule")
+            elif "viper" in self.implementation.emitters:
                 snippets_to_execute.append("hf_viper")
             elif "native" in self.implementation.emitters:
                 snippets_to_execute.append("hf_native")
@@ -457,7 +475,9 @@ class Device(metaclass=DeviceMeta):
             if keep_all:
                 self("del __belay_del_fs")
             else:
-                self(f"__belay_del_fs({repr(dst)}, {repr(set(keep + dst_files))}); del __belay_del_fs")
+                self(
+                    f"__belay_del_fs({repr(dst)}, {repr(set(keep + dst_files + ['/_belay_fnv1a32.mpy']))}); del __belay_del_fs"
+                )
 
             # Try and make all remote dirs
             if dst_dirs:

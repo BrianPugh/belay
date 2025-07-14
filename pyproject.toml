@@ -37,6 +37,7 @@ typing-extensions = ">=4.5.0"
 questionary = ">=2.0.0"
 packaging = ">=20.4"
 importlib_resources = {version = ">=3.0.0", python = "<3.9"}
+attrs = ">=21.0.0"
 
 [tool.poetry.group.docs.dependencies]
 sphinx = "^4.5.0"
