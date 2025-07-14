@@ -40,7 +40,7 @@ importlib_resources = {version = ">=3.0.0", python = "<3.9"}
 attrs = ">=21.0.0"
 
 [tool.poetry.group.docs.dependencies]
-sphinx = "^4.5.0"
+sphinx = ">=6.2.0"
 sphinx_rtd_theme = "^1.0.0"
 
 [tool.poetry.group.dev.dependencies]
