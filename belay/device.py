@@ -436,6 +436,15 @@ class Device(metaclass=DeviceMeta):
             if progress_update:
                 progress_update(description="Bootstrapping sync...")
 
+            if self.implementation.name == "circuitpython":
+                snippets_to_execute.append("ilistdir_circuitpython")
+            else:
+                snippets_to_execute.append("ilistdir_micropython")
+
+            snippets_to_execute.append("sync_begin")
+
+            # Place the fnv1a32 at the end of snippets_to_execute, as there's a chance
+            # the micropython interpreter wasn't compiled with all the required features.
             fnv1a32_native_path = get_fnv1a32_native_path(self.implementation)
             if fnv1a32_native_path:
                 # Sync a pre-compiled native fnv1a32 hashing module.
@@ -458,12 +467,21 @@ class Device(metaclass=DeviceMeta):
             else:
                 snippets_to_execute.append("hf")
 
-            if self.implementation.name == "circuitpython":
-                snippets_to_execute.append("ilistdir_circuitpython")
-            else:
-                snippets_to_execute.append("ilistdir_micropython")
-            snippets_to_execute.append("sync_begin")
-            self._exec_snippet(*snippets_to_execute)
+            try:
+                self._exec_snippet(*snippets_to_execute)
+            except PyboardException:
+                if not fnv1a32_native_path:
+                    raise
+
+                # A bit fragile, but fragile for the sake of performance.
+                # This is most likely the micropython interpreter being unable to import the fnv1a32 mpy file.
+                # Fallback to one of the other fnv1a32 implementations.
+                if "viper" in self.implementation.emitters:
+                    self._exec_snippet("hf_viper")
+                elif "native" in self.implementation.emitters:
+                    self._exec_snippet("hf_native")
+                else:
+                    self._exec_snippet("hf")
 
             if mpy_cross_binary:
                 dst_files = [
