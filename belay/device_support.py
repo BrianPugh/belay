@@ -17,6 +17,7 @@ Architectures = Literal[
     "armv7emdp",
     "xtensa",
     "xtensawin",
+    "rv32imc",
 ]
 
 
