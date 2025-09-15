@@ -3,6 +3,7 @@ __version__ = "0.0.0"
 
 __all__ = [
     "AuthenticationError",
+    "BelayException",
     "ConnectionFailedError",
     "ConnectionLost",
     "Device",
@@ -15,6 +16,7 @@ __all__ = [
     "NoMatchingExecuterError",
     "NotBelayResponseError",
     "ProxyObject",
+    "PyboardError",
     "PyboardException",
     "SpecialFunctionNameError",
     "UsbSpecifier",
@@ -26,6 +28,7 @@ from .device import Device, Implementation
 from .device_meta import DeviceMeta
 from .exceptions import (
     AuthenticationError,
+    BelayException,
     ConnectionFailedError,
     ConnectionLost,
     DeviceNotFoundError,
@@ -37,5 +40,5 @@ from .exceptions import (
     SpecialFunctionNameError,
 )
 from .proxy_object import ProxyObject
-from .pyboard import PyboardException
+from .pyboard import PyboardError, PyboardException
 from .usb_specifier import UsbSpecifier, list_devices
