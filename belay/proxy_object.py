@@ -96,7 +96,16 @@ class ProxyObject:
     def __getitem__(self, key):
         device = object.__getattribute__(self, "_belay_device")
         target_name = get_proxy_object_target_name(self)
-        expression = f"{target_name}[{key!r}]"
+
+        # Handle slice objects specially since MicroPython doesn't support slice() constructor
+        if isinstance(key, slice):
+            start = "" if key.start is None else str(key.start)
+            stop = "" if key.stop is None else str(key.stop)
+            step = "" if key.step is None else f":{key.step}"
+            expression = f"{target_name}[{start}:{stop}{step}]"
+        else:
+            expression = f"{target_name}[{key!r}]"
+
         with _promote_exceptions():
             return device(expression, proxy=True, delete=True)
 
@@ -144,10 +153,79 @@ class ProxyObject:
         target_name = get_proxy_object_target_name(self)
         item = get_proxy_object_target_name(item) if isinstance(item, ProxyObject) else repr(item)
         expression = f"{item} in {target_name}"
-        print(expression)
         with _promote_exceptions():
             res = device(expression)
         return res
+
+    def __eq__(self, other):
+        """Equality comparison with remote object."""
+        device = object.__getattribute__(self, "_belay_device")
+        target_name = get_proxy_object_target_name(self)
+        other_repr = get_proxy_object_target_name(other) if isinstance(other, ProxyObject) else repr(other)
+        expression = f"{target_name} == {other_repr}"
+        with _promote_exceptions():
+            return device(expression)
+
+    def __ne__(self, other):
+        """Inequality comparison with remote object."""
+        device = object.__getattribute__(self, "_belay_device")
+        target_name = get_proxy_object_target_name(self)
+        other_repr = get_proxy_object_target_name(other) if isinstance(other, ProxyObject) else repr(other)
+        expression = f"{target_name} != {other_repr}"
+        with _promote_exceptions():
+            return device(expression)
+
+    def __lt__(self, other):
+        """Less than comparison with remote object."""
+        device = object.__getattribute__(self, "_belay_device")
+        target_name = get_proxy_object_target_name(self)
+        other_repr = get_proxy_object_target_name(other) if isinstance(other, ProxyObject) else repr(other)
+        expression = f"{target_name} < {other_repr}"
+        with _promote_exceptions():
+            return device(expression)
+
+    def __le__(self, other):
+        """Less than or equal comparison with remote object."""
+        device = object.__getattribute__(self, "_belay_device")
+        target_name = get_proxy_object_target_name(self)
+        other_repr = get_proxy_object_target_name(other) if isinstance(other, ProxyObject) else repr(other)
+        expression = f"{target_name} <= {other_repr}"
+        with _promote_exceptions():
+            return device(expression)
+
+    def __gt__(self, other):
+        """Greater than comparison with remote object."""
+        device = object.__getattribute__(self, "_belay_device")
+        target_name = get_proxy_object_target_name(self)
+        other_repr = get_proxy_object_target_name(other) if isinstance(other, ProxyObject) else repr(other)
+        expression = f"{target_name} > {other_repr}"
+        with _promote_exceptions():
+            return device(expression)
+
+    def __ge__(self, other):
+        """Greater than or equal comparison with remote object."""
+        device = object.__getattribute__(self, "_belay_device")
+        target_name = get_proxy_object_target_name(self)
+        other_repr = get_proxy_object_target_name(other) if isinstance(other, ProxyObject) else repr(other)
+        expression = f"{target_name} >= {other_repr}"
+        with _promote_exceptions():
+            return device(expression)
+
+    def __iter__(self):
+        """Return an iterator over the remote object."""
+        device = object.__getattribute__(self, "_belay_device")
+        target_name = get_proxy_object_target_name(self)
+        # Convert the remote iterable to a list and return its iterator
+        with _promote_exceptions():
+            result = device(f"list({target_name})")
+        return iter(result)
+
+    def __hash__(self):
+        """Return hash of the remote object."""
+        device = object.__getattribute__(self, "_belay_device")
+        target_name = get_proxy_object_target_name(self)
+        with _promote_exceptions():
+            return device(f"hash({target_name})")
 
     def __call__(self, *args, **kwargs):
         # TODO: this won't handle generators properly
