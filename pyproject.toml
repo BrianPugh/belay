@@ -194,8 +194,8 @@ staticmethod-decorators = [
     "belay.Device.task",
     "belay.Device.teardown",
     "belay.Device.thread",
-    "pydantic.validator",
-    "pydantic.root_validator",
+    "pydantic.field_validator",
+    "pydantic.model_validator",
 ]
 
 [tool.creosote]
