@@ -73,7 +73,7 @@ Conceptually, its as if the following code ran on-device (minification removed f
 
    def _belay_set_led(*args, **kwargs):
        res = set_led(*args, **kwargs)
-       print("_BELAYR" + repr(res))
+       print("_BELAYR|" + repr(res))
 
 A separate private function is defined with this serialization in case another on-device function calls ``set_led``.
 
