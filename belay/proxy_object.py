@@ -32,15 +32,94 @@ def _promote_exceptions():
 
 
 class ProxyObject:
-    """Proxy object for interacting/mimicking a remote micropython object.
+    r"""Proxy object for interacting with remote MicroPython/CircuitPython objects.
 
-    If subclassing :class:`ProxyObject`:
+    :class:`ProxyObject` provides a transparent wrapper around remote objects,
+    allowing you to interact with them as if they were local Python objects.
+    Operations on the proxy are forwarded to the device, and results are automatically
+    retrieved and wrapped as needed.
 
-    1. Be sure to call ``super().__init__(device, name)`` first.
-    2. Use ``object.__setattr__(self, "some_attribute_name", value)`` to create/set a local attribute.
-       Attributes created this way will *only* be stored locally in CPython and will not interact
-       with the micropython board. Subsequent writes to this attribute can be done "normally"
-       (without ``object.__setattr__``).
+    .. note::
+       ProxyObjects are typically created using :meth:`Device.proxy` rather than
+       instantiating this class directly. The :meth:`Device.proxy` method provides
+       convenient automatic detection of imports and expressions.
+
+    Return Value Behavior
+    ---------------------
+    When accessing proxy attributes or calling methods:
+        - **Immutable types** (int, float, str, bool, None, bytes) are returned **directly**
+        - **Mutable types** (list, dict, custom objects) are returned as :class:`ProxyObject`
+
+    Examples
+    --------
+    Basic attribute and method access::
+
+        # Create a remote sensor object
+        device("sensor = TemperatureSensor()")
+
+        # Create proxy to interact with it
+        sensor = device.proxy("sensor")
+
+        # Access attributes - immutable values returned directly
+        temp = sensor.temperature  # Returns actual float
+        print(f"Temperature: {temp}°C")
+
+        # Call methods
+        sensor.calibrate()  # Calls "sensor.calibrate()" on the micropython device.
+        sensor.set_threshold(25.0)
+
+    Working with collections::
+
+        # Create remote list
+        device("data = [1, 2, 3, 4, 5]")
+        data_proxy = device.proxy("data")
+
+        # Access elements - immutable ints returned directly
+        print(data_proxy[0])  # 1
+        print(data_proxy[-1])  # 5
+
+        # Slice - returns ProxyObject wrapping the slice
+        subset = data_proxy[1:3]  # ProxyObject for [2, 3]
+
+        # Modify elements
+        data_proxy[0] = 100
+        print(device("data"))  # [100, 2, 3, 4, 5]
+
+        # Iterate
+        for item in data_proxy:
+            print(item)
+
+    Importing and using modules::
+
+        # Import module
+        machine = device.proxy("import machine")
+
+        # Use imported module
+        pin = machine.Pin(25, machine.Pin.OUT)
+        pin.on()
+
+    Nested object access::
+
+        # Create nested structure
+        device(\"\"\"
+        class Config:
+            def __init__(self):
+                self.settings = {'brightness': 10, 'mode': 'auto'}
+        config = Config()
+        \"\"\")
+
+        # Access nested objects
+        config = device.proxy("config")
+        settings = config.settings  # Returns ProxyObject for dict
+        brightness = settings['brightness']  # Returns 10 (int)
+
+        # Modify nested values
+        settings['brightness'] = 20
+
+    See Also
+    --------
+    Device.proxy : Recommended method for creating ProxyObjects
+    Device.__call__ : Lower-level method for executing code with proxy support
     """
 
     def __init__(self, device: "Device", name: str, delete: bool = True):
@@ -94,6 +173,11 @@ class ProxyObject:
         device(f"{target_name}.{name} = {value!r}")
 
     def __getitem__(self, key):
+        """Get item from remote object by key or index.
+
+        Supports indexing (``proxy[0]``) and slicing (``proxy[1:3]``).
+        Returns immutable values directly, mutable values as :class:`ProxyObject`.
+        """
         device = object.__getattribute__(self, "_belay_device")
         target_name = get_proxy_object_target_name(self)
 
@@ -110,6 +194,10 @@ class ProxyObject:
             return device(expression, proxy=True, delete=True)
 
     def __setitem__(self, key, value):
+        """Set item in remote object by key or index.
+
+        Supports setting list elements (``proxy[0] = value``) and dict keys (``proxy['key'] = value``).
+        """
         device = object.__getattribute__(self, "_belay_device")
         target_name = get_proxy_object_target_name(self)
         expression = f"{target_name}[{key!r}]={value!r}"
@@ -117,6 +205,7 @@ class ProxyObject:
             device(expression)
 
     def __len__(self) -> int:
+        """Return the length of the remote object."""
         device = object.__getattribute__(self, "_belay_device")
         target_name = get_proxy_object_target_name(self)
         expression = f"len({target_name})"
@@ -142,6 +231,11 @@ class ProxyObject:
             return device(f"str({target_name})")
 
     def __repr__(self):
+        """Return repr showing this is a ProxyObject wrapping a remote object.
+
+        Format: ``<ProxyObject {remote_repr}>`` where ``remote_repr`` is the
+        representation of the remote object.
+        """
         device = object.__getattribute__(self, "_belay_device")
         target_name = get_proxy_object_target_name(self)
         remote_repr = device(f"repr({target_name})")
@@ -149,6 +243,11 @@ class ProxyObject:
             return f"<{type(self).__name__} {remote_repr}>"
 
     def __contains__(self, item):
+        """Test membership in remote object.
+
+        Supports the ``in`` operator: ``item in proxy``.
+        Works with lists, dicts, tuples, sets, and other containers.
+        """
         device = object.__getattribute__(self, "_belay_device")
         target_name = get_proxy_object_target_name(self)
         item = get_proxy_object_target_name(item) if isinstance(item, ProxyObject) else repr(item)
@@ -228,7 +327,14 @@ class ProxyObject:
             return device(f"hash({target_name})")
 
     def __call__(self, *args, **kwargs):
-        # TODO: this won't handle generators properly
+        """Call the remote object as a function or method.
+
+        Supports calling remote functions/methods with arguments.
+        ProxyObject arguments are automatically resolved to their remote equivalents.
+        Returns immutable values directly, mutable values as :class:`ProxyObject`.
+
+        Note: Generator functions are not fully supported yet.
+        """
         device = object.__getattribute__(self, "_belay_device")
         target_name = get_proxy_object_target_name(self)
 
