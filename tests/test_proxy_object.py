@@ -25,13 +25,22 @@ def proxy_object(emulated_device):
     return obj
 
 
-def test_proxy_object_basic(proxy_object):
+def test_proxy_object_basic(proxy_object, emulated_device):
     assert proxy_object.foo == 1
     assert proxy_object.bar == 2
 
     assert proxy_object.some_method(3) == 6
+
+    # Test that setting attributes updates the remote object
     proxy_object.foo = 4
     assert proxy_object.foo == 4
+    # Verify the remote object was actually updated
+    assert emulated_device("klass.foo") == 4
+
+    # Test setting a new attribute
+    proxy_object.baz = 100
+    assert proxy_object.baz == 100
+    assert emulated_device("klass.baz") == 100
 
     with pytest.raises(AttributeError):
         proxy_object.non_existant_attribute  # noqa: B018
@@ -61,6 +70,13 @@ def test_proxy_object_getitem(emulated_device, proxy_object):
     assert proxy_object.demo_list[-1] == 3
     assert proxy_object.demo_list[:2] == [1, 2]
 
+    # Test that __setitem__ updates the remote object
+    proxy_object.demo_list[1] = 99
+    assert proxy_object.demo_list[1] == 99
+    # Verify the remote object was actually updated
+    assert emulated_device("klass.demo_list[1]") == 99
+    assert emulated_device("klass.demo_list") == [1, 99, 3]
+
     with pytest.raises(IndexError):
         proxy_object.demo_list[100]
 
@@ -86,3 +102,47 @@ def test_proxy_object_subclassing(emulated_device):
     # Subsequent setting of a set-attribute should work.
     obj.fizz = 300
     assert object.__getattribute__(obj, "fizz") == 300
+
+
+def test_proxy_object_immutable_ergonomics(proxy_object, emulated_device):
+    """Test that immutable values are returned directly for better code ergonomics."""
+    # Immutable values should be returned directly, not as ProxyObject
+    foo_val = proxy_object.foo
+    assert isinstance(foo_val, int)
+    assert foo_val == 1
+
+    bar_val = proxy_object.bar
+    assert isinstance(bar_val, int)
+    assert bar_val == 2
+
+    # Arithmetic should work directly
+    assert foo_val + 10 == 11
+    assert bar_val * 5 == 10
+
+    # Assignment still works
+    proxy_object.foo = 42
+    assert proxy_object.foo == 42
+
+    # Mutable objects should still be ProxyObject
+    assert isinstance(proxy_object.some_dict, ProxyObject)
+
+    # Test edge case: tuples containing mutable objects
+    emulated_device("klass.simple_tuple = (1, 2, 3)")
+    emulated_device("klass.nested_tuple = (1, 2, [3, 4])")
+
+    # Currently, tuples are NOT treated as immutable by __belay_obj_create
+    # This is intentional to preserve remote mutability for nested content
+    simple_tuple = proxy_object.simple_tuple
+    nested_tuple = proxy_object.nested_tuple
+
+    # Both should be ProxyObjects to maintain remote connection
+    assert isinstance(simple_tuple, ProxyObject)
+    assert isinstance(nested_tuple, ProxyObject)
+
+    # We can still compare them
+    assert simple_tuple == (1, 2, 3)
+    assert nested_tuple == (1, 2, [3, 4])
+
+    # And access elements - nested list should also be a ProxyObject
+    assert isinstance(nested_tuple[2], ProxyObject)
+    assert nested_tuple[2] == [3, 4]
