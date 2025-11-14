@@ -1,24 +1,15 @@
 """Pydantic models for validation Belay configuration.
 """
 
-from functools import partial
 from pathlib import Path
 from typing import Dict, List, Optional
 
-try:
-    from pydantic.v1 import BaseModel as PydanticBaseModel
-    from pydantic.v1 import validator
-except ImportError:
-    from pydantic import BaseModel as PydanticBaseModel
-    from pydantic import validator
-
-validator_reuse = partial(validator, allow_reuse=True)
-prevalidator_reuse = partial(validator_reuse, pre=True)
+from pydantic import BaseModel as PydanticBaseModel
+from pydantic import ConfigDict, field_validator
 
 
 class BaseModel(PydanticBaseModel):
-    class Config:
-        allow_mutation = False
+    model_config = ConfigDict(frozen=True)
 
 
 class DependencySourceConfig(BaseModel):
@@ -106,11 +97,19 @@ class GroupConfig(BaseModel):
     ##############
     # VALIDATORS #
     ##############
-    _v_dependencies_preprocessor = prevalidator_reuse("dependencies")(_dependencies_preprocessor)
-    _v_dependencies_names = validator_reuse("dependencies")(_dependencies_name_validator)
+    @field_validator("dependencies", mode="before")
+    @classmethod
+    def _v_dependencies_preprocessor(cls, v):
+        return _dependencies_preprocessor(v)
 
-    @validator("dependencies")
-    def max_1_rename_to_init(packages: dict):
+    @field_validator("dependencies")
+    @classmethod
+    def _v_dependencies_names(cls, v):
+        return _dependencies_name_validator(v)
+
+    @field_validator("dependencies")
+    @classmethod
+    def max_1_rename_to_init(cls, packages: dict):
         rename_to_init_count = {}
         for package_name, dependency in walk_dependencies(packages):
             rename_to_init_count.setdefault(package_name, 0)
@@ -141,10 +140,18 @@ class BelayConfig(BaseModel):
     ##############
     # VALIDATORS #
     ##############
-    _v_dependencies_preprocessor = prevalidator_reuse("dependencies")(_dependencies_preprocessor)
-    _v_dependencies_names = validator_reuse("dependencies")(_dependencies_name_validator)
+    @field_validator("dependencies", mode="before")
+    @classmethod
+    def _v_dependencies_preprocessor(cls, v):
+        return _dependencies_preprocessor(v)
 
-    @validator("group")
+    @field_validator("dependencies")
+    @classmethod
+    def _v_dependencies_names(cls, v):
+        return _dependencies_name_validator(v)
+
+    @field_validator("group")
+    @classmethod
     def main_not_in_group(cls, v):
         if "main" in v:
             raise ValueError(

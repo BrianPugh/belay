@@ -2,14 +2,10 @@ import os
 
 import pydantic
 import pytest
+from pydantic import ValidationError
 
 from belay.packagemanager import Group
 from belay.project import find_pyproject, load_groups, load_pyproject, load_toml
-
-try:
-    from pydantic.v1.error_wrappers import ValidationError
-except ImportError:
-    from pydantic import ValidationError
 
 
 @pytest.fixture

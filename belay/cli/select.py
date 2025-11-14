@@ -151,7 +151,7 @@ def select():
 
             asyncio.run(blink_until_prompt(device))
 
-    spec_json = spec.json(exclude_none=True)
+    spec_json = spec.model_dump_json(exclude_none=True)
     questionary.print("\n")
     questionary.print("Either set the BELAY_DEVICE environment variable:", style=style)
     questionary.print(f"    export BELAY_DEVICE='{spec_json}'")

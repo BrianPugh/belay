@@ -1,10 +1,6 @@
 from typing import Dict, List, Optional
 
-try:
-    from pydantic.v1 import BaseModel, Field
-except ImportError:
-    from pydantic import BaseModel, Field
-
+from pydantic import BaseModel, Field
 from serial.tools.list_ports import comports
 
 from .exceptions import DeviceNotFoundError, InsufficientSpecifierError
@@ -43,13 +39,13 @@ class UsbSpecifier(BaseModel):
     device: Optional[str] = Field(None, exclude=True)
 
     def __repr__(self):
-        return f'{self.__class__.__name__}({", ".join(f"{k}={v!r}" for k, v in self.dict().items() if v is not None)})'
+        return f'{self.__class__.__name__}({", ".join(f"{k}={v!r}" for k, v in self.model_dump().items() if v is not None)})'
 
     def to_port(self) -> str:
         if self.device:
             return self.device
 
-        spec = self.dict(exclude_none=True)
+        spec = self.model_dump(exclude_none=True)
         possible_matches = []
 
         for port_info in list_devices():
@@ -66,7 +62,7 @@ class UsbSpecifier(BaseModel):
     def populated(self):
         # some ports, like wlan and bluetooth on macos,
         # don't populate any meaningful fields.
-        return bool(self.dict(exclude_none=True))
+        return bool(self.model_dump(exclude_none=True))
 
 
 def list_devices() -> List[UsbSpecifier]:
