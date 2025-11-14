@@ -30,6 +30,8 @@ def set_led(state):
     led.value = state
 
 
+setup()
+
 while True:
     set_led(True)
     time.sleep(0.5)

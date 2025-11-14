@@ -3,6 +3,7 @@ __version__ = "0.0.0"
 
 __all__ = [
     "AuthenticationError",
+    "BelayException",
     "ConnectionFailedError",
     "ConnectionLost",
     "Device",
@@ -16,6 +17,7 @@ __all__ = [
     "NotBelayResponseError",
     "NO_RESULT",
     "ProxyObject",
+    "PyboardError",
     "PyboardException",
     "SpecialFunctionNameError",
     "UNPARSABLE_RESULT",
@@ -28,6 +30,7 @@ from .device import NO_RESULT, UNPARSABLE_RESULT, Device, Implementation
 from .device_meta import DeviceMeta
 from .exceptions import (
     AuthenticationError,
+    BelayException,
     ConnectionFailedError,
     ConnectionLost,
     DeviceNotFoundError,
@@ -39,5 +42,5 @@ from .exceptions import (
     SpecialFunctionNameError,
 )
 from .proxy_object import ProxyObject
-from .pyboard import PyboardException
+from .pyboard import PyboardError, PyboardException
 from .usb_specifier import UsbSpecifier, list_devices

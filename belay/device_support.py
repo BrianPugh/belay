@@ -1,10 +1,34 @@
 import math
 from dataclasses import dataclass
 from threading import Lock
-from typing import Callable, Optional, Tuple
+from typing import Callable, Literal, Optional, Tuple, get_args
+
+from attrs import define, field
+
+Architectures = Literal[
+    None,
+    "x86",
+    "x64",
+    "armv6",
+    "armv6m",
+    "armv7m",
+    "armv7em",
+    "armv7emsp",
+    "armv7emdp",
+    "xtensa",
+    "xtensawin",
+    "rv32imc",
+]
 
 
-@dataclass
+def _arch_converter(x: Optional[int]) -> Optional[Architectures]:
+    if x is None:
+        return None
+    arch = get_args(Architectures)[x >> 10]
+    return arch
+
+
+@define
 class Implementation:
     """Implementation dataclass detailing the device.
 
@@ -25,7 +49,8 @@ class Implementation:
     name: str
     version: Tuple[int, int, int] = (0, 0, 0)
     platform: str = ""
-    emitters: Tuple[str] = ()
+    arch: Optional[str] = field(default=None, converter=_arch_converter)
+    emitters: Tuple[str, ...] = ()
 
 
 _method_metadata_counter_lock = Lock()

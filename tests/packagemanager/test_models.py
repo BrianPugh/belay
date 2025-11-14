@@ -1,12 +1,8 @@
 import pydantic
 import pytest
+from pydantic import ValidationError
 
 from belay.packagemanager import GroupConfig
-
-try:
-    from pydantic.v1.error_wrappers import ValidationError
-except ImportError:
-    from pydantic import ValidationError
 
 
 def test_group_config_multiple_rename_to_init():

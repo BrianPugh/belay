@@ -89,7 +89,7 @@ def install(
                 sync_device(main_tmp, progress_update=tasks["main"])
 
         if run:
-            content = run.read_text()
+            content = run.read_text(encoding="utf-8")
             with remove_stacktrace():
                 device(content)
             return

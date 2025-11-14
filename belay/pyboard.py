@@ -66,16 +66,12 @@ from pathlib import Path
 from threading import Lock, Thread
 from typing import Union
 
+from pydantic import ValidationError
+
 from .exceptions import BelayException, ConnectionFailedError, DeviceNotFoundError
 from .usb_specifier import UsbSpecifier
 from .utils import env_parse_bool
 from .webrepl import WebreplToSerial
-
-try:
-    from pydantic.v1.error_wrappers import ValidationError
-except ImportError:
-    from pydantic import ValidationError
-
 
 try:
     stdout = sys.stdout.buffer
@@ -230,11 +226,11 @@ class ProcessToSerial:
 
         atexit.register(self.close)
 
-        t_deadline = time.time() + 1
+        t_deadline = time.monotonic() + 1
         while b">>>" not in self.buf:
             time.sleep(0.0001)
-            if env_parse_bool("BELAY_DEBUG_PROCESS_BUFFER") and time.time() > t_deadline:
-                t_deadline = time.time() + 1
+            if env_parse_bool("BELAY_DEBUG_PROCESS_BUFFER") and time.monotonic() > t_deadline:
+                t_deadline = time.monotonic() + 1
                 print(self.buf)
 
     def close(self):
@@ -349,7 +345,7 @@ class Pyboard:
 
         if device is None:
             usb_specifier_str = os.environ.get("BELAY_DEVICE", "{}")
-            device = UsbSpecifier.parse_raw(usb_specifier_str)
+            device = UsbSpecifier.model_validate_json(usb_specifier_str)
 
         for attempt_count in itertools.count(start=attempt_start_val):
             try:
@@ -357,7 +353,7 @@ class Pyboard:
                     device = device.to_port()
                 else:
                     with contextlib.suppress(ValidationError):
-                        device = UsbSpecifier.parse_raw(device).to_port()
+                        device = UsbSpecifier.model_validate_json(device).to_port()
                 break
             except DeviceNotFoundError:
                 pass
@@ -432,7 +428,7 @@ class Pyboard:
 
         if timeout is None:
             timeout = float("inf")
-        deadline = time.time() + timeout
+        deadline = time.monotonic() + timeout
 
         def find(buf):
             # slice up to this index
@@ -471,7 +467,7 @@ class Pyboard:
 
             while not self._unconsumed_buf:
                 # loop until new data has arrived.
-                if time.time() > deadline:
+                if time.monotonic() > deadline:
                     raise PyboardError(
                         f"Timed out reading until {repr(ending)}\n    Received: {repr(self._consumed_buf)}"
                     )

@@ -90,7 +90,7 @@ def preprocess_src_file(
             subprocess.check_output([mpy_cross_binary, "-o", transformed, src_file])  # nosec
             return transformed
         elif minify:
-            minified = minify_code(src_file.read_text())
+            minified = minify_code(src_file.read_text(encoding="utf-8"))
             transformed.write_text(minified)
             return transformed
 

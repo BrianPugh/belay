@@ -83,6 +83,6 @@ def load_pyproject() -> BelayConfig:
 def load_groups() -> List[Group]:
     config = load_pyproject()
     groups = [Group("main", dependencies=config.dependencies)]
-    groups.extend(Group(name, **definition.dict()) for name, definition in config.group.items())
+    groups.extend(Group(name, **definition.model_dump()) for name, definition in config.group.items())
     groups.sort(key=lambda x: x.name)
     return groups
