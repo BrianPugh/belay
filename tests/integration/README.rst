@@ -14,7 +14,7 @@ and follow it's readme. In summary:
    # in the root Belay directory.
    git clone https://github.com/wokwi/rp2040js.git
    cd rp2040js
-   curl -OJ https://micropython.org/resources/firmware/rp2-pico-20210902-v1.17.uf2
+   curl -OJ https://micropython.org/resources/firmware/RPI_PICO-20210902-v1.17.uf2
    npm install
 
 Once built, run:

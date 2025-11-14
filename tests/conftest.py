@@ -1,5 +1,6 @@
 import os
 import shutil
+from contextlib import suppress
 from functools import partial
 from pathlib import Path
 
@@ -78,13 +79,24 @@ def cli_runner(mock_device):
     )
 )
 def emulate_command(request):
+    firmware_file = Path("rp2040js") / request.param
+    if not firmware_file.exists():
+        pytest.fail(
+            f"Firmware file not found: {firmware_file}. Run 'make download-firmware' to download required files."
+        )
     return f"exec:npm run --prefix rp2040js start:micropython -- --image={request.param}"
 
 
 @pytest.fixture
 def emulated_device(emulate_command):
-    with belay.Device(emulate_command) as device:
+    device = None
+    try:
+        device = belay.Device(emulate_command)
         yield device
+    finally:
+        if device is not None:
+            with suppress(Exception):
+                device.close()
 
 
 @pytest.fixture
