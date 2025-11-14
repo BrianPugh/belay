@@ -10,6 +10,7 @@ Welcome to Belay's documentation!
 
    Installation
    Quick Start
+   Proxy Objects
    CircuitPython
    Connections
    Package Manager
