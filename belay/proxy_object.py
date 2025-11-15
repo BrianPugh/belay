@@ -11,6 +11,10 @@ def _is_magic(name) -> bool:
     return name.startswith("__") and name.endswith("__")
 
 
+def _resolve_value(value) -> str:
+    return get_proxy_object_target_name(value) if isinstance(value, ProxyObject) else repr(value)
+
+
 @contextmanager
 def _promote_exceptions():
     """Context manager that promotes PyboardException to more specific exception types."""
@@ -171,11 +175,7 @@ class ProxyObject:
                 return
 
         # Resolve ProxyObject values to their remote target names
-        if isinstance(value, ProxyObject):
-            value_repr = get_proxy_object_target_name(value)
-        else:
-            value_repr = repr(value)
-
+        value_repr = _resolve_value(value)
         device(f"{target_name}.{name} = {value_repr}")
 
     def __getitem__(self, key):
@@ -194,7 +194,9 @@ class ProxyObject:
             step = "" if key.step is None else f":{key.step}"
             expression = f"{target_name}[{start}:{stop}{step}]"
         else:
-            expression = f"{target_name}[{key!r}]"
+            # Resolve ProxyObject keys to their remote target names
+            key_repr = _resolve_value(key)
+            expression = f"{target_name}[{key_repr}]"
 
         with _promote_exceptions():
             return device(expression, proxy=True, delete=True)
@@ -207,13 +209,11 @@ class ProxyObject:
         device = object.__getattribute__(self, "_belay_device")
         target_name = get_proxy_object_target_name(self)
 
-        # Resolve ProxyObject values to their remote target names
-        if isinstance(value, ProxyObject):
-            value_repr = get_proxy_object_target_name(value)
-        else:
-            value_repr = repr(value)
+        # Resolve ProxyObject keys and values to their remote target names
+        key_repr = _resolve_value(key)
+        value_repr = _resolve_value(value)
 
-        expression = f"{target_name}[{key!r}]={value_repr}"
+        expression = f"{target_name}[{key_repr}]={value_repr}"
         with _promote_exceptions():
             device(expression)
 
@@ -263,8 +263,8 @@ class ProxyObject:
         """
         device = object.__getattribute__(self, "_belay_device")
         target_name = get_proxy_object_target_name(self)
-        item = get_proxy_object_target_name(item) if isinstance(item, ProxyObject) else repr(item)
-        expression = f"{item} in {target_name}"
+        item_repr = _resolve_value(item)
+        expression = f"{item_repr} in {target_name}"
         with _promote_exceptions():
             res = device(expression)
         return res
@@ -273,7 +273,7 @@ class ProxyObject:
         """Equality comparison with remote object."""
         device = object.__getattribute__(self, "_belay_device")
         target_name = get_proxy_object_target_name(self)
-        other_repr = get_proxy_object_target_name(other) if isinstance(other, ProxyObject) else repr(other)
+        other_repr = _resolve_value(other)
         expression = f"{target_name} == {other_repr}"
         with _promote_exceptions():
             return device(expression)
@@ -282,7 +282,7 @@ class ProxyObject:
         """Inequality comparison with remote object."""
         device = object.__getattribute__(self, "_belay_device")
         target_name = get_proxy_object_target_name(self)
-        other_repr = get_proxy_object_target_name(other) if isinstance(other, ProxyObject) else repr(other)
+        other_repr = _resolve_value(other)
         expression = f"{target_name} != {other_repr}"
         with _promote_exceptions():
             return device(expression)
@@ -291,7 +291,7 @@ class ProxyObject:
         """Less than comparison with remote object."""
         device = object.__getattribute__(self, "_belay_device")
         target_name = get_proxy_object_target_name(self)
-        other_repr = get_proxy_object_target_name(other) if isinstance(other, ProxyObject) else repr(other)
+        other_repr = _resolve_value(other)
         expression = f"{target_name} < {other_repr}"
         with _promote_exceptions():
             return device(expression)
@@ -300,7 +300,7 @@ class ProxyObject:
         """Less than or equal comparison with remote object."""
         device = object.__getattribute__(self, "_belay_device")
         target_name = get_proxy_object_target_name(self)
-        other_repr = get_proxy_object_target_name(other) if isinstance(other, ProxyObject) else repr(other)
+        other_repr = _resolve_value(other)
         expression = f"{target_name} <= {other_repr}"
         with _promote_exceptions():
             return device(expression)
@@ -309,7 +309,7 @@ class ProxyObject:
         """Greater than comparison with remote object."""
         device = object.__getattribute__(self, "_belay_device")
         target_name = get_proxy_object_target_name(self)
-        other_repr = get_proxy_object_target_name(other) if isinstance(other, ProxyObject) else repr(other)
+        other_repr = _resolve_value(other)
         expression = f"{target_name} > {other_repr}"
         with _promote_exceptions():
             return device(expression)
@@ -318,7 +318,7 @@ class ProxyObject:
         """Greater than or equal comparison with remote object."""
         device = object.__getattribute__(self, "_belay_device")
         target_name = get_proxy_object_target_name(self)
-        other_repr = get_proxy_object_target_name(other) if isinstance(other, ProxyObject) else repr(other)
+        other_repr = _resolve_value(other)
         expression = f"{target_name} >= {other_repr}"
         with _promote_exceptions():
             return device(expression)

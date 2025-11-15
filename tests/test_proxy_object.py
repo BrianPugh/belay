@@ -643,3 +643,75 @@ def test_proxy_object_setitem_with_proxy_value(emulated_device):
     # Verify we can access through the proxy
     assert list_proxy[0] == {"value": 1}
     assert dict_proxy["a"] == {"value": 2}
+
+
+def test_proxy_object_as_dict_key(emulated_device):
+    """Test using a ProxyObject as a dictionary key."""
+    emulated_device(
+        dedent(
+            """\
+            my_dict = {}
+            key1 = 'first_key'
+            key2 = 'second_key'
+            value1 = {'data': 1}
+        """
+        )
+    )
+
+    dict_proxy = emulated_device.proxy("my_dict")
+    key1_proxy = emulated_device.proxy("key1")
+    key2_proxy = emulated_device.proxy("key2")
+    value1_proxy = emulated_device.proxy("value1")
+
+    # Test setting dict item with ProxyObject key and value
+    dict_proxy[key1_proxy] = value1_proxy
+    result = emulated_device("my_dict['first_key']")
+    assert result == {"data": 1}
+
+    # Test setting dict item with ProxyObject key and regular value
+    dict_proxy[key2_proxy] = "regular_value"
+    result = emulated_device("my_dict['second_key']")
+    assert result == "regular_value"
+
+    # Test getting dict item with ProxyObject key
+    retrieved = dict_proxy[key1_proxy]
+    assert retrieved == {"data": 1}
+
+    retrieved = dict_proxy[key2_proxy]
+    assert retrieved == "regular_value"
+
+
+def test_proxy_object_as_list_index(emulated_device):
+    """Test using a ProxyObject as a list index."""
+    emulated_device(
+        dedent(
+            """\
+            my_list = [None, None, None]
+            index0 = 0
+            index1 = 1
+            value1 = {'item': 'first'}
+        """
+        )
+    )
+
+    list_proxy = emulated_device.proxy("my_list")
+    index0_proxy = emulated_device.proxy("index0")
+    index1_proxy = emulated_device.proxy("index1")
+    value1_proxy = emulated_device.proxy("value1")
+
+    # Test setting list item with ProxyObject index and value
+    list_proxy[index0_proxy] = value1_proxy
+    result = emulated_device("my_list[0]")
+    assert result == {"item": "first"}
+
+    # Test setting list item with ProxyObject index and regular value
+    list_proxy[index1_proxy] = "regular_item"
+    result = emulated_device("my_list[1]")
+    assert result == "regular_item"
+
+    # Test getting list item with ProxyObject index
+    retrieved = list_proxy[index0_proxy]
+    assert retrieved == {"item": "first"}
+
+    retrieved = list_proxy[index1_proxy]
+    assert retrieved == "regular_item"
