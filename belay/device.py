@@ -137,6 +137,17 @@ class Device(metaclass=DeviceMeta):
     ----------
     implementation: Implementation
         Implementation details of device.
+
+    Notes
+    -----
+    When subclassing Device, it is probably easier to override the following method hooks rather than
+    overriding :meth:`__init__`:
+
+    * :meth:`__pre_autoinit__` - Called before ``@Device.setup(autoinit=True)`` methods.
+      Ideal for syncing files or dependencies via :meth:`sync` or :meth:`sync_dependencies`.
+
+    * :meth:`__post_init__` - Called after ``@Device.setup(autoinit=True)`` methods.
+      Ideal for setting host attributes based on device state.
     """
 
     MAX_CMD_HISTORY_LEN = 1000
@@ -242,7 +253,10 @@ class Device(metaclass=DeviceMeta):
         pass
 
     def __post_init__(self):
-        """Runs at the very end of ``__init__``."""
+        """Runs at the very end of ``__init__``.
+
+        Good for subclasses to initialize attributes or to perform additional device setup.
+        """
         pass
 
     def _emitter_check(self):
