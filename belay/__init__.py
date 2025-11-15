@@ -15,16 +15,18 @@ __all__ = [
     "MaxHistoryLengthError",
     "NoMatchingExecuterError",
     "NotBelayResponseError",
+    "NO_RESULT",
     "ProxyObject",
     "PyboardError",
     "PyboardException",
     "SpecialFunctionNameError",
+    "UNPARSABLE_RESULT",
     "UsbSpecifier",
     "list_devices",
     "minify",
 ]
 from ._minify import minify
-from .device import Device, Implementation
+from .device import NO_RESULT, UNPARSABLE_RESULT, Device, Implementation
 from .device_meta import DeviceMeta
 from .exceptions import (
     AuthenticationError,

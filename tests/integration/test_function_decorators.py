@@ -28,7 +28,7 @@ def test_task_basic(emulated_device, mocker):
 
     assert foo(5) == 10
 
-    spy_parse_belay_response.assert_called_once_with("_BELAYR10\r\n")
+    spy_parse_belay_response.assert_called_once_with("_BELAYR|10\r\n")
 
     assert bytes_task() == b"\x00\x01\x02"
 
@@ -59,9 +59,9 @@ def test_task_generators_basic(emulated_device, mocker):
     assert actual == [0, 1, 2]
     spy_parse_belay_response.assert_has_calls(
         [
-            mocker.call("_BELAYR0\r\n"),
-            mocker.call("_BELAYR1\r\n"),
-            mocker.call("_BELAYR2\r\n"),
+            mocker.call("_BELAYR|0\r\n"),
+            mocker.call("_BELAYR|1\r\n"),
+            mocker.call("_BELAYR|2\r\n"),
             mocker.call("_BELAYS\r\n"),
         ]
     )

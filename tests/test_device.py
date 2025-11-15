@@ -8,7 +8,7 @@ from belay.exceptions import NoMatchingExecuterError
 
 @pytest.fixture
 def mock_pyboard(mocker):
-    exec_side_effect = [b'_BELAYR("micropython", (1, 19, 1), "rp2")\r\n'] * 100
+    exec_side_effect = [b'_BELAYR|("micropython", (1, 19, 1), "rp2")\r\n'] * 100
 
     def mock_init(self, *args, **kwargs):
         self.serial = mocker.MagicMock()
@@ -114,13 +114,13 @@ def test_parse_belay_response_stop_iteration():
 
 
 def test_parse_belay_response_r():
-    assert belay.device.parse_belay_response("_BELAYR[1,2,3]") == [1, 2, 3]
-    assert belay.device.parse_belay_response("_BELAYR1") == 1
-    assert belay.device.parse_belay_response("_BELAYR1.23") == 1.23
-    assert belay.device.parse_belay_response("_BELAYR'a'") == "a"
-    assert {1} == belay.device.parse_belay_response("_BELAYR{1}")
-    assert belay.device.parse_belay_response("_BELAYRb'foo'") == b"foo"
-    assert belay.device.parse_belay_response("_BELAYRFalse") is False
+    assert belay.device.parse_belay_response("_BELAYR|[1,2,3]") == (belay.device.NO_RESULT, [1, 2, 3])
+    assert belay.device.parse_belay_response("_BELAYR|1") == (belay.device.NO_RESULT, 1)
+    assert belay.device.parse_belay_response("_BELAYR|1.23") == (belay.device.NO_RESULT, 1.23)
+    assert belay.device.parse_belay_response("_BELAYR|'a'") == (belay.device.NO_RESULT, "a")
+    assert belay.device.parse_belay_response("_BELAYR|{1}") == (belay.device.NO_RESULT, {1})
+    assert belay.device.parse_belay_response("_BELAYR|b'foo'") == (belay.device.NO_RESULT, b"foo")
+    assert belay.device.parse_belay_response("_BELAYR|False") == (belay.device.NO_RESULT, False)
 
 
 def test_overload_executer_mixing_error():

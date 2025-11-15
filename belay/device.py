@@ -11,7 +11,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from textwrap import dedent
 from types import ModuleType
-from typing import Any, Callable, Optional, TextIO, TypeVar, Union, overload
+from typing import Any, Callable, Optional, TextIO, Tuple, TypeVar, Union, overload
 
 from serial import SerialException
 from serial.tools.miniterm import Miniterm
@@ -41,10 +41,11 @@ from .executers import (
     ThreadExecuter,
 )
 from .helpers import get_fnv1a32_native_path, read_snippet, wraps_partial
-from .inspect import isexpression
-from .proxy_object import ProxyObject
+from .inspect import import_names, isexpression
+from .proxy_object import ProxyObject, get_proxy_object_target_name
 from .pyboard import Pyboard, PyboardError, PyboardException
 from .typing import BelayReturn, PathType
+from .utils import Sentinel
 from .webrepl import WebreplToSerial
 
 if sys.version_info < (3, 9, 0):
@@ -54,6 +55,14 @@ else:
 
 P = ParamSpec("P")
 R = TypeVar("R")
+
+
+class UNPARSABLE_RESULT(Sentinel):  # noqa: N801
+    """Could not parse the micropython repr return value; could be a non-AST object."""
+
+
+class NO_RESULT(Sentinel):  # noqa: N801
+    """No result."""
 
 
 def remove_call(expression: str, func_name: str, required=False) -> str:
@@ -95,12 +104,21 @@ def parse_belay_response(
     """
     if not line.startswith("_BELAY"):
         raise NotBelayResponseError
+    line = line.rstrip()
     line = line[6:]
     code, line = line[0], line[1:]
 
     if code == "R":
         # Result
-        return result_parser(line)
+        id_, line = line.split("|", 1)
+        id_ = int(id_) if id_ else NO_RESULT
+        if not line:
+            return id_, NO_RESULT
+        try:
+            parsed_result = result_parser(line)
+        except Exception:
+            parsed_result = UNPARSABLE_RESULT
+        return id_, parsed_result
     elif code == "S":
         # StopIteration
         raise StopIteration
@@ -272,56 +290,164 @@ class Device(metaclass=DeviceMeta):
 
     def __call__(
         self,
-        cmd: str,
+        cmd: Union[str, ProxyObject],
         *,
         minify: bool = True,
         stream_out: TextIO = sys.stdout,
         record=True,
         trusted: bool = False,
+        proxy: bool = False,
+        delete: Optional[bool] = None,
     ):
         """Execute code on-device.
 
+        This method can execute both Python statements (e.g., ``x = 5``) and expressions
+        (e.g., ``x + 5``).
+
         Parameters
         ----------
-        cmd: str
+        cmd: Union[str, ProxyObject]
             Python code to execute. May be a statement or expression.
+            If a :class:`ProxyObject`, will resolve it to its actual remote value.
         minify: bool
             Minify ``cmd`` code prior to sending.
             Reduces the number of characters that need to be transmitted.
             Defaults to ``True``.
+        stream_out: TextIO
+            Stream to write device output to. Defaults to ``sys.stdout``.
+            Set to ``None`` to suppress output.
         record: bool
             Record the call for state-reconstruction if device is accidentally reset.
             Defaults to ``True``.
         trusted: bool
-            Fully trust remote device.
-            When set to ``False``, only ``[None, bool, bytes, int, float, str, List, Dict, Set]`` return
-            values can be parsed.
-            When set to ``True``, any value who's ``repr`` can be evaluated to create a python object can be
-            returned. However, **this also allows the remote device to execute arbitrary code on host**.
+            Fully trust remote device for parsing return values.
+            When set to ``False`` (default), only AST-safe types
+            ``[None, bool, bytes, int, float, str, List, Dict, Set]`` can be parsed.
+            When set to ``True``, any value whose ``repr`` can be evaluated is returned.
+            **Warning**: ``trusted=True`` allows the remote device to execute arbitrary
+            code on the host. Only use with devices you fully trust.
             Defaults to ``False``.
+        proxy: bool
+            Create a :class:`ProxyObject` for expression results instead of returning
+            the actual value.
+
+            When ``True``:
+                - Mutable objects (list, dict, custom classes) return as :class:`ProxyObject`
+                - Immutable objects (int, str, bool, etc.) still return as direct values
+                - Import statements are automatically detected and create proxies
+
+            Examples::
+
+                # Without proxy - returns actual list
+                my_list = device("sensor.readings")  # [1, 2, 3]
+
+                # With proxy - returns ProxyObject wrapper
+                my_list_proxy = device("sensor.readings", proxy=True)
+                my_list_proxy[0]  # Access via proxy, returns 1
+
+                # Resolve proxy to actual value
+                actual_list = device(my_list_proxy)  # [1, 2, 3]
+
+            Defaults to ``False``.
+        delete: Optional[bool]
+            Control lifecycle of remote objects when using ``proxy=True``.
+
+            When ``True``: Remote object is deleted when the Python :class:`ProxyObject` is
+            garbage collected. Use for temporary/intermediate objects.
+
+            When ``False``: Remote object persists after :class:`ProxyObject` deletion.
+            Use for long-lived objects like imported modules.
+
+            When ``None`` (default):
+                - ``False`` if ``cmd`` is an import statement
+                - ``True`` otherwise
+
+            Examples::
+
+                # Auto-delete temporary object
+                temp = device("[1, 2, 3]", proxy=True)  # delete=True (default)
+                del temp  # Remote list is deleted
+
+                # Keep imported module
+                os = device("import os", proxy=True)  # delete=False (default for imports)
+                del os  # Remote 'os' module persists
+
+                # Explicitly control
+                keep = device("my_data", proxy=True, delete=False)
 
         Returns
         -------
-            Correctly interpreted return value from executing code on-device.
+        Any
+            Return value depends on the code and parameters:
+
+            - **Statements**: Returns ``None``
+            - **Expressions with proxy=False**: Returns the actual parsed value
+            - **Expressions with proxy=True**:
+                - Immutable types: Returns actual value (int, str, bool, None, bytes, float)
+                - Mutable types: Returns :class:`ProxyObject`
+            - **Import statements with proxy=True**: Returns :class:`ProxyObject` or
+              tuple of :class:`ProxyObject` for multiple imports
+
+        Raises
+        ------
+        PyboardException
+            If the remote code execution fails or raises an exception.
+        ConnectionLost
+            If the device connection is lost during execution.
+
+        Examples
+        --------
+        Basic usage::
+
+            # Execute a statement
+            device("led.on()")
+
+            # Execute an expression and get the result
+            temperature = device("sensor.temperature()")
+
+            # Use proxy mode for remote object interaction
+            sensor_proxy = device("sensor", proxy=True)
+            temperature = sensor_proxy.temperature()
+
+            # Import and use modules
+            machine = device("import machine", proxy=True)
+            pin = machine.Pin(25, machine.Pin.OUT)
+
+            # Resolve a proxy to get actual value
+            my_list_proxy = device("[1, 2, 3]", proxy=True)
+            actual_list = device(my_list_proxy)  # [1, 2, 3]
         """
+        if isinstance(cmd, ProxyObject):
+            cmd = get_proxy_object_target_name(cmd)
+
         cmd = dedent(cmd)
 
         if minify:
             cmd = minify_code(cmd)
 
-        if isexpression(cmd):
+        is_expression = isexpression(cmd)
+        imported_names = import_names(cmd)
+        if delete is None:
+            if imported_names:
+                delete = False
+            else:
+                delete = True
+        if is_expression:
             # Belay Tasks are inherently expressions as well.
-            cmd = f"print('_BELAYR' + repr({cmd}))"
+            if proxy:
+                cmd = f"__belay_obj_create({cmd})"
+            else:
+                cmd = f'print("_BELAYR|"+repr({cmd}))'
 
         if record and self.attempts and len(self._cmd_history) < self.MAX_CMD_HISTORY_LEN:
             self._cmd_history.append(cmd)
 
-        out = None  # Used to store the parsed response object.
+        id_, result = NO_RESULT, NO_RESULT
         data_consumer_buffer = bytearray()
 
         def data_consumer(data):
             """Handle input data stream immediately."""
-            nonlocal out
+            nonlocal id_, result
             data = data.replace(b"\x04", b"")
             if not data:
                 return
@@ -332,9 +458,9 @@ class Device(metaclass=DeviceMeta):
                 data_consumer_buffer[:] = data_consumer_buffer[i:]
                 try:
                     if trusted:
-                        out = parse_belay_response(line, result_parser=eval)
+                        id_, result = parse_belay_response(line, result_parser=eval)
                     else:
-                        out = parse_belay_response(line)
+                        id_, result = parse_belay_response(line)
                 except NotBelayResponseError:
                     if stream_out:
                         stream_out.write(line)
@@ -349,17 +475,100 @@ class Device(metaclass=DeviceMeta):
             else:
                 raise ConnectionLost from e
 
-        return out
+        if id_ is not NO_RESULT:
+            result = ProxyObject(self, f"__belay_obj_{id_}", delete=delete)
+        elif result is NO_RESULT:
+            if proxy:
+                if imported_names:
+                    # Create a ProxyObject for the imported objects.
+                    if len(imported_names) == 1:
+                        return self(imported_names[0], proxy=True, delete=False)
+                    else:
+                        return tuple(self(x, proxy=True, delete=False) for x in imported_names)
+                else:
+                    raise NotImplementedError("Unreachable: NO_RESULT, proxy=True, not import.")
+            else:
+                # Happens for non-expressions.
+                result = None
+        else:
+            # Typical AST-parsed result.
+            pass
 
-    def proxy(self, name: str) -> ProxyObject:
-        """Create a :class:`.ProxyObject` that uses this :class:`Device`.
+        return result
+
+    def proxy(self, cmd: str, delete: Optional[bool] = None) -> Union[ProxyObject, Tuple[ProxyObject, ...]]:
+        """Create a :class:`.ProxyObject` for interacting with remote objects.
+
+        This is a convenience method that combines object creation and proxy wrapping.
+        It automatically detects whether ``cmd`` is a simple variable name, an expression,
+        or an import statement, and handles each appropriately.
 
         Parameters
         ----------
-        name: str
-            Name of the remote object for the proxy-object to interact with.
+        cmd: str
+            Remote object reference, expression, or import statement.
+
+            - **Identifier** (e.g., ``"my_var"``): Creates proxy to existing variable
+            - **Expression** (e.g., ``"[1, 2, 3]"``): Evaluates and creates proxy to result
+            - **Import** (e.g., ``"import os"``): Imports module and creates proxy to it
+
+        delete: Optional[bool]
+            Control remote object lifecycle when proxy is deleted.
+
+            - ``True``: Delete remote object when proxy is garbage collected
+            - ``False``: Keep remote object after proxy deletion
+            - ``None`` (default): Auto-detect based on ``cmd``:
+                - Identifiers → ``False`` (preserve existing variables)
+                - Import statements → ``False`` (preserve imported modules)
+                - Expressions → ``True`` (clean up temporary objects)
+
+        Returns
+        -------
+        Union[ProxyObject, Tuple[ProxyObject, ...]]
+            - Single :class:`ProxyObject` for most cases
+            - Tuple of :class:`ProxyObject` instances for multi-import statements
+              (e.g., ``"from math import sin, cos"``)
+
+        Examples
+        --------
+        Reference existing variable::
+
+            device("sensor_data = [1, 2, 3, 4, 5]")
+            data_proxy = device.proxy("sensor_data")
+            print(data_proxy[0])  # 1
+            # sensor_data persists on device after data_proxy is deleted
+
+        Create proxy from expression::
+
+            # Create temporary list on device
+            temp_proxy = device.proxy("[10, 20, 30]")
+            print(temp_proxy[1])  # 20
+            # List is auto-deleted when temp_proxy goes out of scope
+
+        Import and use modules::
+
+            # Import a module
+            machine = device.proxy("import machine")
+            pin = machine.Pin(25, machine.Pin.OUT)
+            pin.on()
+
+        Multiple imports::
+
+            # Import multiple items
+            sin, cos = device.proxy("from math import sin, cos")
+            result = sin(0)  # 0
+
+        See Also
+        --------
+        ProxyObject : The proxy object class for remote object interaction
+        Device.__call__ : Lower-level method for executing code with proxy support
         """
-        return ProxyObject(self, name)
+        if cmd.isidentifier():
+            if delete is None:
+                delete = False
+            return ProxyObject(self, cmd, delete=delete)
+        else:
+            return self(cmd, proxy=True, delete=delete)
 
     def sync(
         self,

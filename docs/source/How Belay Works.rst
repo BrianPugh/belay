@@ -13,7 +13,7 @@ Device Creation
 
    device = belay.Device("/dev/ttyUSB0")
 
-This creates a ``Device`` object that connects to the microcontroller.
+This creates a :class:`~belay.Device` object that connects to the microcontroller.
 Belay resets it, enters REPL mode, and then runs `some convenience imports on the board`_.
 
 
@@ -29,7 +29,7 @@ Consider the following decorated function:
        """This function sets a pin to the specified state."""
        Pin(25, Pin.OUT).value(state)  # Set a pin as an output, and set its value
 
-The ``task`` decorator inspects the actual code of the function its decorating and sends it over to the microcontroller.
+The :meth:`~belay.Device.task` decorator inspects the actual code of the function its decorating and sends it over to the microcontroller.
 Prior to sending the code over, a few preprocessing steps are required.
 At first, the code looks like:
 
@@ -55,56 +55,65 @@ After minification, the code looks like:
 The ``0`` is just a one character way of saying ``pass``, in case the removed docstring was the entire body.
 This reduces the number of transmitted characters from 158 to just 53, offering a 3x speed boost.
 
-After minification, the ``@__belay`` decorator is added. On-device, this defines a variant of the function, ``_belay_FUNCTION_NAME``
-that performs the following actions:
-
- 1. Takes the returned value of the function, and serializes it to a string using ``repr``.
-
- 2. Prints the resulting string to stdout, so it can be read by the host computer and deserialized via ``ast.literal_eval``.
-
-
-Conceptually, its as if the following code ran on-device (minification removed for clarity):
+After minification, the function code is sent directly to the device and executed. The minified function
+is stored on the device exactly as written:
 
 .. code-block:: python
 
    def set_led(state):
-       Pin(25, Pin.OUT).value(state)
+    0
+    Pin(25,Pin.OUT).value(state)
 
-
-   def _belay_set_led(*args, **kwargs):
-       res = set_led(*args, **kwargs)
-       print("_BELAYR" + repr(res))
-
-A separate private function is defined with this serialization in case another on-device function calls ``set_led``.
+This function can now be called from other on-device code, or invoked from the host computer.
+When invoked from the host, Belay handles the serialization and deserialization of arguments and return values.
 
 
 Task - Executing Function
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Now that the function has been sent over and parsed by the microcontroller, we would like to execute it.
-The ``@task`` decorator returns a function that when invoked, creates and sends a command to the device,
+The :meth:`~belay.Device.task` decorator returns a function that when invoked, creates and sends a command to the device,
 and then parses back the response. The complete lifecycle looks like this:
 
 1. ``set_led(True)`` is called on the host. This doesn't execute the function we defined on host. Instead it triggers the following actions.
 
-2. Belay creates the string ``"_belay_set_led(True)"``.
+2. Belay creates the function call expression ``"set_led(True)"``.
 
-3. Belay sends this command over serial to the REPL, causing it to execute on-device.
+3. Since this is an expression, Belay wraps it with serialization code on the host side: ``'print("_BELAYR|"+repr(set_led(True)))'``.
 
-4. On-device, the result of ``set_led(True)`` is ``None``. This gets serialized to the string ``None``, which gets printed to stdout.
+4. Belay sends this wrapped command over serial to the REPL, causing it to execute on-device.
 
-5. Belay reads this response form stdout, and deserializes it back to the ``None`` object.
+5. On-device, ``set_led(True)`` executes and returns :py:obj:`None`. This gets serialized via :py:func:`repr` and printed with the ``_BELAYR|`` prefix.
 
-6. ``None`` is returned on host from the ``set_led(True)`` call.
+6. Belay reads the response ``_BELAYR|None`` from stdout, strips the prefix, and deserializes it back to the :py:obj:`None` object using :py:func:`ast.literal_eval`.
+
+7. :py:obj:`None` is returned on host from the ``set_led(True)`` call.
 
 This has a few limitations, namely:
 
-1. Each passed in argument must be a python literals (``None``, booleans, bytes, numbers, strings, sets, lists, and dicts).
+1. Each passed in argument must be a python literal (:py:obj:`None`, booleans, bytes, numbers, strings, sets, lists, and dicts).
 
 2. User code cannot print a message that begins with ``_BELAY``, otherwise the remainder of the message will attempt to be parsed.
 
-3. The returned data of the function must also be a python literal(s).
+3. By default, returned data must be a python literal that can be safely parsed by :py:func:`ast.literal_eval`. For more complex objects, you can either:
 
+   a. Use :meth:`@device.task(trusted=True) <belay.Device.task>` to allow :py:func:`eval` instead (security risk - only use with trusted code)
+
+   b. Use :meth:`device.proxy("obj_name") <belay.Device.proxy>` to create a :class:`~belay.ProxyObject` that allows you to interact with remote objects that cannot be serialized
+
+
+Response Format
+^^^^^^^^^^^^^^^
+
+Belay uses special markers in the device output to identify responses:
+
+- ``_BELAYR|<value>`` - Normal return value. The value after the pipe is deserialized and returned to the host.
+
+- ``_BELAYR<id>|`` - :class:`~belay.ProxyObject` reference. The object is stored on-device as ``__belay_obj_<id>`` and a :class:`~belay.ProxyObject` is returned on the host that can interact with it remotely.
+
+- ``_BELAYS`` - StopIteration marker used for generator functions.
+
+This protocol allows Belay to distinguish between user output and command results, enabling seamless interaction between the host and device.
 
 
 .. _some convenience imports on the board: https://github.com/BrianPugh/belay/blob/main/belay/snippets/convenience_imports_micropython.py

@@ -12,7 +12,7 @@ from tokenize import (
     generate_tokens,
     untokenize,
 )
-from typing import Tuple
+from typing import Sequence, Tuple
 
 _pat_no_decorators = re.compile(r"^(\s*def\s)|(\s*async\s+def\s)|(.*(?<!\w)lambda(:|\s))")
 
@@ -129,3 +129,42 @@ def isexpression(code: str) -> bool:
         return False
 
     return True
+
+
+def import_names(import_statement: str) -> Sequence[str]:
+    """Determine imported object names from an import-statement.
+
+    Parameters
+    ----------
+    import_statement: str
+        Import statement, for example::
+
+            import foo
+            from foo import bar
+            import foo as buzz
+    """
+    if "*" in import_statement:
+        return []
+
+    names = []
+    try:
+        tree = ast.parse(import_statement)
+
+        if isinstance(tree.body[0], ast.ImportFrom):
+            # from foo import bar, baz [as alias], qux
+            for alias in tree.body[0].names:
+                symbol_name = alias.asname if alias.asname else alias.name
+                names.append(symbol_name)
+
+        elif isinstance(tree.body[0], ast.Import):
+            # import foo, bar.baz [as alias], qux
+            for alias in tree.body[0].names:
+                if alias.asname:
+                    names.append(alias.asname)
+                else:
+                    # For dotted imports like "import foo.bar", use just "foo"
+                    names.append(alias.name.split(".")[0])
+    except Exception:
+        return []
+    else:
+        return names
