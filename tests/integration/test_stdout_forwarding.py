@@ -22,7 +22,7 @@ def test_print_basic(emulated_device, mocker):
     spy_parse_belay_response.assert_has_calls(
         [
             mocker.call("print from belay task.\r\n"),
-            mocker.call("_BELAYRNone\r\n"),
+            mocker.call("_BELAYR|None\r\n"),
         ]
     )
     assert len(spy_parse_belay_response.call_args_list) == 2

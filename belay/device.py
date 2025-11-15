@@ -489,7 +489,7 @@ class Device(metaclass=DeviceMeta):
                     raise NotImplementedError("Unreachable: NO_RESULT, proxy=True, not import.")
             else:
                 # Happens for non-expressions.
-                pass
+                result = None
         else:
             # Typical AST-parsed result.
             pass
