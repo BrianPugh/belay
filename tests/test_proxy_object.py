@@ -53,7 +53,8 @@ def test_proxy_object_dir(proxy_object, emulated_device):
     result_proxy = emulated_device("dir(klass)", proxy=True)
     result = emulated_device(result_proxy)  # Resolve to actual list
     result = set(result)
-    expected = {"__init__", "__module__", "__new__", "__qualname__", "bar", "foo", "some_method", "some_dict"}
+    # MicroPython/CircuitPython don't include __init__ and __new__ in dir() of instances
+    expected = {"__module__", "__qualname__", "bar", "foo", "some_method", "some_dict"}
     assert expected.issubset(result)
 
 
@@ -68,8 +69,11 @@ def test_proxy_object_dict_keys(proxy_object, emulated_device):
 def test_proxy_object_dict_values(proxy_object, emulated_device):
     # values() returns a ProxyObject wrapping dict_values, need to convert to list
     values_proxy = proxy_object.some_dict.values()
-    # Resolve the proxy object to get the actual values
-    result = emulated_device(values_proxy)
+    # dict_values can't be directly parsed, convert to list first
+    from belay.proxy_object import get_proxy_object_target_name
+
+    target_name = get_proxy_object_target_name(values_proxy)
+    result = emulated_device(f"list({target_name})")
     assert {1, 2, 3} == set(result)
 
 
@@ -169,27 +173,24 @@ def test_proxy_object_immutable_ergonomics(proxy_object, emulated_device):
 
 def test_proxy_object_lifecycle_delete_true(emulated_device):
     """Test that ProxyObject with delete=True removes remote reference on deletion."""
+    # When proxy() is called on an identifier with delete=True, it creates a proxy
+    # pointing directly to that variable. When the proxy is deleted, the variable is deleted.
     emulated_device("test_var = [1, 2, 3]")
 
-    # Create a proxy object with delete=True (default)
+    # Create a proxy object with delete=True
     proxy = emulated_device.proxy("test_var", delete=True)
     assert proxy == [1, 2, 3]
 
-    # Get the internal name of the proxy object
-    proxy_name = object.__getattribute__(proxy, "_belay_target_name")
+    # Verify test_var exists
+    assert emulated_device("test_var") == [1, 2, 3]
 
-    # Verify the proxy variable exists remotely
-    if proxy_name != "test_var":
-        # It's a __belay_obj_* variable
-        result = emulated_device(f'"{proxy_name}" in dir()')
-        assert result is True
-
-    # Delete the proxy
+    # Delete the proxy - this should delete test_var since delete=True
     del proxy
 
-    # For __belay_obj_* variables, verify they're deleted
-    # (test_var itself should still exist)
-    assert emulated_device("test_var") == [1, 2, 3]
+    # Verify test_var was deleted
+    with pytest.raises(Exception) as exc_info:
+        emulated_device("test_var")
+    assert "NameError" in str(exc_info.value)
 
 
 def test_proxy_object_lifecycle_delete_false(emulated_device):
@@ -518,9 +519,11 @@ def test_device_proxy_method_import_detection(emulated_device):
     result = emulated_device.proxy("from math import cos, pi")
     assert isinstance(result, tuple)
     assert len(result) == 2
-    cos_proxy, pi_proxy = result
+    cos_proxy, pi_value = result
     assert isinstance(cos_proxy, ProxyObject)
-    assert isinstance(pi_proxy, ProxyObject)
+    # pi is an immutable float, so it's returned directly, not as ProxyObject
+    assert isinstance(pi_value, float)
+    assert abs(pi_value - 3.14159) < 0.001
 
 
 def test_device_proxy_method_expression_vs_identifier(emulated_device):

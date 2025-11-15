@@ -476,7 +476,7 @@ class Device(metaclass=DeviceMeta):
                 raise ConnectionLost from e
 
         if id_ is not NO_RESULT:
-            result = ProxyObject(self, f"__belay_obj_{id_}", delete=True)
+            result = ProxyObject(self, f"__belay_obj_{id_}", delete=delete)
         elif result is NO_RESULT:
             if proxy:
                 if imported_names:
