@@ -170,7 +170,13 @@ class ProxyObject:
                 object.__setattr__(self, name, value)
                 return
 
-        device(f"{target_name}.{name} = {value!r}")
+        # Resolve ProxyObject values to their remote target names
+        if isinstance(value, ProxyObject):
+            value_repr = get_proxy_object_target_name(value)
+        else:
+            value_repr = repr(value)
+
+        device(f"{target_name}.{name} = {value_repr}")
 
     def __getitem__(self, key):
         """Get item from remote object by key or index.
@@ -200,7 +206,14 @@ class ProxyObject:
         """
         device = object.__getattribute__(self, "_belay_device")
         target_name = get_proxy_object_target_name(self)
-        expression = f"{target_name}[{key!r}]={value!r}"
+
+        # Resolve ProxyObject values to their remote target names
+        if isinstance(value, ProxyObject):
+            value_repr = get_proxy_object_target_name(value)
+        else:
+            value_repr = repr(value)
+
+        expression = f"{target_name}[{key!r}]={value_repr}"
         with _promote_exceptions():
             device(expression)
 

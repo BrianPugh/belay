@@ -574,3 +574,72 @@ def test_device_call_with_proxy_parameter(emulated_device):
     list_proxy = emulated_device("result_list", proxy=True)
     assert isinstance(list_proxy, ProxyObject)
     assert list_proxy == [1, 2, 3]
+
+
+def test_proxy_object_setattr_with_proxy_value(emulated_device):
+    """Test setting a ProxyObject attribute to another ProxyObject (Issue #182)."""
+    emulated_device(
+        dedent(
+            """\
+            class Container:
+                def __init__(self):
+                    self.config = None
+                    self.data = None
+
+            container = Container()
+            config_dict = {'setting': 42, 'enabled': True}
+            data_list = [1, 2, 3, 4, 5]
+        """
+        )
+    )
+
+    container_proxy = emulated_device.proxy("container")
+    config_proxy = emulated_device.proxy("config_dict")
+    data_proxy = emulated_device.proxy("data_list")
+
+    # Test setting attribute to a ProxyObject representing a mutable object
+    container_proxy.config = config_proxy
+    result = emulated_device("container.config")
+    assert result == {"setting": 42, "enabled": True}
+
+    # Test setting attribute to another ProxyObject
+    container_proxy.data = data_proxy
+    result = emulated_device("container.data")
+    assert result == [1, 2, 3, 4, 5]
+
+    # Verify we can access through the proxy
+    assert container_proxy.config == {"setting": 42, "enabled": True}
+    assert container_proxy.data == [1, 2, 3, 4, 5]
+
+
+def test_proxy_object_setitem_with_proxy_value(emulated_device):
+    """Test setting a ProxyObject list/dict item to another ProxyObject."""
+    emulated_device(
+        dedent(
+            """\
+            my_list = [None, None, None]
+            my_dict = {'a': None, 'b': None}
+            obj1 = {'value': 1}
+            obj2 = {'value': 2}
+        """
+        )
+    )
+
+    list_proxy = emulated_device.proxy("my_list")
+    dict_proxy = emulated_device.proxy("my_dict")
+    obj1_proxy = emulated_device.proxy("obj1")
+    obj2_proxy = emulated_device.proxy("obj2")
+
+    # Test setting list item to ProxyObject
+    list_proxy[0] = obj1_proxy
+    result = emulated_device("my_list[0]")
+    assert result == {"value": 1}
+
+    # Test setting dict item to ProxyObject
+    dict_proxy["a"] = obj2_proxy
+    result = emulated_device("my_dict['a']")
+    assert result == {"value": 2}
+
+    # Verify we can access through the proxy
+    assert list_proxy[0] == {"value": 1}
+    assert dict_proxy["a"] == {"value": 2}
