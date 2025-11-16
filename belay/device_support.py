@@ -1,7 +1,7 @@
 import math
 from dataclasses import dataclass
 from threading import Lock
-from typing import Callable, Literal, Optional, Tuple, get_args
+from typing import Callable, Literal, Optional, get_args
 
 from attrs import define, field
 
@@ -47,10 +47,10 @@ class Implementation:
     """
 
     name: str
-    version: Tuple[int, int, int] = (0, 0, 0)
+    version: tuple[int, int, int] = (0, 0, 0)
     platform: str = ""
     arch: Optional[str] = field(default=None, converter=_arch_converter)
-    emitters: Tuple[str, ...] = ()
+    emitters: tuple[str, ...] = ()
 
 
 _method_metadata_counter_lock = Lock()

@@ -23,9 +23,9 @@ belay = "belay.cli.main:run_app"
 
 [tool.poetry.dependencies]
 # Be as loose as possible if writing a library.
-python = ">=3.8"
+python = ">=3.9"
 pyserial = ">=3.1"
-typer = {extras = ["all"], version = ">=0.6.0"}
+cyclopts = ">=3.22.0"
 pathspec = ">=0.10.3"
 tomli = ">=2.0.1"
 autoregistry = ">=0.10.1"
@@ -36,7 +36,6 @@ pydantic = ">=2.0.0"
 typing-extensions = ">=4.5.0"
 questionary = ">=2.0.0"
 packaging = ">=20.4"
-importlib_resources = {version = ">=3.0.0", python = "<3.9"}
 attrs = ">=21.0.0"
 
 [tool.poetry.group.docs.dependencies]
@@ -105,7 +104,7 @@ markers = [
 ]
 
 [tool.ruff]
-target-version = 'py38'
+target-version = 'py39'
 line-length = 120  # Must agree with Black
 exclude = [
     "migrations",
@@ -164,8 +163,6 @@ select = [
 [tool.ruff.lint.flake8-bugbear]
 extend-immutable-calls = [
     "chr",
-    "typer.Argument",
-    "typer.Option",
 ]
 
 [tool.ruff.lint.pydocstyle]
@@ -204,6 +201,5 @@ paths=["belay"]
 deps-file="pyproject.toml"
 sections=["tool.poetry.dependencies"]
 exclude-deps =[
-  "importlib_resources",
   "pydantic",
 ]

@@ -1,13 +1,11 @@
-from contextlib import nullcontext
 from functools import partial
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 from rich.progress import Progress
-from typer import Argument, Option
 
 from belay import Device
-from belay.cli.common import help_password, help_port
+from belay.cli.common import PasswordStr, PortStr
 
 
 def sync_device(device, folder, progress_update, **kwargs):
@@ -16,19 +14,30 @@ def sync_device(device, folder, progress_update, **kwargs):
 
 
 def sync(
-    port: str = Argument(..., help=help_port),
-    folder: Path = Argument(..., help="Path of local file or folder to sync."),
-    dst: str = Option("/", help="Destination directory to unpack folder contents to."),
-    password: str = Option("", help=help_password),
-    keep: Optional[List[str]] = Option(None, help="Files to keep."),
-    ignore: Optional[List[str]] = Option(None, help="Files to ignore."),
-    mpy_cross_binary: Optional[Path] = Option(None, help="Compile py files with this executable."),
+    port: PortStr,
+    folder: Path,
+    *,
+    dst: str = "/",
+    password: PasswordStr = "",
+    keep: Optional[list[str]] = None,
+    ignore: Optional[list[str]] = None,
+    mpy_cross_binary: Optional[Path] = None,
 ):
-    """Synchronize a folder to device."""
-    # Typer issues: https://github.com/tiangolo/typer/issues/410
-    keep = keep if keep else None
-    ignore = ignore if ignore else None
+    """Synchronize a folder to device.
 
+    Parameters
+    ----------
+    folder : Path
+        Path of local file or folder to sync.
+    dst : str
+        Destination directory to unpack folder contents to.
+    keep : Optional[list[str]]
+        Files to keep.
+    ignore : Optional[list[str]]
+        Files to ignore.
+    mpy_cross_binary : Optional[Path]
+        Compile py files with this executable.
+    """
     with Device(port, password=password) as device, Progress() as progress:
         task_id = progress.add_task("")
 

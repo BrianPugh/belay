@@ -59,7 +59,7 @@ print("Reading a synced file via task decorator. Contents:")
 
 @device.task
 def read_file(fn):
-    with open(fn, "r") as f:
+    with open(fn) as f:
         return f.read()
 
 

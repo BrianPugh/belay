@@ -2,7 +2,7 @@
 """
 
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 
 from pydantic import BaseModel as PydanticBaseModel
 from pydantic import ConfigDict, field_validator
@@ -19,7 +19,7 @@ class DependencySourceConfig(BaseModel):
     rename_to_init: bool = False
 
 
-DependencyList = List[DependencySourceConfig]
+DependencyList = list[DependencySourceConfig]
 
 
 def _dependencies_name_validator(dependencies) -> dict:
@@ -29,7 +29,7 @@ def _dependencies_name_validator(dependencies) -> dict:
     return dependencies
 
 
-def _dependencies_preprocessor(dependencies) -> Dict[str, List[dict]]:
+def _dependencies_preprocessor(dependencies) -> dict[str, list[dict]]:
     """Preprocess various dependencies based on dtype.
 
     * ``str`` -> single dependency that may get renamed to __init__.py, if appropriate.
@@ -92,7 +92,7 @@ def walk_dependencies(packages: dict):
 
 class GroupConfig(BaseModel):
     optional: bool = False
-    dependencies: Dict[str, DependencyList] = {}
+    dependencies: dict[str, DependencyList] = {}
 
     ##############
     # VALIDATORS #
@@ -129,13 +129,13 @@ class BelayConfig(BaseModel):
     ignore: Optional[list] = []
 
     # "main" dependencies
-    dependencies: Dict[str, DependencyList] = {}
+    dependencies: dict[str, DependencyList] = {}
 
     # Path to where dependency groups should be stored relative to project's root.
     dependencies_path: Path = Path(".belay/dependencies")
 
     # Other dependencies
-    group: Dict[str, GroupConfig] = {}
+    group: dict[str, GroupConfig] = {}
 
     ##############
     # VALIDATORS #

@@ -3,7 +3,7 @@ import shutil
 import tempfile
 from contextlib import nullcontext
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 from rich.console import Console
 
@@ -100,7 +100,7 @@ class Group:
 
     def download(
         self,
-        packages: Optional[List[str]] = None,
+        packages: Optional[list[str]] = None,
         console: Optional[Console] = None,
     ) -> None:
         """Download dependencies.

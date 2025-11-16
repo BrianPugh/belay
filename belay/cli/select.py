@@ -1,12 +1,12 @@
 import asyncio
 import contextlib
+import sys
 
 import questionary
-import typer
 from questionary import Choice
 
 from belay import Device, DeviceMeta
-from belay.cli.questionary_ext import press_any_key_to_continue, select_table
+from belay.cli.questionary_ext import select_table
 from belay.usb_specifier import list_devices
 
 
@@ -20,7 +20,7 @@ async def blink_loop(device):
 
 async def blink_until_prompt(device):
     blink_task = asyncio.create_task(blink_loop(device))
-    await press_any_key_to_continue().ask_async()
+    await questionary.press_any_key_to_continue().ask_async()
     blink_task.cancel()
     with contextlib.suppress(asyncio.CancelledError):
         await blink_task
@@ -117,7 +117,7 @@ def select():
 
     if not choices:
         print("Detected no devices.")
-        raise typer.Exit(code=1)
+        sys.exit(1)
 
     device_index = select_table(
         "Select USB Device (Use arrow keys):",

@@ -4,30 +4,37 @@ import contextlib
 with contextlib.suppress(ImportError):
     import readline
 import shutil
+import sys
+from typing import Annotated
 
-import typer
-from typer import Argument, Option, Typer
+from cyclopts import App, Parameter
 
 from belay.project import find_cache_folder
 
-app = Typer(no_args_is_help=True, help="Perform action's on Belay's cache.")
+app = App(help="Perform action's on Belay's cache.")
 
 
-@app.command()
+@app.command
 def clear(
-    prefix: str = Argument("", help="Clear all caches that start with this."),
-    yes: bool = Option(
-        False,
-        "--yes",
-        "-y",
-        help='Automatically answer "yes" to all confirmation prompts.',
-    ),
-    all: bool = Option(False, "--all", "-a", help="Clear all caches."),
+    prefix: str = "",
+    *,
+    yes: Annotated[bool, Parameter(alias="-y")] = False,
+    all: Annotated[bool, Parameter(alias="-a")] = False,
 ):
-    """Clear cache."""
+    """Clear cache.
+
+    Parameters
+    ----------
+    prefix : str
+        Clear all caches that start with this.
+    yes : bool
+        Automatically answer "yes" to all confirmation prompts.
+    all : bool
+        Clear all caches.
+    """
     if (not prefix and not all) or (prefix and all):
         print('Either provide a prefix OR set the "--all" flag.')
-        raise typer.Exit()
+        sys.exit(1)
 
     cache_folder = find_cache_folder()
 
@@ -37,13 +44,15 @@ def clear(
 
     if not cache_paths:
         print(f'No caches found starting with "{prefix}"')
-        raise typer.Exit()
+        sys.exit(1)
 
     if not yes:
         print("Found caches:")
         for cache_name in cache_names:
             print(f"  • {cache_name}")
-        typer.confirm("Clear these caches?", abort=True)
+        response = input("Clear these caches? [y/N]: ")
+        if response.lower() not in ("y", "yes"):
+            sys.exit(1)
 
     for path in cache_paths:
         if path.is_file():
@@ -52,7 +61,7 @@ def clear(
             shutil.rmtree(path)
 
 
-@app.command()
+@app.command
 def list():
     """List cache elements."""
     cache_folder = find_cache_folder()
@@ -62,7 +71,7 @@ def list():
         print(item)
 
 
-@app.command()
+@app.command
 def info():
     """Display cache location and size."""
     cache_folder = find_cache_folder()

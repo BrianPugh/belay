@@ -1,6 +1,7 @@
 import ast
 import inspect
 import re
+from collections.abc import Sequence
 from io import StringIO
 from tokenize import (
     COMMENT,
@@ -12,7 +13,6 @@ from tokenize import (
     generate_tokens,
     untokenize,
 )
-from typing import Sequence, Tuple
 
 _pat_no_decorators = re.compile(r"^(\s*def\s)|(\s*async\s+def\s)|(.*(?<!\w)lambda(:|\s))")
 
@@ -60,7 +60,7 @@ def _remove_signature(code):
     return "\n".join(lines), lines_removed
 
 
-def getsource(f, *, strip_signature=False) -> Tuple[str, int, str]:
+def getsource(f, *, strip_signature=False) -> tuple[str, int, str]:
     """Get source code with mild post processing.
 
     * strips leading decorators.

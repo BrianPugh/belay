@@ -2,6 +2,7 @@ import ast
 import atexit
 import concurrent.futures
 import contextlib
+import importlib.resources as importlib_resources
 import linecache
 import re
 import shutil
@@ -11,7 +12,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from textwrap import dedent
 from types import ModuleType
-from typing import Any, Callable, Optional, TextIO, Tuple, TypeVar, Union, overload
+from typing import Any, Callable, Optional, TextIO, TypeVar, Union, overload
 
 from serial import SerialException
 from serial.tools.miniterm import Miniterm
@@ -47,11 +48,6 @@ from .pyboard import Pyboard, PyboardError, PyboardException
 from .typing import BelayReturn, PathType
 from .utils import Sentinel
 from .webrepl import WebreplToSerial
-
-if sys.version_info < (3, 9, 0):
-    import importlib_resources
-else:
-    import importlib.resources as importlib_resources
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -510,7 +506,7 @@ class Device(metaclass=DeviceMeta):
 
         return result
 
-    def proxy(self, cmd: str, delete: Optional[bool] = None) -> Union[ProxyObject, Tuple[ProxyObject, ...]]:
+    def proxy(self, cmd: str, delete: Optional[bool] = None) -> Union[ProxyObject, tuple[ProxyObject, ...]]:
         """Create a :class:`.ProxyObject` for interacting with remote objects.
 
         This is a convenience method that combines object creation and proxy wrapping.
