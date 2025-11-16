@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Optional
 
 from pydantic import BaseModel, Field
 from serial.tools.list_ports import comports
@@ -13,7 +13,7 @@ def _normalize(val):
     return val
 
 
-def _dict_is_subset(subset: Dict, superset: Dict) -> bool:
+def _dict_is_subset(subset: dict, superset: dict) -> bool:
     """Tests if ``subset`` dictionary is a subset of ``superset`` dictionary."""
     for subset_key, subset_value in subset.items():
         try:
@@ -65,7 +65,7 @@ class UsbSpecifier(BaseModel):
         return bool(self.model_dump(exclude_none=True))
 
 
-def list_devices() -> List[UsbSpecifier]:
+def list_devices() -> list[UsbSpecifier]:
     """Lists available device ports.
 
     Returns

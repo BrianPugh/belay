@@ -1,7 +1,7 @@
 import platform
 from functools import lru_cache
 from pathlib import Path
-from typing import List, Union
+from typing import Union
 
 import tomli
 
@@ -80,7 +80,7 @@ def load_pyproject() -> BelayConfig:
 
 
 @lru_cache
-def load_groups() -> List[Group]:
+def load_groups() -> list[Group]:
     config = load_pyproject()
     groups = [Group("main", dependencies=config.dependencies)]
     groups.extend(Group(name, **definition.model_dump()) for name, definition in config.group.items())

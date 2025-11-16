@@ -1,10 +1,7 @@
 from pathlib import Path
 
-from typer.testing import CliRunner
-
-from belay.cli import app
-
-cli_runner = CliRunner()
+from belay.cli.main import app
+from tests.conftest import run_cli
 
 
 def test_install_no_pkg(tmp_path, mocker, mock_device):
@@ -15,23 +12,11 @@ def test_install_no_pkg(tmp_path, mocker, mock_device):
     mock_load_toml = mocker.patch("belay.project.load_toml", return_value=toml)
     mock_device.patch("belay.cli.install.Device")
 
-    result = cli_runner.invoke(
-        app,
-        [
-            "install",
-            "/dev/ttyUSB0",
-            "--password",
-            "password",
-            "--run",
-            str(main_py),
-        ],
-        catch_exceptions=False,
-    )
-
-    assert result.exit_code == 0
+    exit_code = run_cli(app, ["install", "/dev/ttyUSB0", "--run", str(main_py), "--password", "password"])
+    assert exit_code == 0
 
     mock_load_toml.assert_called_once()
-    mock_device.cls.assert_called_once_with("/dev/ttyUSB0", password="password")
+    mock_device.cls_assert_common()
     mock_device.inst.sync.assert_called_once_with(  # Dependencies sync
         mocker.ANY,
         progress_update=mocker.ANY,
@@ -52,15 +37,11 @@ def test_install_basic(tmp_path, mocker, mock_device):
     mocker.patch("belay.cli.install.find_project_folder", return_value=Path())
     mock_device.patch("belay.cli.install.Device")
 
-    result = cli_runner.invoke(
-        app,
-        ["install", "/dev/ttyUSB0", "--password", "password"],
-        catch_exceptions=False,
-    )
-    assert result.exit_code == 0
+    exit_code = run_cli(app, ["install", "/dev/ttyUSB0", "--password", "password"])
+    assert exit_code == 0
 
     mock_load_toml.assert_called_once()
-    mock_device.cls.assert_called_once_with("/dev/ttyUSB0", password="password")
+    mock_device.cls_assert_common()
     mock_device.inst.sync.assert_has_calls(
         [
             mocker.call(

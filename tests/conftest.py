@@ -5,13 +5,38 @@ from functools import partial
 from pathlib import Path
 
 import pytest
-from typer.testing import CliRunner
 
 import belay
 import belay.cli.common
 import belay.project
-from belay.cli import app
 from belay.utils import env_parse_bool
+
+
+def run_cli(app, args):
+    """Run a CLI app with support for both Cyclopts v3 and v4.
+
+    Cyclopts v3 returns None on success.
+    Cyclopts v4 raises SystemExit with code 0 on success.
+
+    Parameters
+    ----------
+    app : callable
+        The CLI app to run.
+    args : list
+        Command line arguments.
+
+    Returns
+    -------
+    int
+        Exit code (0 for success).
+    """
+    try:
+        result = app(args)
+        # v3 behavior: returns None or int
+        return result if isinstance(result, int) else 0
+    except SystemExit as e:
+        # v4 behavior: raises SystemExit
+        return e.code if e.code is not None else 0
 
 
 class MockDevice:
@@ -51,18 +76,6 @@ def restore_cwd():
 @pytest.fixture
 def mock_device(mocker):
     return MockDevice(mocker)
-
-
-@pytest.fixture
-def cli_runner(mock_device):
-    cli_runner = CliRunner()
-
-    def run(cmd, *args):
-        result = cli_runner.invoke(app, [cmd, "/dev/ttyUSB0", *args, "--password", "password"])
-        mock_device.cls_assert_common()
-        return result
-
-    return run
 
 
 @pytest.fixture(

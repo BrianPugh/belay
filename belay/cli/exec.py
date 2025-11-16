@@ -1,17 +1,15 @@
-from pathlib import Path
-
-from typer import Argument, Option
-
 from belay import Device
-from belay.cli.common import help_password, help_port, remove_stacktrace
+from belay.cli.common import PasswordStr, PortStr, remove_stacktrace
 
 
-def exec(
-    port: str = Argument(..., help=help_port),
-    statement: str = Argument(..., help="Statement to execute on-device."),
-    password: str = Option("", help=help_password),
-):
-    """Execute python statement on-device."""
+def exec(port: PortStr, statement: str, *, password: PasswordStr = ""):
+    """Execute python statement on-device.
+
+    Parameters
+    ----------
+    statement : str
+        Statement to execute on-device.
+    """
     device = Device(port, password=password)
     with remove_stacktrace():
         device(statement)

@@ -1,14 +1,17 @@
-from typing import List
-
 from rich.console import Console
-from typer import Argument
 
 from belay.cli.clean import clean
 from belay.project import load_groups
 
 
-def update(packages: List[str] = Argument(None, help="Specific package(s) to update.")):
-    """Download new versions of dependencies."""
+def update(*packages: str):
+    """Download new versions of dependencies.
+
+    Parameters
+    ----------
+    *packages : str
+        Specific package(s) to update.
+    """
     console = Console()
     groups = load_groups()
     packages = packages if packages else None

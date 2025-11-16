@@ -25,7 +25,7 @@ belay = "belay.cli.main:run_app"
 # Be as loose as possible if writing a library.
 python = ">=3.9"
 pyserial = ">=3.1"
-cyclopts = ">=3.0.0"
+cyclopts = ">=3.22.0"
 pathspec = ">=0.10.3"
 tomli = ">=2.0.1"
 autoregistry = ">=0.10.1"

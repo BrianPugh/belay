@@ -3,13 +3,12 @@ import shutil
 import subprocess  # nosec
 import sys
 from tempfile import TemporaryDirectory
-from typing import List
+from typing import Annotated
 
-import typer
-from typer import Option
+from cyclopts import App, Parameter
 
 import belay
-from belay.cli import cache
+from belay.cli.cache import app as cache_app
 from belay.cli.clean import clean
 from belay.cli.exec import exec
 from belay.cli.info import info
@@ -22,28 +21,27 @@ from belay.cli.terminal import terminal
 from belay.cli.update import update
 from belay.project import load_groups
 
-app = typer.Typer(no_args_is_help=True, pretty_exceptions_enable=False)
-app.add_typer(cache.app, name="cache")
+app = App(version_flags=("--version", "-v"), help_format="markdown")
+app.command(cache_app, name="cache")
+app.command(clean)
+app.command(exec)
+app.command(info)
+app.command(install)
+app.command(new)
+app.command(run)
+app.command(select)
+app.command(sync)
+app.command(terminal)
+app.command(update)
 
-app.command()(clean)
-app.command()(exec)
-app.command()(info)
-app.command()(install)
-app.command()(new)
-app.command()(run)
-app.command()(select)
-app.command()(sync)
-app.command()(terminal)
-app.command()(update)
 
-
-def run_exec(command: List[str]):
+def run_exec(command: list[str]):
     """Enable virtual-environment and run command."""
     groups = load_groups()
     virtual_env = os.environ.copy()
     # Add all dependency groups to the micropython path.
     # This flattens all dependencies to a single folder and fetches fresh
-    # copies of dependencies in ``develop`` mode.
+    # copies of dependencies in `develop` mode.
     with TemporaryDirectory() as tmp_dir:
         virtual_env["MICROPYPATH"] = f".:{tmp_dir}"
         for group in groups:
@@ -67,38 +65,17 @@ def _get(indexable, index, default=None):
 
 
 def run_app(*args, **kwargs):
-    """Add CLI hacks that are not Typer-friendly here."""
+    """Add CLI hacks that are not Cyclopts-friendly here."""
     command = _get(sys.argv, 1)
-
-    try:
-        exec_path = shutil.which(sys.argv[2])
-    except IndexError:
-        exec_path = None
-
-    if command == "run" and exec_path:
-        # Special subcommand override.
-        run_exec(sys.argv[2:])
+    if command == "run":
+        try:
+            exec_path = shutil.which(sys.argv[2])
+        except IndexError:
+            exec_path = None
+        if exec_path is not None:
+            run_exec(sys.argv[2:])
+        else:
+            app(*args, **kwargs)
     else:
-        # Common-case; use Typer functionality.
+        # Common-case; use Cyclopts functionality.
         app(*args, **kwargs)
-
-
-def version_callback(value: bool):
-    if not value:
-        return
-    print(belay.__version__)
-    raise typer.Exit()
-
-
-@app.callback()
-def common(
-    ctx: typer.Context,
-    version: bool = Option(
-        None,
-        "--version",
-        "-v",
-        callback=version_callback,
-        help="Display Belay's version.",
-    ),
-):
-    pass

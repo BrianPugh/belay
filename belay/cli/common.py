@@ -1,16 +1,26 @@
+from contextlib import contextmanager
+from typing import Annotated
+
+from cyclopts import Parameter
+
 from belay.pyboard import PyboardException
 
-help_port = "Port (like /dev/ttyUSB0) or WebSocket (like ws://192.168.1.100) of device."
-help_password = "Password for communication methods (like WebREPL) that require authentication."  # nosec  # noqa: S105
+# Custom annotated types for consistent CLI parameter help
+PortStr = Annotated[
+    str,
+    Parameter(help="Port (like /dev/ttyUSB0) or WebSocket (like ws://192.168.1.100) of device."),
+]
+PasswordStr = Annotated[
+    str,
+    Parameter(help="Password for communication methods (like WebREPL) that require authentication."),
+]
 
 
-class remove_stacktrace:  # noqa: N801
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        if exc_type is not None and issubclass(exc_type, PyboardException):
-            print(exc_value)
-            return True  # suppress the full stack trace
-        else:
-            return False  # let other exceptions propagate normally
+@contextmanager
+def remove_stacktrace():
+    """Context manager that suppresses PyboardException stack traces and prints only the error message."""
+    try:
+        yield
+    except PyboardException as e:
+        print(e)
+        # Exception is handled, don't re-raise

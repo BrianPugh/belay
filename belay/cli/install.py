@@ -2,27 +2,43 @@ import shutil
 from functools import partial
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import List, Optional
+from typing import Annotated, Optional
 
+from cyclopts import Parameter
 from rich.progress import Progress
-from typer import Argument, Option
 
 from belay import Device
-from belay.cli.common import help_password, help_port, remove_stacktrace
+from belay.cli.common import PasswordStr, PortStr, remove_stacktrace
 from belay.cli.sync import sync_device as _sync_device
 from belay.project import find_project_folder, load_groups, load_pyproject
 
 
 def install(
-    port: str = Argument(..., help=help_port),
-    password: str = Option("", help=help_password),
-    mpy_cross_binary: Optional[Path] = Option(None, help="Compile py files with this executable."),
-    run: Optional[Path] = Option(None, help="Run script on-device after installing."),
-    main: Optional[Path] = Option(None, help="Sync script to /main.py after installing."),
-    with_groups: List[str] = Option(None, "--with", help="Include specified optional dependency group."),
-    follow: bool = Option(False, "--follow", "-f", help="Follow the stdout after upload."),
+    port: PortStr,
+    *,
+    password: PasswordStr = "",
+    mpy_cross_binary: Optional[Path] = None,
+    run: Optional[Path] = None,
+    main: Optional[Path] = None,
+    with_groups: Annotated[Optional[list[str]], Parameter(name="--with")] = None,
+    follow: Annotated[bool, Parameter(alias="-f")] = False,
 ):
-    """Sync dependencies and project itself to device."""
+    """Sync dependencies and project itself to device.
+
+    Parameters
+    ----------
+    mpy_cross_binary : Optional[Path]
+        Compile py files with this executable.
+    run : Optional[Path]
+        Run script on-device after installing.
+    main : Optional[Path]
+        Sync script to /main.py after installing.
+    with_groups : Optional[list[str]]
+        Include specified optional dependency group.
+    follow : bool
+        Follow the stdout after upload.
+    """
+    with_groups = with_groups or []
     if run and run.suffix != ".py":
         raise ValueError("Run script MUST be a python file.")
     if main and main.suffix != ".py":
@@ -94,7 +110,7 @@ def install(
                 device(content)
             return
 
-        # Reset device so ``main.py`` has a chance to execute.
+        # Reset device so `main.py` has a chance to execute.
         device.soft_reset()
         if follow:
             device.terminal()

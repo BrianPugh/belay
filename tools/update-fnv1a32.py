@@ -9,11 +9,10 @@ import argparse
 import shutil
 import tempfile
 from pathlib import Path
-from typing import Dict, List
 from urllib.request import urlopen, urlretrieve
 
 
-def get_release_assets(version: str) -> List[Dict]:
+def get_release_assets(version: str) -> list[dict]:
     """Get release assets from GitHub API."""
     if not version.startswith("v"):
         version = f"v{version}"
@@ -31,7 +30,7 @@ def get_release_assets(version: str) -> List[Dict]:
         return []
 
 
-def download_and_extract_mpy_files(assets: List[Dict], temp_dir: Path) -> List[Path]:
+def download_and_extract_mpy_files(assets: list[dict], temp_dir: Path) -> list[Path]:
     """Download and extract .mpy files from release assets."""
     mpy_files = []
 
@@ -64,7 +63,7 @@ def convert_filename(original_name: str) -> str:
     return original_name
 
 
-def copy_files_to_destination(mpy_files: List[Path], dest_dir: Path):
+def copy_files_to_destination(mpy_files: list[Path], dest_dir: Path):
     """Copy .mpy files to the destination directory with proper naming."""
     dest_dir.mkdir(parents=True, exist_ok=True)
 

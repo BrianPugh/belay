@@ -1,3 +1,4 @@
+import importlib.resources as importlib_resources
 import secrets
 import string
 import sys
@@ -6,11 +7,6 @@ from pathlib import Path
 from typing import Optional
 
 from . import nativemodule_fnv1a32, snippets
-
-if sys.version_info < (3, 9, 0):
-    import importlib_resources
-else:
-    import importlib.resources as importlib_resources
 
 _python_identifier_chars = string.ascii_uppercase + string.ascii_lowercase + string.digits
 
