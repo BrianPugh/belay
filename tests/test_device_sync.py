@@ -41,7 +41,7 @@ def mock_pyboard(mocker):
 @pytest.fixture
 def mock_device(mocker, mock_pyboard):
     mocker.patch("belay.device.Device._emitter_check", return_value=[])
-    device = belay.Device()
+    device = belay.Device(auto_sync_time=False)
     return device
 
 

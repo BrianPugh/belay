@@ -7,12 +7,13 @@ import linecache
 import re
 import shutil
 import sys
+import time
 from inspect import signature
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from textwrap import dedent
 from types import ModuleType
-from typing import Any, Callable, Optional, TextIO, TypeVar, Union, overload
+from typing import Any, Callable, Optional, TextIO, TypeVar, Union, cast, overload
 
 from serial import SerialException
 from serial.tools.miniterm import Miniterm
@@ -153,6 +154,7 @@ class Device(metaclass=DeviceMeta):
         *args,
         startup: Optional[str] = None,
         attempts: int = 0,
+        auto_sync_time: bool = True,
         **kwargs,
     ):
         """Create a MicroPython device.
@@ -164,10 +166,16 @@ class Device(metaclass=DeviceMeta):
         attempts: int
             If device disconnects, attempt to re-connect this many times (with 1 second between attempts).
             WARNING: this may result in unexpectedly long blocking calls when reconnecting!
+        auto_sync_time: bool
+            Automatically synchronize time between host and device during initialization.
+            Enables accurate timestamp conversion for time-series data. Default: True.
+            Note: This increases initialization time due to multiple round-trip measurements.
         """
         self._board_kwargs = signature(Pyboard).bind(*args, **kwargs).arguments
         self.attempts = attempts
+        self.auto_sync_time = auto_sync_time
         self._cmd_history = []
+        self._time_offset: Optional[float] = None
 
         self._connect_to_board(**self._board_kwargs)
 
@@ -199,7 +207,9 @@ class Device(metaclass=DeviceMeta):
             try:
                 method = getattr(self, method_name)
                 metadata = method.__belay__
-            except AttributeError:
+            except (AttributeError, ValueError):
+                # AttributeError: No __belay__ metadata
+                # ValueError: Properties that require initialization (e.g., time_offset)
                 continue
             executer_name = metadata.executer.__registry__.name
             executer_generator = executer_generators[executer_name]
@@ -229,6 +239,9 @@ class Device(metaclass=DeviceMeta):
         elif startup:
             self(startup)
 
+        if self.auto_sync_time:
+            self.sync_time()
+
         self.__pre_autoinit__()
 
         for executer in sort_executers(autoinit_executers):
@@ -246,14 +259,12 @@ class Device(metaclass=DeviceMeta):
             * ``self.sync_dependencies(...)`` - More advanced sync.
               Recommended way of getting dependencies on-device.
         """
-        pass
 
     def __post_init__(self):
         """Runs at the very end of ``__init__``.
 
         Good for subclasses to initialize attributes or to perform additional device setup.
         """
-        pass
 
     def _emitter_check(self):
         # Detect which emitters are available
@@ -801,6 +812,115 @@ class Device(metaclass=DeviceMeta):
                 with importlib_resources.as_file(pkg_files / str(subfolder)) as f:
                     shutil.copytree(f, tmp_dir, dirs_exist_ok=True)
             self.sync(tmp_dir, dst=dst, **kwargs)
+
+    def sync_time(self, samples: int = 10) -> float:
+        """Synchronize time between host and device.
+
+        Measures the offset between the device's monotonic clock and the host's
+        epoch time using multiple round-trip measurements. Uses the sample with
+        minimum RTT to minimize latency uncertainty.
+
+        This is automatically called during Device initialization if ``auto_sync_time=True``
+        (the default).
+
+        Parameters
+        ----------
+        samples : int
+            Number of round-trip measurements to take. More samples improve
+            accuracy but take longer. Default: 10.
+
+        Returns
+        -------
+        float
+            The calculated time offset in seconds (device_time - host_time).
+            Stored in ``self._time_offset`` for use by conversion methods.
+
+        Notes
+        -----
+        Expected accuracy:
+            - USB Serial: ~10-50ms typical
+            - Network (Telnet/WebREPL): ~20-100ms typical
+            - Factors: connection type, system load, number of samples
+
+        The offset assumes symmetric network delay (time to send ≈ time to receive).
+
+        Examples
+        --------
+        >>> device.sync_time()  # Perform synchronization
+        >>> device.sync_time(samples=20)  # More samples for better accuracy
+        """
+        # Load the appropriate time helper snippet based on implementation
+        self._exec_snippet(f"time_monotonic_{self.implementation.name}")
+
+        measurements = []
+        min_rtt = float("inf")
+        stable_count = 0
+        rtt_threshold = 0.002  # 2ms - consider RTT stable if within this threshold
+
+        for i in range(samples):
+            t1 = time.time()
+            device_time = cast(float, self("__belay_time_monotonic()"))
+            t3 = time.time()
+
+            rtt = t3 - t1
+            host_time_mid = (t1 + t3) / 2
+            offset = device_time - host_time_mid
+
+            measurements.append((rtt, offset))
+
+            if rtt < min_rtt:
+                min_rtt = rtt
+                stable_count = 0  # Reset stability counter on improvement
+            elif abs(rtt - min_rtt) < rtt_threshold:
+                stable_count += 1
+                # Early termination: if we have 3 consecutive stable measurements
+                # and we've done at least 5 samples, we can stop
+                if stable_count >= 3 and i >= 4:
+                    break
+
+        # Use weighted average of samples within threshold of minimum RTT
+        # This is more robust than using a single sample
+        good_samples = [(rtt, offset) for rtt, offset in measurements if rtt <= min_rtt + rtt_threshold]
+
+        if good_samples:
+            # Weight by inverse of RTT (lower RTT = higher weight)
+            total_weight = sum(1.0 / rtt for rtt, _ in good_samples)
+            weighted_offset = sum((1.0 / rtt) * offset for rtt, offset in good_samples) / total_weight
+            self._time_offset = weighted_offset
+        else:
+            # Fallback to minimum RTT sample (shouldn't happen, but be safe)
+            self._time_offset = min(measurements, key=lambda x: x[0])[1]
+
+        return self._time_offset
+
+    @property
+    def time_offset(self) -> float:
+        """Get the current time offset between device and host.
+
+        .. code-block::
+
+            approx_host_time = device_time - self._time_offset
+            approx_device_time = host_time + self._time_offset.
+
+        Returns
+        -------
+        float
+            The time offset in seconds (device_time - host_time).
+
+        Raises
+        ------
+        ValueError
+            If time synchronization has not been performed yet.
+
+        Examples
+        --------
+        >>> device.sync_time()
+        >>> offset = device.time_offset
+        >>> print(f"Device is {offset:.3f}s ahead of host")
+        """
+        if self._time_offset is None:
+            raise ValueError("Time synchronization has not been performed. Call sync_time() first.")
+        return self._time_offset
 
     def __enter__(self):
         return self

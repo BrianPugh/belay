@@ -1,0 +1,212 @@
+import time
+
+import pytest
+
+import belay
+import belay.device
+
+
+@pytest.fixture
+def mock_pyboard_time(mocker):
+    """Mock Pyboard for time synchronization tests."""
+    # Simulate device returning incrementing time values
+    device_time = [42.5]  # Starting device time in seconds
+
+    def mock_exec_time(cmd, data_consumer=None):
+        """Mock exec that handles time-related commands."""
+        if "__belay_time_monotonic()" in cmd:
+            # Return current device time
+            data = f"_BELAYR|{device_time[0]}\r\n".encode()
+            device_time[0] += 0.001  # Small increment for each call
+        elif "sys.implementation" in cmd:
+            # Return implementation info
+            data = b'_BELAYR|("micropython", (1, 19, 1), "rp2", None)\r\n'
+        elif "def __belay_time_monotonic" in cmd:
+            # Loading the time snippet - no response
+            data = b""
+        else:
+            # Default empty response
+            data = b""
+
+        if data_consumer and data:
+            data_consumer(data)
+
+    def mock_init(self, *args, **kwargs):
+        self.serial = mocker.MagicMock()
+
+    mocker.patch.object(belay.device.Pyboard, "__init__", mock_init)
+    mocker.patch.object(belay.device.Pyboard, "exec", side_effect=mock_exec_time)
+    mocker.patch("belay.device.Pyboard.enter_raw_repl", return_value=None)
+    mocker.patch("belay.device.Pyboard.fs_put")
+
+
+@pytest.fixture
+def device_no_auto_sync(mock_pyboard_time):
+    """Device with auto time sync disabled."""
+    with belay.Device(auto_sync_time=False) as device:
+        yield device
+
+
+@pytest.fixture
+def device_with_auto_sync(mock_pyboard_time):
+    """Device with auto time sync enabled (default)."""
+    with belay.Device(auto_sync_time=True) as device:
+        yield device
+
+
+def test_auto_sync_disabled(device_no_auto_sync):
+    """Test that auto sync can be disabled."""
+    with pytest.raises(ValueError, match="Time synchronization has not been performed"):
+        _ = device_no_auto_sync.time_offset
+
+
+def test_auto_sync_enabled(device_with_auto_sync):
+    """Test that auto sync works by default."""
+    assert device_with_auto_sync.time_offset is not None
+
+
+def test_manual_sync_time(device_no_auto_sync):
+    """Test manual time synchronization."""
+    device = device_no_auto_sync
+
+    # Initially no offset - should raise
+    with pytest.raises(ValueError, match="Time synchronization has not been performed"):
+        _ = device.time_offset
+
+    # Perform sync
+    offset = device.sync_time(samples=5)
+
+    # Offset should now be set
+    assert isinstance(offset, float)
+    assert device.time_offset == offset
+
+
+def test_sync_time_samples(device_no_auto_sync):
+    """Test that sync_time returns a valid offset regardless of sample count."""
+    device = device_no_auto_sync
+
+    # Test with different sample counts
+    for samples in [1, 5, 10, 20]:
+        offset = device.sync_time(samples=samples)
+        # Should always return a valid float offset
+        assert isinstance(offset, float)
+        assert device.time_offset == offset
+
+
+def test_device_to_host_time(device_no_auto_sync):
+    """Test converting device timestamp to host time using offset."""
+    device = device_no_auto_sync
+
+    # Sync first
+    device.sync_time()
+
+    # Mock device time
+    device_time = 100.0
+
+    # Convert to host time using offset directly
+    host_time = device_time - device.time_offset
+
+    # Should be a reasonable epoch timestamp
+    assert isinstance(host_time, float)
+    assert host_time > 0  # Unix epoch timestamps are positive
+
+
+def test_host_to_device_time(device_no_auto_sync):
+    """Test converting host timestamp to device time using offset."""
+    device = device_no_auto_sync
+
+    # Sync first
+    device.sync_time()
+
+    # Current host time
+    host_time = time.time()
+
+    # Convert to device time using offset directly
+    device_time = host_time + device.time_offset
+
+    # Should be a float
+    assert isinstance(device_time, float)
+
+
+def test_bidirectional_conversion(device_no_auto_sync):
+    """Test that conversions are inverses of each other."""
+    device = device_no_auto_sync
+
+    # Sync first
+    device.sync_time()
+
+    # Start with a device time
+    original_device_time = 123.456
+
+    # Convert to host and back using offset
+    host_time = original_device_time - device.time_offset
+    converted_device_time = host_time + device.time_offset
+
+    # Should be very close (within floating point precision)
+    assert abs(original_device_time - converted_device_time) < 1e-6
+
+
+def test_conversion_without_sync_raises_error(device_no_auto_sync):
+    """Test that accessing offset raises error if time not synced."""
+    device = device_no_auto_sync
+
+    # time_offset should raise before syncing
+    with pytest.raises(ValueError, match="Time synchronization has not been performed"):
+        _ = device.time_offset
+
+
+def test_time_offset_property(device_no_auto_sync):
+    """Test the time_offset property."""
+    device = device_no_auto_sync
+
+    # Initially raises
+    with pytest.raises(ValueError, match="Time synchronization has not been performed"):
+        _ = device.time_offset
+
+    # After sync, should have a value
+    offset = device.sync_time()
+    assert device.time_offset == offset
+    assert isinstance(device.time_offset, float)
+
+
+def test_resync_updates_offset(device_no_auto_sync):
+    """Test that calling sync_time multiple times updates the offset."""
+    device = device_no_auto_sync
+
+    # First sync
+    offset1 = device.sync_time(samples=3)
+
+    # Second sync (might be different due to timing)
+    offset2 = device.sync_time(samples=3)
+
+    # Both should be valid offsets
+    assert isinstance(offset1, float)
+    assert isinstance(offset2, float)
+
+    # Current offset should be the latest one
+    assert device.time_offset == offset2
+
+
+def test_implementation_specific_snippets(mocker, mock_pyboard_time):
+    """Test that correct snippet is loaded based on implementation."""
+    # Test MicroPython
+    device_mp = belay.Device(auto_sync_time=False)
+    device_mp.implementation.name = "micropython"
+
+    exec_spy = mocker.spy(device_mp, "_exec_snippet")
+    device_mp.sync_time(samples=1)
+
+    # Should load MicroPython-specific snippet
+    exec_spy.assert_called_with("time_monotonic_micropython")
+    device_mp.close()
+
+    # Test CircuitPython
+    device_cp = belay.Device(auto_sync_time=False)
+    device_cp.implementation.name = "circuitpython"
+
+    exec_spy = mocker.spy(device_cp, "_exec_snippet")
+    device_cp.sync_time(samples=1)
+
+    # Should load CircuitPython-specific snippet
+    exec_spy.assert_called_with("time_monotonic_circuitpython")
+    device_cp.close()

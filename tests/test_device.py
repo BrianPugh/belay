@@ -26,7 +26,7 @@ def mock_pyboard(mocker):
 
 @pytest.fixture
 def mock_device(mock_pyboard):
-    with belay.Device() as device:
+    with belay.Device(auto_sync_time=False) as device:
         yield device
 
 
@@ -35,7 +35,7 @@ def test_device_init(mock_device):
 
 
 def test_device_init_no_startup(mock_pyboard):
-    belay.Device(startup="")
+    belay.Device(startup="", auto_sync_time=False)
 
 
 def test_device_task(mocker, mock_device):
