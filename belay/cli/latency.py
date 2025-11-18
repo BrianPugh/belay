@@ -17,6 +17,7 @@ def latency(
     count: Annotated[int, Parameter(alias="-c")] = 10,
     verbose: Annotated[bool, Parameter(alias="-v")] = False,
     output: Annotated[Optional[Path], Parameter(alias="-o")] = None,
+    with_timing: Annotated[bool, Parameter(alias="-t", negative=("--no-with-timing", "--without-timing"))] = True,
 ):
     """Measure round-trip latency between host and device.
 
@@ -30,8 +31,10 @@ def latency(
         Show individual measurements in addition to statistics.
     output : Path, optional
         Export individual latency measurements to a CSV file.
+    with_timing: bool
+        With the additional per-call time synchronization logic.
     """
-    device = Device(port, password=password)
+    device = Device(port, password=password, auto_sync_time=with_timing)
 
     latencies = []
     if verbose:
@@ -39,7 +42,7 @@ def latency(
 
     for i in range(count):
         start = time.perf_counter()
-        device("None")  # Simple no-op statement
+        device("0")  # Short, no-op statement
         end = time.perf_counter()
         latency_ms = (end - start) * 1000
         latencies.append(latency_ms)
