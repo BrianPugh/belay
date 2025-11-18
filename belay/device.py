@@ -193,18 +193,7 @@ class Device(metaclass=DeviceMeta):
             emitters=self._emitter_check(),
         )
 
-        # Initialize time offset to None - will be set after loading time helper
-        # (We can't get device time yet because __belay_monotonic doesn't exist)
-
-        # Load the time helper snippet so subsequent calls can inject timestamps
         self._exec_snippet(f"time_monotonic_{self.implementation.name}")
-
-        # Get initial time offset by piggybacking on a device call
-        t1 = time.time()
-        device_time = self("__belay_monotonic()")
-        t3 = time.time()
-        host_time_mid = (t1 + t3) / 2
-        self._time_offset = device_time - host_time_mid
 
         # Setup executer generators and bind to private attributes.
         executer_generators = {}
