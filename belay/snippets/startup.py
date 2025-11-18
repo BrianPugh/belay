@@ -1,4 +1,4 @@
-import os, sys
+import os, sys, time
 __belay_obj_counter=0
 def __belay_next(x, val):
     try:

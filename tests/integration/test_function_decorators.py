@@ -28,7 +28,7 @@ def test_task_basic(emulated_device, mocker):
 
     assert foo(5) == 10
 
-    # Response format is now _BELAYR|{time}|{value} - check just that it was called with expected value
+    # Response format is _BELAYR|{time}|{value}
     call_args = spy_parse_belay_response.call_args[0][0]
     assert call_args.startswith("_BELAYR|")
     assert "|10\r\n" in call_args
@@ -65,15 +65,6 @@ def test_task_generators_basic(emulated_device, mocker):
     assert any("|0\\r\\n" in call for call in calls)
     assert any("|1\\r\\n" in call for call in calls)
     assert any("|2\\r\\n" in call for call in calls)
-    # Old exact check - no longer valid with timestamp injection
-    # spy_parse_belay_response.assert_has_calls(
-    #     [
-    #         mocker.call("_BELAYR|0\r\n"),
-    #         mocker.call("_BELAYR|1\r\n"),
-    #         mocker.call("_BELAYR|2\r\n"),
-    #         mocker.call("_BELAYS\r\n"),
-    #     ]
-    # )
 
 
 def test_task_generators_communicate(emulated_device):

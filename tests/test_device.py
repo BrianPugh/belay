@@ -132,7 +132,7 @@ def test_parse_belay_response_stop_iteration():
 
 
 def test_parse_belay_response_r():
-    # New format: _BELAYR{id}|{time}|{value}
+    # _BELAYR{id}|{time}|{value}
     assert belay.device.parse_belay_response("_BELAYR||[1,2,3]") == (belay.device.NO_RESULT, [1, 2, 3], None)
     assert belay.device.parse_belay_response("_BELAYR||1") == (belay.device.NO_RESULT, 1, None)
     assert belay.device.parse_belay_response("_BELAYR||1.23") == (belay.device.NO_RESULT, 1.23, None)
