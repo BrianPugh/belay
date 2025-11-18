@@ -65,9 +65,13 @@ def device_with_auto_sync(mock_pyboard_time):
 
 
 def test_auto_sync_disabled(device_no_auto_sync):
-    """Test that with auto_sync disabled, we still get an initial offset from init."""
-    # With the new implementation, we always calculate an initial offset
-    # during device initialization from the implementation detection round-trip
+    """Test that with auto_sync disabled, time_offset is None until sync_time() is called."""
+    # When auto_sync_time=False, no automatic synchronization occurs
+    # _time_offset should be None until sync_time() is explicitly called
+    assert device_no_auto_sync._time_offset is None
+
+    # After calling sync_time(), offset should be available
+    device_no_auto_sync.sync_time()
     assert device_no_auto_sync.time_offset is not None
     assert isinstance(device_no_auto_sync.time_offset, float)
 
@@ -81,14 +85,10 @@ def test_manual_sync_time(device_no_auto_sync):
     """Test manual time synchronization."""
     device = device_no_auto_sync
 
-    # Initially has offset from init
-    initial_offset = device.time_offset
-    assert isinstance(initial_offset, float)
-
-    # Perform sync - this will refine the offset
+    # Perform sync
     offset = device.sync_time(samples=5)
 
-    # Offset should now be updated
+    # Offset should now be set
     assert isinstance(offset, float)
     assert device.time_offset == offset
 
@@ -158,24 +158,24 @@ def test_bidirectional_conversion(device_no_auto_sync):
     assert abs(original_device_time - converted_device_time) < 1e-6
 
 
-def test_conversion_without_explicit_sync(device_no_auto_sync):
-    """Test that offset is available even without explicit sync."""
+def test_conversion_without_sync_raises_error(device_no_auto_sync):
+    """Test that accessing time_offset without sync raises an error."""
     device = device_no_auto_sync
 
-    # time_offset is now available from init
-    assert device.time_offset is not None
-    assert isinstance(device.time_offset, float)
+    # time_offset should be None and raise ValueError when accessed
+    # before sync_time() is called
+    with pytest.raises(ValueError, match="Time synchronization has not been performed"):
+        _ = device.time_offset
 
 
 def test_time_offset_property(device_no_auto_sync):
     """Test the time_offset property."""
     device = device_no_auto_sync
 
-    # Initially has offset from init
-    initial_offset = device.time_offset
-    assert isinstance(initial_offset, float)
+    # Initially no offset when auto_sync_time=False
+    assert device._time_offset is None
 
-    # After explicit sync, offset should be refined
+    # After explicit sync, offset should be set
     offset = device.sync_time()
     assert device.time_offset == offset
     assert isinstance(device.time_offset, float)

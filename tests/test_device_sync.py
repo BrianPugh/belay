@@ -182,11 +182,11 @@ def test_device_sync_empty_remote(mocker, mock_device, sync_path):
     mock_device._board.exec.assert_has_calls(
         [
             call(
-                "print(\"_BELAYR|\"+__belay_timed_repr(__belay_mkdirs(['/folder1','/folder1/folder1_1'])))",
+                "print(\"_BELAYR||\"+repr(__belay_mkdirs(['/folder1','/folder1/folder1_1'])))",
                 data_consumer=mocker.ANY,
             ),
             call(
-                "print(\"_BELAYR|\"+__belay_timed_repr(__belay_hfs(['/alpha.py','/bar.txt','/folder1/file1.txt','/folder1/folder1_1/file1_1.txt','/foo.txt'])))",
+                "print(\"_BELAYR||\"+repr(__belay_hfs(['/alpha.py','/bar.txt','/folder1/file1.txt','/folder1/folder1_1/file1_1.txt','/foo.txt'])))",
                 data_consumer=mocker.ANY,
             ),
         ]

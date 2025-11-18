@@ -188,7 +188,7 @@ class Device(metaclass=DeviceMeta):
         self.implementation = Implementation(
             *self(
                 "(sys.implementation.name, sys.implementation.version, sys.platform, getattr(sys.implementation, '_mpy', None))",
-                auto_sync_time=False,  # No timing available yet - __belay_monotonic not loaded
+                with_timing=False,  # No timing available yet - __belay_monotonic not loaded
             ),
             emitters=self._emitter_check(),
         )
@@ -304,7 +304,7 @@ class Device(metaclass=DeviceMeta):
         soft_reset = not isinstance(self._board.serial, WebreplToSerial)
         self._board.enter_raw_repl(soft_reset=soft_reset)
 
-    def _exec_snippet(self, *names: str) -> BelayReturn:
+    def _exec_snippet(self, *names: str, **kwargs) -> BelayReturn:
         """Load and execute a snippet from the snippets sub-package.
 
         Parameters
@@ -313,7 +313,7 @@ class Device(metaclass=DeviceMeta):
             Snippet(s) to load and execute.
         """
         snippets = [read_snippet(name) for name in names]
-        return self("\n".join(snippets))
+        return self("\n".join(snippets), **kwargs)
 
     def __call__(
         self,
@@ -325,7 +325,7 @@ class Device(metaclass=DeviceMeta):
         trusted: bool = False,
         proxy: bool = False,
         delete: Optional[bool] = None,
-        auto_sync_time: bool = True,
+        with_timing: Optional[bool] = None,
     ):
         """Execute code on-device.
 
@@ -402,8 +402,19 @@ class Device(metaclass=DeviceMeta):
 
                 # Explicitly control
                 keep = device("my_data", proxy=True, delete=False)
-        auto_sync_time: bool
-            Update time-sync estimates. Adds a small amount of overhead.
+        with_timing: Optional[bool]
+            Control whether to include device timestamps in responses.
+
+            When ``True``: Adds small overhead (~0.5-2ms) but enables
+            time synchronization tracking.
+
+            When ``False``: Slightly faster but provides no timing information.
+
+            When ``None`` (default): Inherits from ``self.auto_sync_time``. If time
+            synchronization is enabled for the device, timing will be included;
+            otherwise it won't be.
+
+            Defaults to ``None``.
 
         Returns
         -------
@@ -457,6 +468,9 @@ class Device(metaclass=DeviceMeta):
 
         is_expression = isexpression(cmd)
         imported_names = import_names(cmd)
+
+        use_timing = with_timing if with_timing is not None else self.auto_sync_time
+
         if delete is None:
             if imported_names:
                 delete = False
@@ -467,7 +481,7 @@ class Device(metaclass=DeviceMeta):
             if proxy:
                 cmd = f"__belay_obj_create({cmd})"
             else:
-                if auto_sync_time:
+                if use_timing:
                     # Use dual-timestamp helper for accurate timing
                     cmd = f'print("_BELAYR|"+__belay_timed_repr({cmd}))'
                 else:
@@ -882,7 +896,7 @@ class Device(metaclass=DeviceMeta):
 
         for i in range(samples):
             t1 = time.time()
-            device_time = cast(float, self("__belay_monotonic()"))
+            device_time = cast(float, self("__belay_monotonic()", with_timing=True))
             t3 = time.time()
 
             rtt = t3 - t1
