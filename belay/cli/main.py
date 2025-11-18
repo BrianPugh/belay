@@ -13,6 +13,7 @@ from belay.cli.clean import clean
 from belay.cli.exec import exec
 from belay.cli.info import info
 from belay.cli.install import install
+from belay.cli.latency import latency
 from belay.cli.new import new
 from belay.cli.run import run
 from belay.cli.select import select
@@ -27,6 +28,7 @@ app.command(clean)
 app.command(exec)
 app.command(info)
 app.command(install)
+app.command(latency)
 app.command(new)
 app.command(run)
 app.command(select)
