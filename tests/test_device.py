@@ -8,14 +8,32 @@ from belay.exceptions import NoMatchingExecuterError
 
 @pytest.fixture
 def mock_pyboard(mocker):
-    exec_side_effect = [b'_BELAYR|("micropython", (1, 19, 1), "rp2")\r\n'] * 100
+    device_time = [42.5]  # Starting device time
 
     def mock_init(self, *args, **kwargs):
         self.serial = mocker.MagicMock()
 
     def mock_exec(cmd, data_consumer=None):
-        data = exec_side_effect.pop()
-        if data_consumer:
+        # Handle different command types
+        if "__belay_timed_repr(__belay_monotonic())" in cmd:
+            # Time query with dual timestamps using new helper
+            t1 = device_time[0]
+            device_time[0] += 0.0005  # Small increment for execution time
+            t2 = device_time[0]
+            device_time[0] += 0.0005
+            avg_time = (t1 + t2) / 2
+            data = f"_BELAYR|{avg_time}|{t2}\r\n".encode()
+        elif "implementation" in cmd and "name" in cmd:
+            # Implementation detection (without timing)
+            data = b'_BELAYR||("micropython", (1, 19, 1), "rp2")\r\n'
+        elif "def __belay" in cmd:
+            # Loading snippets
+            data = b""
+        else:
+            # Default empty response
+            data = b""
+
+        if data_consumer and data:
             data_consumer(data)
 
     mocker.patch.object(belay.device.Pyboard, "__init__", mock_init)
@@ -114,13 +132,16 @@ def test_parse_belay_response_stop_iteration():
 
 
 def test_parse_belay_response_r():
-    assert belay.device.parse_belay_response("_BELAYR|[1,2,3]") == (belay.device.NO_RESULT, [1, 2, 3])
-    assert belay.device.parse_belay_response("_BELAYR|1") == (belay.device.NO_RESULT, 1)
-    assert belay.device.parse_belay_response("_BELAYR|1.23") == (belay.device.NO_RESULT, 1.23)
-    assert belay.device.parse_belay_response("_BELAYR|'a'") == (belay.device.NO_RESULT, "a")
-    assert belay.device.parse_belay_response("_BELAYR|{1}") == (belay.device.NO_RESULT, {1})
-    assert belay.device.parse_belay_response("_BELAYR|b'foo'") == (belay.device.NO_RESULT, b"foo")
-    assert belay.device.parse_belay_response("_BELAYR|False") == (belay.device.NO_RESULT, False)
+    # New format: _BELAYR{id}|{time}|{value}
+    assert belay.device.parse_belay_response("_BELAYR||[1,2,3]") == (belay.device.NO_RESULT, [1, 2, 3], None)
+    assert belay.device.parse_belay_response("_BELAYR||1") == (belay.device.NO_RESULT, 1, None)
+    assert belay.device.parse_belay_response("_BELAYR||1.23") == (belay.device.NO_RESULT, 1.23, None)
+    assert belay.device.parse_belay_response("_BELAYR||'a'") == (belay.device.NO_RESULT, "a", None)
+    assert belay.device.parse_belay_response("_BELAYR||{1}") == (belay.device.NO_RESULT, {1}, None)
+    assert belay.device.parse_belay_response("_BELAYR||b'foo'") == (belay.device.NO_RESULT, b"foo", None)
+    assert belay.device.parse_belay_response("_BELAYR||False") == (belay.device.NO_RESULT, False, None)
+    # With timestamp
+    assert belay.device.parse_belay_response("_BELAYR|42.5|123") == (belay.device.NO_RESULT, 123, 42.5)
 
 
 def test_overload_executer_mixing_error():

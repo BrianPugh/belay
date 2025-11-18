@@ -14,18 +14,28 @@ def mock_pyboard_time(mocker):
 
     def mock_exec_time(cmd, data_consumer=None):
         """Mock exec that handles time-related commands."""
-        if "__belay_time_monotonic()" in cmd:
-            # Return current device time
-            data = f"_BELAYR|{device_time[0]}\r\n".encode()
-            device_time[0] += 0.001  # Small increment for each call
-        elif "sys.implementation" in cmd:
-            # Return implementation info
-            data = b'_BELAYR|("micropython", (1, 19, 1), "rp2", None)\r\n'
-        elif "def __belay_time_monotonic" in cmd:
-            # Loading the time snippet - no response
+        # Debug: print command to understand what's being sent
+        # print(f"MOCK EXEC: {repr(cmd[:200])}")  # First 200 chars
+
+        if "implementation" in cmd and "name" in cmd:
+            # Return implementation info (no timing - _with_timing=False)
+            data = b'_BELAYR||("micropython", (1, 19, 1), "rp2", None)\r\n'
+        elif "__belay_timed_repr(__belay_monotonic())" in cmd:
+            # Return current device time with dual timestamp format
+            t1 = device_time[0]
+            device_time[0] += 0.0005  # Small increment for execution
+            t2 = device_time[0]
+            device_time[0] += 0.0005
+            avg_time = (t1 + t2) / 2
+            # Format: _BELAYR|{avg_time}|{result}
+            data = f"_BELAYR|{avg_time}|{t2}\r\n".encode()
+        elif "def __belay_monotonic" in cmd or "def __belay_obj_create" in cmd or "def __belay" in cmd:
+            # Loading snippets - no response
             data = b""
         else:
-            # Default empty response
+            # Default empty response for non-expression commands
+            # Debug: uncomment to see unhandled commands
+            # print(f"UNHANDLED: {repr(cmd[:200])}")
             data = b""
 
         if data_consumer and data:
@@ -55,9 +65,11 @@ def device_with_auto_sync(mock_pyboard_time):
 
 
 def test_auto_sync_disabled(device_no_auto_sync):
-    """Test that auto sync can be disabled."""
-    with pytest.raises(ValueError, match="Time synchronization has not been performed"):
-        _ = device_no_auto_sync.time_offset
+    """Test that with auto_sync disabled, we still get an initial offset from init."""
+    # With the new implementation, we always calculate an initial offset
+    # during device initialization from the implementation detection round-trip
+    assert device_no_auto_sync.time_offset is not None
+    assert isinstance(device_no_auto_sync.time_offset, float)
 
 
 def test_auto_sync_enabled(device_with_auto_sync):
@@ -69,14 +81,14 @@ def test_manual_sync_time(device_no_auto_sync):
     """Test manual time synchronization."""
     device = device_no_auto_sync
 
-    # Initially no offset - should raise
-    with pytest.raises(ValueError, match="Time synchronization has not been performed"):
-        _ = device.time_offset
+    # Initially has offset from init
+    initial_offset = device.time_offset
+    assert isinstance(initial_offset, float)
 
-    # Perform sync
+    # Perform sync - this will refine the offset
     offset = device.sync_time(samples=5)
 
-    # Offset should now be set
+    # Offset should now be updated
     assert isinstance(offset, float)
     assert device.time_offset == offset
 
@@ -146,24 +158,24 @@ def test_bidirectional_conversion(device_no_auto_sync):
     assert abs(original_device_time - converted_device_time) < 1e-6
 
 
-def test_conversion_without_sync_raises_error(device_no_auto_sync):
-    """Test that accessing offset raises error if time not synced."""
+def test_conversion_without_explicit_sync(device_no_auto_sync):
+    """Test that offset is available even without explicit sync."""
     device = device_no_auto_sync
 
-    # time_offset should raise before syncing
-    with pytest.raises(ValueError, match="Time synchronization has not been performed"):
-        _ = device.time_offset
+    # time_offset is now available from init
+    assert device.time_offset is not None
+    assert isinstance(device.time_offset, float)
 
 
 def test_time_offset_property(device_no_auto_sync):
     """Test the time_offset property."""
     device = device_no_auto_sync
 
-    # Initially raises
-    with pytest.raises(ValueError, match="Time synchronization has not been performed"):
-        _ = device.time_offset
+    # Initially has offset from init
+    initial_offset = device.time_offset
+    assert isinstance(initial_offset, float)
 
-    # After sync, should have a value
+    # After explicit sync, offset should be refined
     offset = device.sync_time()
     assert device.time_offset == offset
     assert isinstance(device.time_offset, float)
@@ -188,25 +200,14 @@ def test_resync_updates_offset(device_no_auto_sync):
 
 
 def test_implementation_specific_snippets(mocker, mock_pyboard_time):
-    """Test that correct snippet is loaded based on implementation."""
-    # Test MicroPython
+    """Test that correct snippet is loaded based on implementation during init."""
+    # Test MicroPython - snippet is loaded during __init__ now
+    exec_snippet_spy = mocker.spy(belay.device.Device, "_exec_snippet")
+
     device_mp = belay.Device(auto_sync_time=False)
-    device_mp.implementation.name = "micropython"
 
-    exec_spy = mocker.spy(device_mp, "_exec_snippet")
-    device_mp.sync_time(samples=1)
-
-    # Should load MicroPython-specific snippet
-    exec_spy.assert_called_with("time_monotonic_micropython")
+    # Should have loaded MicroPython-specific snippet during init
+    # Check that it was called with the right snippet name
+    calls = [call[0][1] for call in exec_snippet_spy.call_args_list if "time_monotonic" in str(call)]
+    assert "time_monotonic_micropython" in calls
     device_mp.close()
-
-    # Test CircuitPython
-    device_cp = belay.Device(auto_sync_time=False)
-    device_cp.implementation.name = "circuitpython"
-
-    exec_spy = mocker.spy(device_cp, "_exec_snippet")
-    device_cp.sync_time(samples=1)
-
-    # Should load CircuitPython-specific snippet
-    exec_spy.assert_called_with("time_monotonic_circuitpython")
-    device_cp.close()

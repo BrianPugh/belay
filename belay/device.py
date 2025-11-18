@@ -106,16 +106,19 @@ def parse_belay_response(
     code, line = line[0], line[1:]
 
     if code == "R":
-        # Result
-        id_, line = line.split("|", 1)
-        id_ = int(id_) if id_ else NO_RESULT
+        # Result format: _BELAYR{id}|{device_time}|{value}
+        # where id can be empty (normal value) or a number (proxy object)
+        parts = line.split("|", 2)  # maxsplit=2 preserves pipes in value
+        id_ = int(parts[0]) if parts[0] else NO_RESULT
+        device_time = float(parts[1]) if len(parts) > 1 and parts[1] else None
+        line = parts[2] if len(parts) > 2 else ""
         if not line:
-            return id_, NO_RESULT
+            return id_, NO_RESULT, device_time
         try:
             parsed_result = result_parser(line)
         except Exception:
             parsed_result = UNPARSABLE_RESULT
-        return id_, parsed_result
+        return id_, parsed_result, device_time
     elif code == "S":
         # StopIteration
         raise StopIteration
@@ -184,10 +187,24 @@ class Device(metaclass=DeviceMeta):
         # Obtain implementation early on so implementation-specific executers can be bound.
         self.implementation = Implementation(
             *self(
-                "(sys.implementation.name, sys.implementation.version, sys.platform, getattr(sys.implementation, '_mpy', None))"
+                "(sys.implementation.name, sys.implementation.version, sys.platform, getattr(sys.implementation, '_mpy', None))",
+                auto_sync_time=False,  # No timing available yet - __belay_monotonic not loaded
             ),
             emitters=self._emitter_check(),
         )
+
+        # Initialize time offset to None - will be set after loading time helper
+        # (We can't get device time yet because __belay_monotonic doesn't exist)
+
+        # Load the time helper snippet so subsequent calls can inject timestamps
+        self._exec_snippet(f"time_monotonic_{self.implementation.name}")
+
+        # Get initial time offset by piggybacking on a device call
+        t1 = time.time()
+        device_time = self("__belay_monotonic()")
+        t3 = time.time()
+        host_time_mid = (t1 + t3) / 2
+        self._time_offset = device_time - host_time_mid
 
         # Setup executer generators and bind to private attributes.
         executer_generators = {}
@@ -319,6 +336,7 @@ class Device(metaclass=DeviceMeta):
         trusted: bool = False,
         proxy: bool = False,
         delete: Optional[bool] = None,
+        auto_sync_time: bool = True,
     ):
         """Execute code on-device.
 
@@ -395,6 +413,8 @@ class Device(metaclass=DeviceMeta):
 
                 # Explicitly control
                 keep = device("my_data", proxy=True, delete=False)
+        auto_sync_time: bool
+            Update time-sync estimates. Adds a small amount of overhead.
 
         Returns
         -------
@@ -458,17 +478,22 @@ class Device(metaclass=DeviceMeta):
             if proxy:
                 cmd = f"__belay_obj_create({cmd})"
             else:
-                cmd = f'print("_BELAYR|"+repr({cmd}))'
+                if auto_sync_time:
+                    # Use dual-timestamp helper for accurate timing
+                    cmd = f'print("_BELAYR|"+__belay_timed_repr({cmd}))'
+                else:
+                    # No timing (used before __belay_monotonic is loaded)
+                    cmd = f'print("_BELAYR||"+repr({cmd}))'
 
         if record and self.attempts and len(self._cmd_history) < self.MAX_CMD_HISTORY_LEN:
             self._cmd_history.append(cmd)
 
-        id_, result = NO_RESULT, NO_RESULT
+        id_, result, device_time = NO_RESULT, NO_RESULT, None
         data_consumer_buffer = bytearray()
 
         def data_consumer(data):
             """Handle input data stream immediately."""
-            nonlocal id_, result
+            nonlocal id_, result, device_time
             data = data.replace(b"\x04", b"")
             if not data:
                 return
@@ -479,13 +504,15 @@ class Device(metaclass=DeviceMeta):
                 data_consumer_buffer[:] = data_consumer_buffer[i:]
                 try:
                     if trusted:
-                        id_, result = parse_belay_response(line, result_parser=eval)
+                        id_, result, device_time = parse_belay_response(line, result_parser=eval)
                     else:
-                        id_, result = parse_belay_response(line)
+                        id_, result, device_time = parse_belay_response(line)
                 except NotBelayResponseError:
                     if stream_out:
                         stream_out.write(line)
 
+        # Capture timing for time offset calculation
+        t1 = time.time()
         try:
             self._board.exec(cmd, data_consumer=data_consumer)
         except (SerialException, ConnectionResetError) as e:
@@ -495,6 +522,15 @@ class Device(metaclass=DeviceMeta):
                 self._board.exec(cmd, data_consumer=data_consumer)
             else:
                 raise ConnectionLost from e
+        finally:
+            t3 = time.time()
+
+        # Update time offset if device timestamp was received
+        if device_time is not None and self._time_offset is not None:
+            host_time_mid = (t1 + t3) / 2
+            new_offset = device_time - host_time_mid
+            # Exponential moving average (alpha = 0.3 for responsiveness)
+            self._time_offset = 0.7 * self._time_offset + 0.3 * new_offset
 
         if id_ is not NO_RESULT:
             result = ProxyObject(self, f"__belay_obj_{id_}", delete=delete)
@@ -849,9 +885,7 @@ class Device(metaclass=DeviceMeta):
         >>> device.sync_time()  # Perform synchronization
         >>> device.sync_time(samples=20)  # More samples for better accuracy
         """
-        # Load the appropriate time helper snippet based on implementation
-        self._exec_snippet(f"time_monotonic_{self.implementation.name}")
-
+        # Time helper snippet is already loaded during __init__
         measurements = []
         min_rtt = float("inf")
         stable_count = 0
@@ -859,7 +893,7 @@ class Device(metaclass=DeviceMeta):
 
         for i in range(samples):
             t1 = time.time()
-            device_time = cast(float, self("__belay_time_monotonic()"))
+            device_time = cast(float, self("__belay_monotonic()"))
             t3 = time.time()
 
             rtt = t3 - t1

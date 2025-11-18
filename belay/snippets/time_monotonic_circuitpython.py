@@ -1,2 +1,2 @@
 import time
-__belay_time_monotonic = time.monotonic
+__belay_monotonic = time.monotonic
