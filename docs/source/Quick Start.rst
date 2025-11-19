@@ -15,7 +15,7 @@ On connection, the device is reset into REPL mode, and a few common imports are 
 
 .. code-block:: python
 
-   import os, time, machine
+   import os, machine
    from time import sleep
    from micropython import const
    from machine import ADC, I2C, Pin, PWM, SPI, Timer

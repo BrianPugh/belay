@@ -1,4 +1,4 @@
-import os, time, board, digitalio
+import os, board, digitalio
 from time import sleep
 try:
     import analogio

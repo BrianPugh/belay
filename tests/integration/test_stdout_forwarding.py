@@ -1,3 +1,5 @@
+import re
+
 import belay
 
 
@@ -19,13 +21,15 @@ def test_print_basic(emulated_device, mocker):
     stream_out = StreamOut()
     res = emulated_device("foo()", stream_out=stream_out)
 
-    spy_parse_belay_response.assert_has_calls(
-        [
-            mocker.call("print from belay task.\r\n"),
-            mocker.call("_BELAYR|None\r\n"),
-        ]
-    )
+    # Verify the correct calls were made
     assert len(spy_parse_belay_response.call_args_list) == 2
+    assert spy_parse_belay_response.call_args_list[0][0][0] == "print from belay task.\r\n"
+
+    # Second call should match pattern: _BELAYR|{timestamp}|None\r\n
+    second_call = spy_parse_belay_response.call_args_list[1][0][0]
+    assert re.match(
+        r"^_BELAYR\|\d+\|None\r\n$", second_call
+    ), f"Expected pattern '_BELAYR|<timestamp>|None\\r\\n' but got: {second_call!r}"
 
     assert stream_out.out == "print from belay task.\r\n"
     assert res is None
