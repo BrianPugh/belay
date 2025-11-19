@@ -533,8 +533,9 @@ class Device(metaclass=DeviceMeta):
         if device_time is not None and self._time_offset is not None:
             host_time_mid = (t1 + t3) / 2
             new_offset = device_time - host_time_mid
-            # Exponential moving average (alpha = 0.3 for responsiveness)
-            self._time_offset = 0.7 * self._time_offset + 0.3 * new_offset
+            # Exponential moving average
+            alpha = 0.3  # Fairly responsive.
+            self._time_offset = (1 - alpha) * self._time_offset + alpha * new_offset
 
         if id_ is not NO_RESULT:
             result = ProxyObject(self, f"__belay_obj_{id_}", delete=delete)
