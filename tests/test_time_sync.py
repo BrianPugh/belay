@@ -17,6 +17,11 @@ def mock_pyboard_time(mocker):
         # Debug: print command to understand what's being sent
         # print(f"MOCK EXEC: {repr(cmd[:200])}")  # First 200 chars
 
+        # Add small delay to simulate realistic execution time
+        # This prevents RTT from being exactly zero on systems with
+        # low time resolution (e.g., Windows where time.time() has ~15ms resolution)
+        time.sleep(0.02)
+
         if "implementation" in cmd and "name" in cmd:
             # Return implementation info (no timing - _with_timing=False)
             data = b'_BELAYR||("micropython", (1, 19, 1), "rp2", None)\r\n'
