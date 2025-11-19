@@ -140,8 +140,8 @@ def test_parse_belay_response_r():
     assert belay.device.parse_belay_response("_BELAYR||{1}") == (belay.device.NO_RESULT, {1}, None)
     assert belay.device.parse_belay_response("_BELAYR||b'foo'") == (belay.device.NO_RESULT, b"foo", None)
     assert belay.device.parse_belay_response("_BELAYR||False") == (belay.device.NO_RESULT, False, None)
-    # With timestamp
-    assert belay.device.parse_belay_response("_BELAYR|42.5|123") == (belay.device.NO_RESULT, 123, 42.5)
+    # With timestamp (in milliseconds, converted to seconds)
+    assert belay.device.parse_belay_response("_BELAYR|42500|123") == (belay.device.NO_RESULT, 123, 42.5)
 
 
 def test_overload_executer_mixing_error():

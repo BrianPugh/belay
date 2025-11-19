@@ -110,7 +110,8 @@ def parse_belay_response(
         # where id can be empty (normal value) or a number (proxy object)
         parts = line.split("|", 2)  # maxsplit=2 preserves pipes in value
         id_ = int(parts[0]) if parts[0] else NO_RESULT
-        device_time = float(parts[1]) if len(parts) > 1 and parts[1] else None
+        # device_time is in milliseconds, convert to seconds
+        device_time = float(parts[1]) / 1000 if len(parts) > 1 and parts[1] else None
         line = parts[2] if len(parts) > 2 else ""
         if not line:
             return id_, NO_RESULT, device_time
@@ -405,7 +406,7 @@ class Device(metaclass=DeviceMeta):
         with_timing: Optional[bool]
             Control whether to include device timestamps in responses.
 
-            When ``True``: Adds small overhead (~0.5-2ms) but enables
+            When ``True``: Adds negligible overhead (<10us) but enables
             time synchronization tracking.
 
             When ``False``: Slightly faster but provides no timing information.
@@ -896,7 +897,8 @@ class Device(metaclass=DeviceMeta):
 
         for i in range(samples):
             t1 = time.time()
-            device_time = cast(float, self("__belay_monotonic()", with_timing=True))
+            device_time_ms = cast(float, self("__belay_monotonic()", with_timing=True))
+            device_time = device_time_ms / 1000  # Convert milliseconds to seconds
             t3 = time.time()
 
             rtt = t3 - t1

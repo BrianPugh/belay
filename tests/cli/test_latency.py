@@ -9,7 +9,7 @@ def test_latency_verbose(mocker, mock_device, capsys):
     mock_device.patch("belay.cli.latency.Device")
     exit_code = run_cli(app, ["latency", "/dev/ttyUSB0", "--password", "password", "--count", "3", "--verbose"])
     assert exit_code == 0
-    mock_device.cls_assert_common()
+    mock_device.cls.assert_called_once_with("/dev/ttyUSB0", password="password", auto_sync_time=True)
     captured = capsys.readouterr()
     # Check that we got output with the expected format
     assert "Measuring latency with 3 iterations" in captured.out
@@ -27,7 +27,7 @@ def test_latency_non_verbose(mocker, mock_device, capsys):
     mock_device.patch("belay.cli.latency.Device")
     exit_code = run_cli(app, ["latency", "/dev/ttyUSB0", "--password", "password", "--count", "3"])
     assert exit_code == 0
-    mock_device.cls_assert_common()
+    mock_device.cls.assert_called_once_with("/dev/ttyUSB0", password="password", auto_sync_time=True)
     captured = capsys.readouterr()
     # Should NOT show "Measuring latency" message in non-verbose mode
     assert "Measuring latency" not in captured.out
@@ -60,7 +60,7 @@ def test_latency_export_csv(mocker, mock_device, capsys, tmp_path):
         app, ["latency", "/dev/ttyUSB0", "--password", "password", "--count", "5", "--output", str(output_file)]
     )
     assert exit_code == 0
-    mock_device.cls_assert_common()
+    mock_device.cls.assert_called_once_with("/dev/ttyUSB0", password="password", auto_sync_time=True)
 
     # Check that the file was created
     assert output_file.exists()

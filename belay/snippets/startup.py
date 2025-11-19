@@ -9,7 +9,7 @@ def __belay_timed_repr(expr):
     t=__belay_monotonic()
     result=repr(expr)
     t+=__belay_monotonic()
-    return str(t/2)+"|"+result
+    return str(t>>1)+"|"+result
 def __belay_obj_create(result):
     t = str(__belay_monotonic())
     if isinstance(result, (int, float, str, bool, bytes, type(None))):

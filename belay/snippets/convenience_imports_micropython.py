@@ -1,4 +1,4 @@
-import os, time, machine
+import os, machine
 from time import sleep
 from micropython import const
 from machine import Pin, PWM, Timer

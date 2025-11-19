@@ -1,2 +1,2 @@
-def __belay_monotonic():
-    return time.ticks_ms() / 1000.0
+import time
+__belay_monotonic=time.ticks_ms
