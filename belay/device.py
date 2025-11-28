@@ -21,7 +21,7 @@ from typing_extensions import ParamSpec
 
 from ._minify import minify as minify_code
 from .device_meta import DeviceMeta
-from .device_support import Implementation, MethodMetadata, sort_executers
+from .device_support import Implementation, MethodMetadata, TimeSync, sort_executers
 from .device_sync_support import (
     discover_files_dirs,
     generate_dst_dirs,
@@ -98,6 +98,14 @@ def parse_belay_response(
         e.g. "(1, 2, 'foo')"
     result_parser: Callable
         Function that accepts a string and returns a python object.
+
+    Returns
+    -------
+    tuple
+        A tuple of (id, result, device_time) where:
+        - id: int or NO_RESULT - Proxy object ID if applicable
+        - result: Any - Parsed result value or NO_RESULT/UNPARSABLE_RESULT
+        - device_time: int or None - Device timestamp in milliseconds. Might be overflowed.
     """
     if not line.startswith("_BELAY"):
         raise NotBelayResponseError
@@ -110,8 +118,8 @@ def parse_belay_response(
         # where id can be empty (normal value) or a number (proxy object)
         parts = line.split("|", 2)  # maxsplit=2 preserves pipes in value
         id_ = int(parts[0]) if parts[0] else NO_RESULT
-        # device_time is in milliseconds, convert to seconds
-        device_time = float(parts[1]) / 1000 if len(parts) > 1 and parts[1] else None
+        # device_time is in milliseconds (keep as int for wrap-around handling)
+        device_time = int(parts[1]) if len(parts) > 1 and parts[1] else None
         line = parts[2] if len(parts) > 2 else ""
         if not line:
             return id_, NO_RESULT, device_time
@@ -179,7 +187,6 @@ class Device(metaclass=DeviceMeta):
         self.attempts = attempts
         self.auto_sync_time = auto_sync_time
         self._cmd_history = []
-        self._time_offset: Optional[float] = None
 
         self._connect_to_board(**self._board_kwargs)
 
@@ -195,6 +202,20 @@ class Device(metaclass=DeviceMeta):
         )
 
         self._exec_snippet(f"time_monotonic_{self.implementation.name}")
+
+        # Detect TICKS_MAX with implementation-specific method
+        if self.implementation.name == "micropython":
+            # MicroPython: Use time.ticks_add(0, -1) to get TICKS_MAX
+            ticks_max = cast(int, self("__belay_ticks_add(0, -1)", with_timing=False))
+        elif self.implementation.name == "circuitpython":
+            # CircuitPython: supervisor.ticks_ms() uses 32-bit unsigned with 30-bit range
+            # https://docs.circuitpython.org/en/latest/shared-bindings/supervisor/#supervisor.ticks_ms
+            ticks_max = (1 << 29) - 1
+        else:
+            raise NotImplementedError(f"Unknown implementation: {self.implementation.name}")
+
+        # Initialize TimeSync with detected TICKS_MAX
+        self._time_sync = TimeSync(ticks_max=ticks_max)
 
         # Setup executer generators and bind to private attributes.
         executer_generators = {}
@@ -530,12 +551,9 @@ class Device(metaclass=DeviceMeta):
             t3 = time.time()
 
         # Update time offset if device timestamp was received
-        if device_time is not None and self._time_offset is not None:
+        if device_time is not None:
             host_time_mid = (t1 + t3) / 2
-            new_offset = device_time - host_time_mid
-            # Exponential moving average
-            alpha = 0.3  # Fairly responsive.
-            self._time_offset = (1 - alpha) * self._time_offset + alpha * new_offset
+            self._time_sync.update_offset(device_time, host_time_mid)
 
         if id_ is not NO_RESULT:
             result = ProxyObject(self, f"__belay_obj_{id_}", delete=delete)
@@ -874,7 +892,6 @@ class Device(metaclass=DeviceMeta):
         -------
         float
             The calculated time offset in seconds (device_time - host_time).
-            Stored in ``self._time_offset`` for use by conversion methods.
 
         Notes
         -----
@@ -887,26 +904,25 @@ class Device(metaclass=DeviceMeta):
 
         Examples
         --------
-        >>> device.sync_time()  # Perform synchronization
+        >>> offset = device.sync_time()  # Perform synchronization
         >>> device.sync_time(samples=20)  # More samples for better accuracy
         """
         # Time helper snippet is already loaded during __init__
-        measurements = []
+        # Store sample data: (t1, device_time_ms, t3, rtt)
+        samples_data = []
         min_rtt = float("inf")
         stable_count = 0
         rtt_threshold = 0.002  # 2ms - consider RTT stable if within this threshold
 
         for i in range(samples):
             t1 = time.time()
-            device_time_ms = cast(float, self("__belay_monotonic()", with_timing=True))
-            device_time = device_time_ms / 1000  # Convert milliseconds to seconds
+            # Disable auto-timing to prevent automatic update_offset() calls
+            # We'll process the best sample at the end
+            device_time_ms = cast(int, self("__belay_monotonic()", with_timing=False))
             t3 = time.time()
 
             rtt = t3 - t1
-            host_time_mid = (t1 + t3) / 2
-            offset = device_time - host_time_mid
-
-            measurements.append((rtt, offset))
+            samples_data.append((t1, device_time_ms, t3, rtt))
 
             if rtt < min_rtt:
                 min_rtt = rtt
@@ -918,49 +934,81 @@ class Device(metaclass=DeviceMeta):
                 if stable_count >= 3 and i >= 4:
                     break
 
-        # Use weighted average of samples within threshold of minimum RTT
-        # This is more robust than using a single sample
-        good_samples = [(rtt, offset) for rtt, offset in measurements if rtt <= min_rtt + rtt_threshold]
+        # Use minimum RTT sample to establish wrap tracking reference point
+        best_sample = min(samples_data, key=lambda x: x[3])  # x[3] is rtt
+        best_t1, best_device_ms, best_t3, best_rtt = best_sample
+        best_host_mid = (best_t1 + best_t3) / 2
 
-        if good_samples:
+        # Reset wrap tracking and clear old offset to ensure fresh sync
+        self._time_sync.reset()
+        self._time_sync.time_offset = None
+
+        # Establish wrap reference point using best sample
+        self._time_sync.update_offset(best_device_ms, best_host_mid)
+
+        # Calculate weighted average offset using all good samples for better accuracy
+        # "Good" samples are those within rtt_threshold of minimum RTT
+        good_samples = [
+            (t1, device_ms, t3, rtt) for t1, device_ms, t3, rtt in samples_data if rtt <= best_rtt + rtt_threshold
+        ]
+
+        if len(good_samples) > 1:
             # Weight by inverse of RTT (lower RTT = higher weight)
-            total_weight = sum(1.0 / rtt for rtt, _ in good_samples)
-            weighted_offset = sum((1.0 / rtt) * offset for rtt, offset in good_samples) / total_weight
-            self._time_offset = weighted_offset
-        else:
-            # Fallback to minimum RTT sample (shouldn't happen, but be safe)
-            self._time_offset = min(measurements, key=lambda x: x[0])[1]
+            # This is more statistically robust than using a single sample
+            total_weight = sum(1.0 / rtt for _, _, _, rtt in good_samples)
+            weighted_offset = (
+                sum((1.0 / rtt) * (device_ms / 1000.0 - (t1 + t3) / 2.0) for t1, device_ms, t3, rtt in good_samples)
+                / total_weight
+            )
 
-        return self._time_offset
+            # Override with weighted average for better accuracy
+            self._time_sync.time_offset = weighted_offset
+
+        return self.time_offset
 
     @property
     def time_offset(self) -> float:
         """Get the current time offset between device and host.
 
-        .. code-block::
+        The offset is defined as ``device_time - host_time`` in seconds.
+        When ``auto_sync_time=True`` (default), this value is automatically
+        maintained and refined with each device call that includes timing.
 
-            approx_host_time = device_time - self._time_offset
-            approx_device_time = host_time + self._time_offset.
+        Time offset can be used to convert between device and host timestamps:
+
+        .. code-block:: python
+
+            host_time = device_time_sec - device.time_offset
+            device_time_sec = host_time + device.time_offset
 
         Returns
         -------
         float
             The time offset in seconds (device_time - host_time).
+            Positive values indicate device is ahead of host.
 
         Raises
         ------
         ValueError
             If time synchronization has not been performed yet.
 
+        Notes
+        -----
+        The offset handles device tick wrap-around (every ~12.4 days) and
+        automatically detects device resets. For best accuracy, call
+        ``sync_time()`` explicitly to establish initial offset using
+        weighted averaging of multiple samples.
+
         Examples
         --------
-        >>> device.sync_time()
+        >>> device.sync_time()  # Establish accurate initial offset
         >>> offset = device.time_offset
         >>> print(f"Device is {offset:.3f}s ahead of host")
+        Device is 0.042s ahead of host
         """
-        if self._time_offset is None:
+        if self._time_sync is None or self._time_sync.time_offset is None:
             raise ValueError("Time synchronization has not been performed. Call sync_time() first.")
-        return self._time_offset
+        return self._time_sync.time_offset
 
     def __enter__(self):
         return self
@@ -1000,6 +1048,9 @@ class Device(metaclass=DeviceMeta):
         """
         if len(self._cmd_history) == self.MAX_CMD_HISTORY_LEN:
             raise MaxHistoryLengthError
+
+        # Reset wrap tracking - device may have rebooted
+        self._time_sync.reset()
 
         kwargs = self._board_kwargs.copy()
         kwargs["attempts"] = attempts

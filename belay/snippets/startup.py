@@ -6,10 +6,12 @@ def __belay_next(x, val):
     except StopIteration:
         print("_BELAYS")
 def __belay_timed_repr(expr):
-    t=__belay_monotonic()
+    t1=__belay_monotonic()
     result=repr(expr)
-    t+=__belay_monotonic()
-    return str(t>>1)+"|"+result
+    t2=__belay_monotonic()
+    diff=__belay_ticks_diff(t2,t1)
+    avg=__belay_ticks_add(t1,diff>>1)
+    return str(avg)+"|"+result
 def __belay_obj_create(result):
     t = str(__belay_monotonic())
     if isinstance(result, (int, float, str, bool, bytes, type(None))):

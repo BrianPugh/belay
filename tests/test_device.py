@@ -8,24 +8,27 @@ from belay.exceptions import NoMatchingExecuterError
 
 @pytest.fixture
 def mock_pyboard(mocker):
-    device_time = [42.5]  # Starting device time
+    device_time_ms = [42500]  # Starting device time in milliseconds
 
     def mock_init(self, *args, **kwargs):
         self.serial = mocker.MagicMock()
 
     def mock_exec(cmd, data_consumer=None):
         # Handle different command types
-        if "__belay_timed_repr(__belay_monotonic())" in cmd:
-            # Time query with dual timestamps using new helper
-            t1 = device_time[0]
-            device_time[0] += 0.0005  # Small increment for execution time
-            t2 = device_time[0]
-            device_time[0] += 0.0005
-            avg_time = (t1 + t2) / 2
+        if "__belay_ticks_add" in cmd or ("ticks_add" in cmd and "-1" in cmd):
+            # Query for TICKS_MAX
+            data = b"_BELAYR||1073741823\r\n"  # MicroPython typical value (2^30 - 1)
+        elif "__belay_timed_repr(__belay_monotonic())" in cmd:
+            # Time query with dual timestamps using new helper (milliseconds)
+            t1 = device_time_ms[0]
+            device_time_ms[0] += 1  # Small increment for execution time (1ms)
+            t2 = device_time_ms[0]
+            device_time_ms[0] += 1
+            avg_time = (t1 + t2) // 2  # Integer average
             data = f"_BELAYR|{avg_time}|{t2}\r\n".encode()
         elif "implementation" in cmd and "name" in cmd:
             # Implementation detection (without timing)
-            data = b'_BELAYR||("micropython", (1, 19, 1), "rp2")\r\n'
+            data = b'_BELAYR||("micropython", (1, 19, 1), "rp2", None)\r\n'
         elif "def __belay" in cmd:
             # Loading snippets
             data = b""
@@ -140,8 +143,8 @@ def test_parse_belay_response_r():
     assert belay.device.parse_belay_response("_BELAYR||{1}") == (belay.device.NO_RESULT, {1}, None)
     assert belay.device.parse_belay_response("_BELAYR||b'foo'") == (belay.device.NO_RESULT, b"foo", None)
     assert belay.device.parse_belay_response("_BELAYR||False") == (belay.device.NO_RESULT, False, None)
-    # With timestamp (in milliseconds, converted to seconds)
-    assert belay.device.parse_belay_response("_BELAYR|42500|123") == (belay.device.NO_RESULT, 123, 42.5)
+    # With timestamp (in milliseconds as int for wrap-around handling)
+    assert belay.device.parse_belay_response("_BELAYR|42500|123") == (belay.device.NO_RESULT, 123, 42500)
 
 
 def test_overload_executer_mixing_error():

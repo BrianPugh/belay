@@ -22,20 +22,23 @@ def __belay_ilistdir(x):
 
 @pytest.fixture
 def mock_pyboard(mocker):
-    device_time = [42.5]  # Starting device time
+    device_time_ms = [42500]  # Starting device time in milliseconds
 
     def mock_init(self, *args, **kwargs):
         self.serial = mocker.MagicMock()
 
     def mock_exec(cmd, data_consumer=None):
         # Handle different command types
-        if "__belay_monotonic()" in cmd and "implementation" not in cmd:
-            # Time query
-            data = f"_BELAYR|{device_time[0]}|{device_time[0]}\r\n".encode()
-            device_time[0] += 0.001
+        if "__belay_ticks_add" in cmd or ("ticks_add" in cmd and "-1" in cmd):
+            # Query for TICKS_MAX
+            data = b"_BELAYR||1073741823\r\n"  # MicroPython typical value (2^30 - 1)
+        elif "__belay_monotonic()" in cmd and "implementation" not in cmd:
+            # Time query (milliseconds as integers)
+            data = f"_BELAYR|{device_time_ms[0]}|{device_time_ms[0]}\r\n".encode()
+            device_time_ms[0] += 1
         elif "implementation" in cmd and "name" in cmd:
             # Implementation detection
-            data = b'_BELAYR||("micropython", (1, 19, 1), "rp2")\r\n'
+            data = b'_BELAYR||("micropython", (1, 19, 1), "rp2", None)\r\n'
         elif "def __belay" in cmd:
             # Loading snippets
             data = b""

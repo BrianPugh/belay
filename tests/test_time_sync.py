@@ -9,8 +9,8 @@ import belay.device
 @pytest.fixture
 def mock_pyboard_time(mocker):
     """Mock Pyboard for time synchronization tests."""
-    # Simulate device returning incrementing time values
-    device_time = [42.5]  # Starting device time in seconds
+    # Simulate device returning incrementing time values (in milliseconds)
+    device_time_ms = [42500]  # Starting device time in milliseconds
 
     def mock_exec_time(cmd, data_consumer=None):
         """Mock exec that handles time-related commands."""
@@ -25,15 +25,24 @@ def mock_pyboard_time(mocker):
         if "implementation" in cmd and "name" in cmd:
             # Return implementation info (no timing - _with_timing=False)
             data = b'_BELAYR||("micropython", (1, 19, 1), "rp2", None)\r\n'
+        elif "__belay_ticks_add" in cmd or ("ticks_add" in cmd and "-1" in cmd):
+            # Query for TICKS_MAX - matches both function calls and result
+            data = b"_BELAYR||1073741823\r\n"  # MicroPython typical value (2^30 - 1)
         elif "__belay_timed_repr(__belay_monotonic())" in cmd:
-            # Return current device time with dual timestamp format
-            t1 = device_time[0]
-            device_time[0] += 0.0005  # Small increment for execution
-            t2 = device_time[0]
-            device_time[0] += 0.0005
-            avg_time = (t1 + t2) / 2
+            # Return current device time with dual timestamp format (in milliseconds)
+            t1 = device_time_ms[0]
+            device_time_ms[0] += 1  # Small increment for execution (1ms)
+            t2 = device_time_ms[0]
+            device_time_ms[0] += 1
+            avg_time = (t1 + t2) // 2  # Integer average
             # Format: _BELAYR|{avg_time}|{result}
             data = f"_BELAYR|{avg_time}|{t2}\r\n".encode()
+        elif "__belay_monotonic()" in cmd:
+            # Direct call to __belay_monotonic() without timed wrapper (with_timing=False)
+            t = device_time_ms[0]
+            device_time_ms[0] += 1
+            # Format: _BELAYR||{result} (no timestamp in response)
+            data = f"_BELAYR||{t}\r\n".encode()
         elif "def __belay_monotonic" in cmd or "def __belay_obj_create" in cmd or "def __belay" in cmd:
             # Loading snippets - no response
             data = b""
@@ -73,7 +82,7 @@ def test_auto_sync_disabled(device_no_auto_sync):
     """Test that with auto_sync disabled, time_offset is None until sync_time() is called."""
     # When auto_sync_time=False, no automatic synchronization occurs
     # _time_offset should be None until sync_time() is explicitly called
-    assert device_no_auto_sync._time_offset is None
+    assert device_no_auto_sync._time_sync.time_offset is None
 
     # After calling sync_time(), offset should be available
     device_no_auto_sync.sync_time()
@@ -178,7 +187,7 @@ def test_time_offset_property(device_no_auto_sync):
     device = device_no_auto_sync
 
     # Initially no offset when auto_sync_time=False
-    assert device._time_offset is None
+    assert device._time_sync.time_offset is None
 
     # After explicit sync, offset should be set
     offset = device.sync_time()
@@ -216,3 +225,120 @@ def test_implementation_specific_snippets(mocker, mock_pyboard_time):
     calls = [call[0][1] for call in exec_snippet_spy.call_args_list if "time_monotonic" in str(call)]
     assert "time_monotonic_micropython" in calls
     device_mp.close()
+
+
+def test_tick_wrap_detection(device_no_auto_sync):
+    """Test that wrap-around is detected using time-based prediction."""
+    device = device_no_auto_sync
+
+    # Set small TICKS_MAX for testing (TICKS_PERIOD = 101 ms)
+    device._time_sync.ticks_max = 100
+
+    # Simulate time progression with host time
+    base_time = 1000.0  # Start at arbitrary host time
+
+    # First reading establishes reference (95ms device time at t=1000.0)
+    unwrapped1 = device._time_sync.unwrap_tick(95, base_time)
+    assert unwrapped1 == 95
+
+    # 2ms later: device at 97ms, host at t=1000.002
+    unwrapped2 = device._time_sync.unwrap_tick(97, base_time + 0.002)
+    assert unwrapped2 == 97
+
+    # 11ms later: device wraps to 5ms (95+11=106, 106 mod 101 = 5)
+    # Host at t=1000.011, expects device ~106ms
+    unwrapped3 = device._time_sync.unwrap_tick(5, base_time + 0.011)
+    assert unwrapped3 == 106  # 1 * 101 + 5 (implies wrap_count=1)
+
+    # 5ms later: device at 10ms (wrapped), host at t=1000.016, expects ~111ms
+    unwrapped4 = device._time_sync.unwrap_tick(10, base_time + 0.016)
+    assert unwrapped4 == 111  # 1 * 101 + 10
+
+    # 95ms later: device at 95ms (still in wrap 1)
+    # From reference: 95 + 101 = 196ms expected
+    unwrapped5 = device._time_sync.unwrap_tick(95, base_time + 0.101)
+    assert unwrapped5 == 196  # 1 * 101 + 95
+
+    # 8ms later: device wraps again to 2ms (196+8=204, 204 mod 101 = 2)
+    # Host at t=1000.109, expects ~204ms
+    unwrapped6 = device._time_sync.unwrap_tick(2, base_time + 0.109)
+    assert unwrapped6 == 204  # 2 * 101 + 2 (implies wrap_count=2)
+
+
+def test_device_reset_detection_via_time_prediction(device_no_auto_sync):
+    """Test that device reset is detected via time-based prediction."""
+    import pytest
+
+    from belay.device_support import DeviceResetDetected
+
+    device = device_no_auto_sync
+
+    # Use full 32-bit range for realistic test
+    device._time_sync.ticks_max = 0xFFFFFFFF
+
+    # Establish reference at host time t=1000.0, device at 50000ms
+    base_time = 1000.0
+    unwrapped1 = device._time_sync.unwrap_tick(50000, base_time)
+    assert unwrapped1 == 50000
+
+    # 1 second later: device at 51000ms, host at t=1001.0
+    # This should work normally
+    unwrapped2 = device._time_sync.unwrap_tick(51000, base_time + 1.0)
+    assert unwrapped2 == 51000
+
+    # Now simulate device reset: 10 seconds pass on host (t=1011.0)
+    # but device restarted and shows only 100ms
+    # Expected device time would be ~60000ms, but actual is 100ms
+    # No wrap count can make 100ms match 60000ms within drift tolerance
+    # This should raise DeviceResetDetected exception
+    with pytest.raises(DeviceResetDetected, match="Device reset detected"):
+        device._time_sync.unwrap_tick(100, base_time + 11.0)
+
+    # Verify state unchanged (exception prevents state modification)
+    assert device._time_sync._reference_device_tick_unwrapped == 50000
+    assert device._time_sync._reference_host_time == base_time
+
+    # Now test that update_offset handles the reset properly
+    device._time_sync.update_offset(100, base_time + 11.0)
+
+    # After reset handling, reference should be re-established at device=100ms
+    assert device._time_sync._reference_device_tick_unwrapped == 100
+    assert device._time_sync._reference_host_time == base_time + 11.0
+
+    # Verify normal progression continues after reset
+    # 1 second later: device at 1100ms, host at t=1012.0
+    unwrapped3 = device._time_sync.unwrap_tick(1100, base_time + 12.0)
+    assert unwrapped3 == 1100
+
+
+def test_reconnect_resets_wrap_tracking(device_no_auto_sync, mocker):
+    """Test that reconnect() resets wrap tracking state."""
+    device = device_no_auto_sync
+
+    # Simulate some wrap tracking state
+    device._time_sync._reference_host_time = 1000.0
+    device._time_sync._reference_device_tick_unwrapped = 50000
+
+    # Mock the actual reconnection to avoid needing real hardware
+    mocker.patch.object(device, "_connect_to_board")
+
+    # Reconnect should reset wrap tracking including reference points
+    device.reconnect()
+
+    assert device._time_sync._reference_host_time is None
+    assert device._time_sync._reference_device_tick_unwrapped is None
+
+
+def test_tick_arithmetic_no_wrap(device_no_auto_sync):
+    """Test that normal tick progression (no wrap) works correctly."""
+    device = device_no_auto_sync
+
+    device._time_sync.ticks_max = 0xFFFFFFFF
+
+    # Monotonically increasing ticks with corresponding host times
+    base_time = 1000.0
+    for tick in [100, 200, 300, 500, 1000, 5000]:
+        # Simulate roughly 1:1 time progression (tick is in ms, add appropriate seconds)
+        host_time = base_time + (tick / 1000.0)
+        unwrapped = device._time_sync.unwrap_tick(tick, host_time)
+        assert unwrapped == tick
