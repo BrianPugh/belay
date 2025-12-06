@@ -1,0 +1,4 @@
+import time
+__belay_monotonic=time.ticks_ms
+__belay_ticks_diff=time.ticks_diff
+__belay_ticks_add=time.ticks_add

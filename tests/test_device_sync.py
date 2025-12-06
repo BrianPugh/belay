@@ -22,14 +22,31 @@ def __belay_ilistdir(x):
 
 @pytest.fixture
 def mock_pyboard(mocker):
+    device_time_ms = [42500]  # Starting device time in milliseconds
+
     def mock_init(self, *args, **kwargs):
         self.serial = mocker.MagicMock()
 
-    exec_side_effect = [b'_BELAYR|("micropython", (1, 19, 1), "rp2")\r\n'] * 100
-
     def mock_exec(cmd, data_consumer=None):
-        data = exec_side_effect.pop()
-        if data_consumer:
+        # Handle different command types
+        if "__belay_ticks_add" in cmd or ("ticks_add" in cmd and "-1" in cmd):
+            # Query for TICKS_MAX
+            data = b"_BELAYR||1073741823\r\n"  # MicroPython typical value (2^30 - 1)
+        elif "__belay_monotonic()" in cmd and "implementation" not in cmd:
+            # Time query (milliseconds as integers)
+            data = f"_BELAYR|{device_time_ms[0]}|{device_time_ms[0]}\r\n".encode()
+            device_time_ms[0] += 1
+        elif "implementation" in cmd and "name" in cmd:
+            # Implementation detection
+            data = b'_BELAYR||("micropython", (1, 19, 1), "rp2", None)\r\n'
+        elif "def __belay" in cmd:
+            # Loading snippets
+            data = b""
+        else:
+            # Default empty response
+            data = b""
+
+        if data_consumer and data:
             data_consumer(data)
 
     mocker.patch.object(belay.device.Pyboard, "__init__", mock_init)
@@ -41,7 +58,7 @@ def mock_pyboard(mocker):
 @pytest.fixture
 def mock_device(mocker, mock_pyboard):
     mocker.patch("belay.device.Device._emitter_check", return_value=[])
-    device = belay.Device()
+    device = belay.Device(auto_sync_time=False)
     return device
 
 
@@ -156,7 +173,7 @@ def test_sync_device_belay_fs_does_not_exist(sync_begin, tmp_path):
 
 
 def test_device_sync_empty_remote(mocker, mock_device, sync_path):
-    exec_side_effect = ("_BELAYR|" + repr([b""] * 5) + "\r\n").encode("utf-8")
+    exec_side_effect = ("_BELAYR||" + repr([b""] * 5) + "\r\n").encode("utf-8")
 
     def mock_exec(cmd, data_consumer=None):
         data_consumer(exec_side_effect)
@@ -168,11 +185,11 @@ def test_device_sync_empty_remote(mocker, mock_device, sync_path):
     mock_device._board.exec.assert_has_calls(
         [
             call(
-                "print(\"_BELAYR|\"+repr(__belay_mkdirs(['/folder1','/folder1/folder1_1'])))",
+                "print(\"_BELAYR||\"+repr(__belay_mkdirs(['/folder1','/folder1/folder1_1'])))",
                 data_consumer=mocker.ANY,
             ),
             call(
-                "print(\"_BELAYR|\"+repr(__belay_hfs(['/alpha.py','/bar.txt','/folder1/file1.txt','/folder1/folder1_1/file1_1.txt','/foo.txt'])))",
+                "print(\"_BELAYR||\"+repr(__belay_hfs(['/alpha.py','/bar.txt','/folder1/file1.txt','/folder1/folder1_1/file1_1.txt','/foo.txt'])))",
                 data_consumer=mocker.ANY,
             ),
         ]
@@ -192,6 +209,8 @@ def test_device_sync_empty_remote(mocker, mock_device, sync_path):
 
 
 def test_device_sync_partial_remote(mocker, mock_device, sync_path):
+    device_time = [42.5]
+
     def __belay_hfs(fns):
         out = []
         for fn in fns:
@@ -202,9 +221,20 @@ def test_device_sync_partial_remote(mocker, mock_device, sync_path):
                 out.append(device_sync_support.fnv1a(local_fn))
         return out
 
+    def __belay_monotonic():
+        t = device_time[0]
+        device_time[0] += 0.0005
+        return t
+
+    def __belay_timed_repr(expr):
+        t1 = __belay_monotonic()
+        result = repr(expr)
+        t2 = __belay_monotonic()
+        return str((t1 + t2) / 2) + "|" + result
+
     def mock_exec(cmd, data_consumer=None):
-        if cmd.startswith('print("_BELAYR|"+repr(__belay_hfs'):
-            nonlocal __belay_hfs
+        if cmd.startswith('print("_BELAYR|') and "__belay_hfs" in cmd:
+            nonlocal __belay_hfs, __belay_monotonic, __belay_timed_repr
             out = b""
 
             def print(s):

@@ -107,13 +107,13 @@ Response Format
 
 Belay uses special markers in the device output to identify responses:
 
-- ``_BELAYR|<value>`` - Normal return value. The value after the pipe is deserialized and returned to the host.
+- ``_BELAYR|<timestamp>|<value>`` - Normal return value with optional timestamp. When time synchronization is enabled, the timestamp (in milliseconds) is included to track when the result was generated on the device. The value is deserialized and returned to the host.
 
-- ``_BELAYR<id>|`` - :class:`~belay.ProxyObject` reference. The object is stored on-device as ``__belay_obj_<id>`` and a :class:`~belay.ProxyObject` is returned on the host that can interact with it remotely.
+- ``_BELAYR<id>|<timestamp>|`` - :class:`~belay.ProxyObject` reference with optional timestamp. The object is stored on-device as ``__belay_obj_<id>`` and a :class:`~belay.ProxyObject` is returned on the host that can interact with it remotely.
 
 - ``_BELAYS`` - StopIteration marker used for generator functions.
 
-This protocol allows Belay to distinguish between user output and command results, enabling seamless interaction between the host and device.
+This protocol allows Belay to distinguish between user output and command results.
 
 
 .. _some convenience imports on the board: https://github.com/BrianPugh/belay/blob/main/belay/snippets/convenience_imports_micropython.py

@@ -111,6 +111,7 @@ class TaskExecuter(Executer):
         register: bool = True,
         record: bool = False,
         trusted: bool = False,
+        return_time: bool = False,
     ) -> Callable[[Callable[P, R]], Callable[P, R]]: ...
 
     def __call__(
@@ -121,10 +122,13 @@ class TaskExecuter(Executer):
         register: bool = True,
         record: bool = False,
         trusted: bool = False,
+        return_time: bool = False,
     ) -> Union[Callable[[Callable[P, R]], Callable[P, R]], Callable[P, R]]:
         """See ``Device.task``."""
         if f is None:
-            return wraps_partial(self, minify=minify, register=register, record=record, trusted=trusted)
+            return wraps_partial(
+                self, minify=minify, register=register, record=record, trusted=trusted, return_time=return_time
+            )
 
         name = f.__name__
         src_code, src_lineno, src_file = getsource(f)
@@ -137,7 +141,7 @@ class TaskExecuter(Executer):
             cmd = f"{name}(*{repr(args)}, **{repr(kwargs)})"
 
             return self._belay_device._traceback_execute(
-                src_file, src_lineno, name, cmd, record=record, trusted=trusted
+                src_file, src_lineno, name, cmd, record=record, trusted=trusted, return_time=return_time
             )
 
         @wraps(f)
@@ -155,14 +159,16 @@ class TaskExecuter(Executer):
                 try:
                     while True:
                         cmd = f"__belay_next({gen_identifier}, {repr(send_val)})"
-                        send_val = yield self._belay_device._traceback_execute(
+                        result = self._belay_device._traceback_execute(
                             src_file,
                             src_lineno,
                             name,
                             cmd,
                             record=False,
                             trusted=trusted,
+                            return_time=return_time,
                         )
+                        send_val = yield result
                 except StopIteration:
                     pass
                 # Delete the exhausted generator on-device.

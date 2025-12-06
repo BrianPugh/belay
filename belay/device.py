@@ -7,12 +7,14 @@ import linecache
 import re
 import shutil
 import sys
+import time
+from datetime import datetime
 from inspect import signature
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from textwrap import dedent
 from types import ModuleType
-from typing import Any, Callable, Optional, TextIO, TypeVar, Union, overload
+from typing import Any, Callable, Optional, TextIO, TypeVar, Union, cast, overload
 
 from serial import SerialException
 from serial.tools.miniterm import Miniterm
@@ -20,7 +22,7 @@ from typing_extensions import ParamSpec
 
 from ._minify import minify as minify_code
 from .device_meta import DeviceMeta
-from .device_support import Implementation, MethodMetadata, sort_executers
+from .device_support import Implementation, MethodMetadata, TimeSync, sort_executers
 from .device_sync_support import (
     discover_files_dirs,
     generate_dst_dirs,
@@ -97,6 +99,14 @@ def parse_belay_response(
         e.g. "(1, 2, 'foo')"
     result_parser: Callable
         Function that accepts a string and returns a python object.
+
+    Returns
+    -------
+    tuple
+        A tuple of (id, result, device_time) where:
+        - id: int or NO_RESULT - Proxy object ID if applicable
+        - result: Any - Parsed result value or NO_RESULT/UNPARSABLE_RESULT
+        - device_time: int or None - Device timestamp in milliseconds. Might be overflowed.
     """
     if not line.startswith("_BELAY"):
         raise NotBelayResponseError
@@ -105,16 +115,20 @@ def parse_belay_response(
     code, line = line[0], line[1:]
 
     if code == "R":
-        # Result
-        id_, line = line.split("|", 1)
-        id_ = int(id_) if id_ else NO_RESULT
+        # Result format: _BELAYR{id}|{device_time}|{value}
+        # where id can be empty (normal value) or a number (proxy object)
+        parts = line.split("|", 2)  # maxsplit=2 preserves pipes in value
+        id_ = int(parts[0]) if parts[0] else NO_RESULT
+        # device_time is in milliseconds (keep as int for wrap-around handling)
+        device_time = int(parts[1]) if len(parts) > 1 and parts[1] else None
+        line = parts[2] if len(parts) > 2 else ""
         if not line:
-            return id_, NO_RESULT
+            return id_, NO_RESULT, device_time
         try:
             parsed_result = result_parser(line)
         except Exception:
             parsed_result = UNPARSABLE_RESULT
-        return id_, parsed_result
+        return id_, parsed_result, device_time
     elif code == "S":
         # StopIteration
         raise StopIteration
@@ -153,6 +167,7 @@ class Device(metaclass=DeviceMeta):
         *args,
         startup: Optional[str] = None,
         attempts: int = 0,
+        auto_sync_time: bool = True,
         **kwargs,
     ):
         """Create a MicroPython device.
@@ -164,9 +179,14 @@ class Device(metaclass=DeviceMeta):
         attempts: int
             If device disconnects, attempt to re-connect this many times (with 1 second between attempts).
             WARNING: this may result in unexpectedly long blocking calls when reconnecting!
+        auto_sync_time: bool
+            Automatically synchronize time between host and device during initialization.
+            Enables accurate timestamp conversion for time-series data. Default: True.
+            Note: This increases initialization time due to multiple round-trip measurements.
         """
         self._board_kwargs = signature(Pyboard).bind(*args, **kwargs).arguments
         self.attempts = attempts
+        self.auto_sync_time = auto_sync_time
         self._cmd_history = []
 
         self._connect_to_board(**self._board_kwargs)
@@ -176,10 +196,27 @@ class Device(metaclass=DeviceMeta):
         # Obtain implementation early on so implementation-specific executers can be bound.
         self.implementation = Implementation(
             *self(
-                "(sys.implementation.name, sys.implementation.version, sys.platform, getattr(sys.implementation, '_mpy', None))"
+                "(sys.implementation.name, sys.implementation.version, sys.platform, getattr(sys.implementation, '_mpy', None))",
+                with_timing=False,  # No timing available yet - __belay_monotonic not loaded
             ),
             emitters=self._emitter_check(),
         )
+
+        self._exec_snippet(f"time_monotonic_{self.implementation.name}")
+
+        # Detect TICKS_MAX with implementation-specific method
+        if self.implementation.name == "micropython":
+            # MicroPython: Use time.ticks_add(0, -1) to get TICKS_MAX
+            ticks_max = cast(int, self("__belay_ticks_add(0, -1)", with_timing=False))
+        elif self.implementation.name == "circuitpython":
+            # CircuitPython: supervisor.ticks_ms() uses 32-bit unsigned with 30-bit range
+            # https://docs.circuitpython.org/en/latest/shared-bindings/supervisor/#supervisor.ticks_ms
+            ticks_max = (1 << 29) - 1
+        else:
+            raise NotImplementedError(f"Unknown implementation: {self.implementation.name}")
+
+        # Initialize TimeSync with detected TICKS_MAX
+        self._time_sync = TimeSync(ticks_max=ticks_max)
 
         # Setup executer generators and bind to private attributes.
         executer_generators = {}
@@ -199,7 +236,9 @@ class Device(metaclass=DeviceMeta):
             try:
                 method = getattr(self, method_name)
                 metadata = method.__belay__
-            except AttributeError:
+            except (AttributeError, ValueError):
+                # AttributeError: No __belay__ metadata
+                # ValueError: Properties that require initialization (e.g., time_offset)
                 continue
             executer_name = metadata.executer.__registry__.name
             executer_generator = executer_generators[executer_name]
@@ -229,6 +268,9 @@ class Device(metaclass=DeviceMeta):
         elif startup:
             self(startup)
 
+        if self.auto_sync_time:
+            self.sync_time()
+
         self.__pre_autoinit__()
 
         for executer in sort_executers(autoinit_executers):
@@ -246,14 +288,12 @@ class Device(metaclass=DeviceMeta):
             * ``self.sync_dependencies(...)`` - More advanced sync.
               Recommended way of getting dependencies on-device.
         """
-        pass
 
     def __post_init__(self):
         """Runs at the very end of ``__init__``.
 
         Good for subclasses to initialize attributes or to perform additional device setup.
         """
-        pass
 
     def _emitter_check(self):
         # Detect which emitters are available
@@ -287,7 +327,7 @@ class Device(metaclass=DeviceMeta):
         soft_reset = not isinstance(self._board.serial, WebreplToSerial)
         self._board.enter_raw_repl(soft_reset=soft_reset)
 
-    def _exec_snippet(self, *names: str) -> BelayReturn:
+    def _exec_snippet(self, *names: str, **kwargs) -> BelayReturn:
         """Load and execute a snippet from the snippets sub-package.
 
         Parameters
@@ -296,7 +336,7 @@ class Device(metaclass=DeviceMeta):
             Snippet(s) to load and execute.
         """
         snippets = [read_snippet(name) for name in names]
-        return self("\n".join(snippets))
+        return self("\n".join(snippets), **kwargs)
 
     def __call__(
         self,
@@ -308,6 +348,8 @@ class Device(metaclass=DeviceMeta):
         trusted: bool = False,
         proxy: bool = False,
         delete: Optional[bool] = None,
+        with_timing: Optional[bool] = None,
+        return_time: bool = False,
     ):
         """Execute code on-device.
 
@@ -384,6 +426,37 @@ class Device(metaclass=DeviceMeta):
 
                 # Explicitly control
                 keep = device("my_data", proxy=True, delete=False)
+        with_timing: Optional[bool]
+            Control whether to include device timestamps in responses.
+
+            When ``True``: Adds negligible overhead (<10us) but enables
+            time synchronization tracking.
+
+            When ``False``: Slightly faster but provides no timing information.
+
+            When ``None`` (default): Inherits from ``self.auto_sync_time``. If time
+            synchronization is enabled for the device, timing will be included;
+            otherwise it won't be.
+
+            Defaults to ``None``.
+        return_time: bool
+            When ``True``, return a tuple of ``(result, host_datetime)`` where
+            ``host_datetime`` is a :class:`datetime.datetime` object representing
+            the estimated midpoint time when the expression was evaluated on the
+            device, converted to host time.
+
+            The timestamp is captured by measuring device time immediately before
+            and after the expression evaluation, then averaging them. This provides
+            a good estimate of when the actual computation occurred.
+
+            This is useful for timestamping sensor readings or other data that
+            needs accurate timing information.
+
+            Requires time synchronization to be available. If time sync data is
+            not available (e.g., ``auto_sync_time=False`` and no manual sync),
+            a :exc:`ValueError` will be raised.
+
+            Defaults to ``False``.
 
         Returns
         -------
@@ -437,6 +510,9 @@ class Device(metaclass=DeviceMeta):
 
         is_expression = isexpression(cmd)
         imported_names = import_names(cmd)
+
+        use_timing = with_timing if with_timing is not None else self.auto_sync_time
+
         if delete is None:
             if imported_names:
                 delete = False
@@ -447,17 +523,22 @@ class Device(metaclass=DeviceMeta):
             if proxy:
                 cmd = f"__belay_obj_create({cmd})"
             else:
-                cmd = f'print("_BELAYR|"+repr({cmd}))'
+                if use_timing:
+                    # Use dual-timestamp helper for accurate timing
+                    cmd = f'print("_BELAYR|"+__belay_timed_repr({cmd}))'
+                else:
+                    # No timing (used before __belay_monotonic is loaded)
+                    cmd = f'print("_BELAYR||"+repr({cmd}))'
 
         if record and self.attempts and len(self._cmd_history) < self.MAX_CMD_HISTORY_LEN:
             self._cmd_history.append(cmd)
 
-        id_, result = NO_RESULT, NO_RESULT
+        id_, result, device_time = NO_RESULT, NO_RESULT, None
         data_consumer_buffer = bytearray()
 
         def data_consumer(data):
             """Handle input data stream immediately."""
-            nonlocal id_, result
+            nonlocal id_, result, device_time
             data = data.replace(b"\x04", b"")
             if not data:
                 return
@@ -468,13 +549,15 @@ class Device(metaclass=DeviceMeta):
                 data_consumer_buffer[:] = data_consumer_buffer[i:]
                 try:
                     if trusted:
-                        id_, result = parse_belay_response(line, result_parser=eval)
+                        id_, result, device_time = parse_belay_response(line, result_parser=eval)
                     else:
-                        id_, result = parse_belay_response(line)
+                        id_, result, device_time = parse_belay_response(line)
                 except NotBelayResponseError:
                     if stream_out:
                         stream_out.write(line)
 
+        # Capture timing for time offset calculation
+        t1 = time.time()
         try:
             self._board.exec(cmd, data_consumer=data_consumer)
         except (SerialException, ConnectionResetError) as e:
@@ -484,6 +567,13 @@ class Device(metaclass=DeviceMeta):
                 self._board.exec(cmd, data_consumer=data_consumer)
             else:
                 raise ConnectionLost from e
+        finally:
+            t3 = time.time()
+
+        # Update time offset if device timestamp was received
+        if device_time is not None:
+            host_time_mid = (t1 + t3) / 2
+            self._time_sync.update_offset(device_time, host_time_mid)
 
         if id_ is not NO_RESULT:
             result = ProxyObject(self, f"__belay_obj_{id_}", delete=delete)
@@ -503,6 +593,17 @@ class Device(metaclass=DeviceMeta):
         else:
             # Typical AST-parsed result.
             pass
+
+        if return_time:
+            if device_time is None:
+                raise ValueError(
+                    "return_time=True requires time synchronization. "
+                    "Ensure auto_sync_time=True (default) or call sync_time() first."
+                )
+            # Convert device_time_ms to host datetime
+            host_time_sec = device_time / 1000.0 - self.time_offset
+            host_datetime = datetime.fromtimestamp(host_time_sec)
+            return (result, host_datetime)
 
         return result
 
@@ -802,6 +903,144 @@ class Device(metaclass=DeviceMeta):
                     shutil.copytree(f, tmp_dir, dirs_exist_ok=True)
             self.sync(tmp_dir, dst=dst, **kwargs)
 
+    def sync_time(self, samples: int = 10) -> float:
+        """Synchronize time between host and device.
+
+        Measures the offset between the device's monotonic clock and the host's
+        epoch time using multiple round-trip measurements. Uses the sample with
+        minimum RTT to minimize latency uncertainty.
+
+        This is automatically called during Device initialization if ``auto_sync_time=True``
+        (the default).
+
+        Parameters
+        ----------
+        samples : int
+            Number of round-trip measurements to take. More samples improve
+            accuracy but take longer. Default: 10.
+
+        Returns
+        -------
+        float
+            The calculated time offset in seconds (device_time - host_time).
+
+        Notes
+        -----
+        Expected accuracy:
+            - USB Serial: ~10-50ms typical
+            - Network (Telnet/WebREPL): ~20-100ms typical
+            - Factors: connection type, system load, number of samples
+
+        The offset assumes symmetric network delay (time to send ≈ time to receive).
+
+        Examples
+        --------
+        >>> offset = device.sync_time()  # Perform synchronization
+        >>> device.sync_time(samples=20)  # More samples for better accuracy
+        """
+        # Time helper snippet is already loaded during __init__
+        # Store sample data: (t1, device_time_ms, t3, rtt)
+        samples_data = []
+        min_rtt = float("inf")
+        stable_count = 0
+        rtt_threshold = 0.002  # 2ms - consider RTT stable if within this threshold
+
+        for i in range(samples):
+            t1 = time.time()
+            # Disable auto-timing to prevent automatic update_offset() calls
+            # We'll process the best sample at the end
+            device_time_ms = cast(int, self("__belay_monotonic()", with_timing=False))
+            t3 = time.time()
+
+            rtt = t3 - t1
+            samples_data.append((t1, device_time_ms, t3, rtt))
+
+            if rtt < min_rtt:
+                min_rtt = rtt
+                stable_count = 0  # Reset stability counter on improvement
+            elif abs(rtt - min_rtt) < rtt_threshold:
+                stable_count += 1
+                # Early termination: if we have 3 consecutive stable measurements
+                # and we've done at least 5 samples, we can stop
+                if stable_count >= 3 and i >= 4:
+                    break
+
+        # Use minimum RTT sample to establish wrap tracking reference point
+        best_sample = min(samples_data, key=lambda x: x[3])  # x[3] is rtt
+        best_t1, best_device_ms, best_t3, best_rtt = best_sample
+        best_host_mid = (best_t1 + best_t3) / 2
+
+        # Reset wrap tracking and clear old offset to ensure fresh sync
+        self._time_sync.reset()
+        self._time_sync.time_offset = None
+
+        # Establish wrap reference point using best sample
+        self._time_sync.update_offset(best_device_ms, best_host_mid)
+
+        # Calculate weighted average offset using all good samples for better accuracy
+        # "Good" samples are those within rtt_threshold of minimum RTT
+        good_samples = [
+            (t1, device_ms, t3, rtt) for t1, device_ms, t3, rtt in samples_data if rtt <= best_rtt + rtt_threshold
+        ]
+
+        if len(good_samples) > 1:
+            # Weight by inverse of RTT (lower RTT = higher weight)
+            # This is more statistically robust than using a single sample
+            total_weight = sum(1.0 / rtt for _, _, _, rtt in good_samples)
+            weighted_offset = (
+                sum((1.0 / rtt) * (device_ms / 1000.0 - (t1 + t3) / 2.0) for t1, device_ms, t3, rtt in good_samples)
+                / total_weight
+            )
+
+            # Override with weighted average for better accuracy
+            self._time_sync.time_offset = weighted_offset
+
+        return self.time_offset
+
+    @property
+    def time_offset(self) -> float:
+        """Get the current time offset between device and host.
+
+        The offset is defined as ``device_time - host_time`` in seconds.
+        When ``auto_sync_time=True`` (default), this value is automatically
+        maintained and refined with each device call that includes timing.
+
+        Time offset can be used to convert between device and host timestamps:
+
+        .. code-block:: python
+
+            host_time = device_time_sec - device.time_offset
+            device_time_sec = host_time + device.time_offset
+
+        Returns
+        -------
+        float
+            The time offset in seconds (device_time - host_time).
+            Positive values indicate device is ahead of host.
+
+        Raises
+        ------
+        ValueError
+            If time synchronization has not been performed yet.
+
+        Notes
+        -----
+        The offset handles device tick wrap-around (every ~12.4 days) and
+        automatically detects device resets. For best accuracy, call
+        ``sync_time()`` explicitly to establish initial offset using
+        weighted averaging of multiple samples.
+
+        Examples
+        --------
+        >>> device.sync_time()  # Establish accurate initial offset
+        >>> offset = device.time_offset
+        >>> print(f"Device is {offset:.3f}s ahead of host")
+        Device is 0.042s ahead of host
+        """
+        if self._time_sync is None or self._time_sync.time_offset is None:
+            raise ValueError("Time synchronization has not been performed. Call sync_time() first.")
+        return self._time_sync.time_offset
+
     def __enter__(self):
         return self
 
@@ -840,6 +1079,9 @@ class Device(metaclass=DeviceMeta):
         """
         if len(self._cmd_history) == self.MAX_CMD_HISTORY_LEN:
             raise MaxHistoryLengthError
+
+        # Reset wrap tracking - device may have rebooted
+        self._time_sync.reset()
 
         kwargs = self._board_kwargs.copy()
         kwargs["attempts"] = attempts
@@ -1011,6 +1253,15 @@ class Device(metaclass=DeviceMeta):
             When set to ``True``, any value who's ``repr`` can be evaluated to create a python object can be
             returned. However, **this also allows the remote device to execute arbitrary code on host**.
             Defaults to ``False``.
+        return_time: bool
+            When ``True``, calling the task returns a tuple of ``(result, host_datetime)`` where
+            ``host_datetime`` is a :class:`datetime.datetime` object representing the estimated
+            midpoint time when the task executed on the device, converted to host time.
+            The timestamp is captured by measuring device time before and after evaluation,
+            then averaging. For generator tasks, each yielded value becomes ``(value, host_datetime)``.
+            Requires time synchronization (``auto_sync_time=True`` or explicit ``sync_time()`` call).
+            Raises :exc:`ValueError` if timing data is unavailable.
+            Defaults to ``False``.
         """  # noqa: D400
         if f is None:
             return wraps_partial(Device.task, implementation=implementation, **kwargs)  # type: ignore[reportGeneralTypeIssues]
@@ -1086,6 +1337,7 @@ class Device(metaclass=DeviceMeta):
         cmd: str,
         record: bool = True,
         trusted: bool = False,
+        return_time: bool = False,
     ):
         """Invoke ``cmd``, and reinterprets raised stacktrace in ``PyboardException``.
 
@@ -1109,6 +1361,9 @@ class Device(metaclass=DeviceMeta):
             When set to ``True``, any value who's ``repr`` can be evaluated to create a python object can be
             returned. However, **this also allows the remote device to execute arbitrary code on host**.
             Defaults to ``False``.
+        return_time: bool
+            When ``True``, return a tuple of ``(result, host_datetime)``.
+            Defaults to ``False``.
 
         Returns
         -------
@@ -1117,7 +1372,7 @@ class Device(metaclass=DeviceMeta):
         src_file = str(src_file)
 
         try:
-            res = self(cmd, record=record, trusted=trusted)
+            res = self(cmd, record=record, trusted=trusted, return_time=return_time)
         except PyboardException as e:
             new_lines = []
 

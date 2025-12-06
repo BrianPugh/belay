@@ -13,6 +13,7 @@ Welcome to Belay's documentation!
    Proxy Objects
    CircuitPython
    Connections
+   Time Synchronization
    Package Manager
    How Belay Works
    api

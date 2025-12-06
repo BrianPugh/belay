@@ -91,6 +91,29 @@ Outputs from ``print`` calls from on-device user-code are forwarded to host ``st
 
 `For more examples, see the examples folder.`_
 
+Performance
+===========
+
+Round-trip Communication Latency
+---------------------------------
+
+Belay provides reasonable communication latency between the host computer and the MicroPython device.
+You can measure the latency of your setup using the ``belay latency`` command:
+
+.. code-block:: bash
+
+   belay latency /dev/ttyUSB0
+
+Benchmark results on an M3 MacBook Pro with an RP2040 (pi pico) device over USB:
+
+.. code-block:: text
+
+   Statistics (10000 samples):
+     Min:       3.67 ms
+     Max:      11.52 ms
+     Average:   4.19 ms
+     Median:    4.17 ms
+     Std Dev:   0.21 ms
 
 .. |GHA tests| image:: https://github.com/BrianPugh/belay/actions/workflows/tests.yaml/badge.svg?branch=main
    :target: https://github.com/BrianPugh/belay/actions?query=workflow%3Atests
