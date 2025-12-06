@@ -1,9 +1,8 @@
 Example 12: Time Synchronization
 =================================
 
-This example demonstrates Belay's time synchronization feature, which allows
-accurate timestamp conversion between the host computer and the MicroPython/CircuitPython
-device.
+This example demonstrates Belay's time synchronization feature.
+Also demonstrates using ``return_time=True`` with tasks.
 
 Do You Actually Need Time Synchronization?
 -------------------------------------------
@@ -38,6 +37,23 @@ Use the ``belay latency`` command to measure your device/connection round-trip t
 
 If the latency is acceptable for your application (e.g., > 5ms), host-side
 timestamps are the simpler choice.
+
+The return_time Parameter
+-------------------------
+
+The simplest way to get timestamps for task results is using ``return_time=True``:
+
+.. code-block:: python
+
+   @device.task(return_time=True)
+   def read_sensor():
+       return sensor.read()
+
+
+   # Returns (value, datetime) tuple automatically
+   value, timestamp = read_sensor()
+
+This also works with generator tasks - each yielded value becomes a ``(value, datetime)`` tuple.
 
 Running This Example
 --------------------

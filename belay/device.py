@@ -8,6 +8,7 @@ import re
 import shutil
 import sys
 import time
+from datetime import datetime
 from inspect import signature
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -348,6 +349,7 @@ class Device(metaclass=DeviceMeta):
         proxy: bool = False,
         delete: Optional[bool] = None,
         with_timing: Optional[bool] = None,
+        return_time: bool = False,
     ):
         """Execute code on-device.
 
@@ -437,6 +439,24 @@ class Device(metaclass=DeviceMeta):
             otherwise it won't be.
 
             Defaults to ``None``.
+        return_time: bool
+            When ``True``, return a tuple of ``(result, host_datetime)`` where
+            ``host_datetime`` is a :class:`datetime.datetime` object representing
+            the estimated midpoint time when the expression was evaluated on the
+            device, converted to host time.
+
+            The timestamp is captured by measuring device time immediately before
+            and after the expression evaluation, then averaging them. This provides
+            a good estimate of when the actual computation occurred.
+
+            This is useful for timestamping sensor readings or other data that
+            needs accurate timing information.
+
+            Requires time synchronization to be available. If time sync data is
+            not available (e.g., ``auto_sync_time=False`` and no manual sync),
+            a :exc:`ValueError` will be raised.
+
+            Defaults to ``False``.
 
         Returns
         -------
@@ -573,6 +593,17 @@ class Device(metaclass=DeviceMeta):
         else:
             # Typical AST-parsed result.
             pass
+
+        if return_time:
+            if device_time is None:
+                raise ValueError(
+                    "return_time=True requires time synchronization. "
+                    "Ensure auto_sync_time=True (default) or call sync_time() first."
+                )
+            # Convert device_time_ms to host datetime
+            host_time_sec = device_time / 1000.0 - self.time_offset
+            host_datetime = datetime.fromtimestamp(host_time_sec)
+            return (result, host_datetime)
 
         return result
 
@@ -1222,6 +1253,15 @@ class Device(metaclass=DeviceMeta):
             When set to ``True``, any value who's ``repr`` can be evaluated to create a python object can be
             returned. However, **this also allows the remote device to execute arbitrary code on host**.
             Defaults to ``False``.
+        return_time: bool
+            When ``True``, calling the task returns a tuple of ``(result, host_datetime)`` where
+            ``host_datetime`` is a :class:`datetime.datetime` object representing the estimated
+            midpoint time when the task executed on the device, converted to host time.
+            The timestamp is captured by measuring device time before and after evaluation,
+            then averaging. For generator tasks, each yielded value becomes ``(value, host_datetime)``.
+            Requires time synchronization (``auto_sync_time=True`` or explicit ``sync_time()`` call).
+            Raises :exc:`ValueError` if timing data is unavailable.
+            Defaults to ``False``.
         """  # noqa: D400
         if f is None:
             return wraps_partial(Device.task, implementation=implementation, **kwargs)  # type: ignore[reportGeneralTypeIssues]
@@ -1297,6 +1337,7 @@ class Device(metaclass=DeviceMeta):
         cmd: str,
         record: bool = True,
         trusted: bool = False,
+        return_time: bool = False,
     ):
         """Invoke ``cmd``, and reinterprets raised stacktrace in ``PyboardException``.
 
@@ -1320,6 +1361,9 @@ class Device(metaclass=DeviceMeta):
             When set to ``True``, any value who's ``repr`` can be evaluated to create a python object can be
             returned. However, **this also allows the remote device to execute arbitrary code on host**.
             Defaults to ``False``.
+        return_time: bool
+            When ``True``, return a tuple of ``(result, host_datetime)``.
+            Defaults to ``False``.
 
         Returns
         -------
@@ -1328,7 +1372,7 @@ class Device(metaclass=DeviceMeta):
         src_file = str(src_file)
 
         try:
-            res = self(cmd, record=record, trusted=trusted)
+            res = self(cmd, record=record, trusted=trusted, return_time=return_time)
         except PyboardException as e:
             new_lines = []
 

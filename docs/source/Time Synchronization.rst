@@ -66,6 +66,53 @@ This offset is stored and used to convert device timestamps to host time:
    host_time = (device_time_ms / 1000.0) - device.time_offset
    print(f"Device event occurred at: {time.ctime(host_time)}")
 
+Using return_time with Tasks
+----------------------------
+
+The simplest way to get accurate timestamps for task results is using the ``return_time`` parameter on ``@device.task``:
+
+.. code-block:: python
+
+   import belay
+
+   device = belay.Device("/dev/ttyUSB0")
+
+
+   @device.task(return_time=True)
+   def read_sensor():
+       return sensor.read()
+
+
+   # Returns (value, datetime) tuple
+   value, timestamp = read_sensor()
+   print(f"Sensor reading: {value} at {timestamp}")
+
+When ``return_time=True``, the task returns a tuple of ``(result, datetime.datetime)`` where the datetime represents the **estimated midpoint time** when the task executed on the device, converted to host time.
+
+The timestamp is captured by measuring **device time** immediately before and after evaluating the expression, then averaging the two. This device-time is then converted to host-time using the time-offset-synchronization. This provides a good estimate of when the actual computation occurred, accounting for any time spent in the operation itself.
+
+This also works with generator tasks - each yielded value becomes a ``(value, datetime)`` tuple:
+
+.. code-block:: python
+
+   @device.task(return_time=True)
+   def stream_readings(count):
+       for _ in range(count):
+           yield sensor.read()
+
+
+   for value, timestamp in stream_readings(10):
+       print(f"{timestamp}: {value}")
+
+You can also use ``return_time`` directly with ``device()`` calls:
+
+.. code-block:: python
+
+   # Get a value with its timestamp
+   result, timestamp = device("sensor.read()", return_time=True)
+
+If time synchronization is not available (e.g., ``auto_sync_time=False`` and no manual ``sync_time()`` call), using ``return_time=True`` will raise a ``ValueError``.
+
 Enabling and Disabling
 ----------------------
 

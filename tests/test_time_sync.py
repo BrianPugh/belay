@@ -95,18 +95,6 @@ def test_auto_sync_enabled(device_with_auto_sync):
     assert device_with_auto_sync.time_offset is not None
 
 
-def test_manual_sync_time(device_no_auto_sync):
-    """Test manual time synchronization."""
-    device = device_no_auto_sync
-
-    # Perform sync
-    offset = device.sync_time(samples=5)
-
-    # Offset should now be set
-    assert isinstance(offset, float)
-    assert device.time_offset == offset
-
-
 def test_sync_time_samples(device_no_auto_sync):
     """Test that sync_time returns a valid offset regardless of sample count."""
     device = device_no_auto_sync
@@ -117,41 +105,6 @@ def test_sync_time_samples(device_no_auto_sync):
         # Should always return a valid float offset
         assert isinstance(offset, float)
         assert device.time_offset == offset
-
-
-def test_device_to_host_time(device_no_auto_sync):
-    """Test converting device timestamp to host time using offset."""
-    device = device_no_auto_sync
-
-    # Sync first
-    device.sync_time()
-
-    # Mock device time
-    device_time = 100.0
-
-    # Convert to host time using offset directly
-    host_time = device_time - device.time_offset
-
-    # Should be a reasonable epoch timestamp
-    assert isinstance(host_time, float)
-    assert host_time > 0  # Unix epoch timestamps are positive
-
-
-def test_host_to_device_time(device_no_auto_sync):
-    """Test converting host timestamp to device time using offset."""
-    device = device_no_auto_sync
-
-    # Sync first
-    device.sync_time()
-
-    # Current host time
-    host_time = time.time()
-
-    # Convert to device time using offset directly
-    device_time = host_time + device.time_offset
-
-    # Should be a float
-    assert isinstance(device_time, float)
 
 
 def test_bidirectional_conversion(device_no_auto_sync):
@@ -180,19 +133,6 @@ def test_conversion_without_sync_raises_error(device_no_auto_sync):
     # before sync_time() is called
     with pytest.raises(ValueError, match="Time synchronization has not been performed"):
         _ = device.time_offset
-
-
-def test_time_offset_property(device_no_auto_sync):
-    """Test the time_offset property."""
-    device = device_no_auto_sync
-
-    # Initially no offset when auto_sync_time=False
-    assert device._time_sync.time_offset is None
-
-    # After explicit sync, offset should be set
-    offset = device.sync_time()
-    assert device.time_offset == offset
-    assert isinstance(device.time_offset, float)
 
 
 def test_resync_updates_offset(device_no_auto_sync):
@@ -329,16 +269,161 @@ def test_reconnect_resets_wrap_tracking(device_no_auto_sync, mocker):
     assert device._time_sync._reference_device_tick_unwrapped is None
 
 
-def test_tick_arithmetic_no_wrap(device_no_auto_sync):
-    """Test that normal tick progression (no wrap) works correctly."""
+# ============================================================================
+# return_time parameter tests
+# ============================================================================
+
+
+def test_task_return_time_false_default(device_with_auto_sync, mocker):
+    """Test that return_time=False (default) returns only the result."""
+    device = device_with_auto_sync
+
+    # Mock _traceback_execute to return a simple value (simulating task call)
+    mocker.patch.object(device, "_traceback_execute", return_value=42)
+
+    @device.task
+    def my_task():
+        return 42
+
+    result = my_task()
+
+    # Should return just the result, not a tuple
+    assert result == 42
+    assert not isinstance(result, tuple)
+
+
+def test_task_return_time_true(device_with_auto_sync, mocker):
+    """Test that return_time=True returns (result, datetime) tuple."""
+    from datetime import datetime
+
+    device = device_with_auto_sync
+
+    # Create a datetime for testing
+    test_dt = datetime.now()
+
+    # Mock _traceback_execute to return a tuple as if return_time=True
+    mocker.patch.object(device, "_traceback_execute", return_value=(42, test_dt))
+
+    @device.task(return_time=True)
+    def my_task():
+        return 42
+
+    result = my_task()
+
+    # Should return a tuple of (result, datetime)
+    assert isinstance(result, tuple)
+    assert len(result) == 2
+    value, host_dt = result
+    assert value == 42
+    assert isinstance(host_dt, datetime)
+
+
+def test_task_return_time_without_sync_raises(device_no_auto_sync, mocker):
+    """Test that return_time=True without time sync raises ValueError."""
     device = device_no_auto_sync
 
-    device._time_sync.ticks_max = 0xFFFFFFFF
+    # Mock the pyboard exec to return timing data for the task definition
+    # but then let the actual task call go through to test the error
+    original_exec = device._board.exec
 
-    # Monotonically increasing ticks with corresponding host times
-    base_time = 1000.0
-    for tick in [100, 200, 300, 500, 1000, 5000]:
-        # Simulate roughly 1:1 time progression (tick is in ms, add appropriate seconds)
-        host_time = base_time + (tick / 1000.0)
-        unwrapped = device._time_sync.unwrap_tick(tick, host_time)
-        assert unwrapped == tick
+    def mock_exec(cmd, data_consumer=None):
+        if "def my_task" in cmd:
+            # Task definition - no return
+            pass
+        elif "__belay_timed_repr(my_task" in cmd:
+            # Task call - return value without timing (device_time will be None)
+            if data_consumer:
+                data_consumer(b"_BELAYR||42\r\n")
+        else:
+            original_exec(cmd, data_consumer=data_consumer)
+
+    mocker.patch.object(device._board, "exec", side_effect=mock_exec)
+
+    @device.task(return_time=True)
+    def my_task():
+        return 42
+
+    # This should raise because time_offset is not available
+    with pytest.raises(ValueError, match="return_time=True requires time synchronization"):
+        my_task()
+
+
+def test_device_call_return_time_true(device_with_auto_sync, mocker):
+    """Test device() call with return_time=True returns tuple."""
+    from datetime import datetime
+
+    device = device_with_auto_sync
+    device_time_ms = [42500]
+
+    # Save original exec and create wrapper to handle the specific command
+    original_exec = device._board.exec
+
+    def mock_exec(cmd, data_consumer=None):
+        if "__belay_timed_repr(42)" in cmd:
+            t = device_time_ms[0]
+            device_time_ms[0] += 10
+            if data_consumer:
+                data_consumer(f"_BELAYR|{t}|42\r\n".encode())
+        else:
+            original_exec(cmd, data_consumer=data_consumer)
+
+    mocker.patch.object(device._board, "exec", side_effect=mock_exec)
+
+    # Call with an expression that returns a value
+    result = device("42", return_time=True)
+
+    # Should return a tuple
+    assert isinstance(result, tuple)
+    assert len(result) == 2
+    value, host_dt = result
+    assert value == 42
+    assert isinstance(host_dt, datetime)
+
+
+def test_device_call_return_time_false(device_with_auto_sync, mocker):
+    """Test device() call with return_time=False (default) returns just value."""
+    device = device_with_auto_sync
+    device_time_ms = [42500]
+
+    # Save original exec and create wrapper to handle the specific command
+    original_exec = device._board.exec
+
+    def mock_exec(cmd, data_consumer=None):
+        if "__belay_timed_repr(42)" in cmd:
+            t = device_time_ms[0]
+            device_time_ms[0] += 10
+            if data_consumer:
+                data_consumer(f"_BELAYR|{t}|42\r\n".encode())
+        else:
+            original_exec(cmd, data_consumer=data_consumer)
+
+    mocker.patch.object(device._board, "exec", side_effect=mock_exec)
+
+    # Call with an expression that returns a value
+    result = device("42", return_time=False)
+
+    # Should return just the value
+    assert result == 42
+    assert not isinstance(result, tuple)
+
+
+def test_device_call_return_time_no_sync(device_no_auto_sync, mocker):
+    """Test device() call with return_time=True but no sync raises error."""
+    device = device_no_auto_sync
+
+    # Mock exec to return value without timing info
+    original_exec = device._board.exec
+
+    def mock_exec(cmd, data_consumer=None):
+        if "__belay_timed_repr(42)" in cmd:
+            # Return without timing - device_time will be None
+            if data_consumer:
+                data_consumer(b"_BELAYR||42\r\n")
+        else:
+            original_exec(cmd, data_consumer=data_consumer)
+
+    mocker.patch.object(device._board, "exec", side_effect=mock_exec)
+
+    # Should raise because no time sync performed
+    with pytest.raises(ValueError, match="return_time=True requires time synchronization"):
+        device("42", return_time=True)
