@@ -39,7 +39,6 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           echo 'ACTIVATE_PYTHON_VENV=.venv/scripts/activate' >> $GITHUB_ENV
-          echo 'BELAY_SHORT_INTEGRATION_TEST=true' >> $GITHUB_ENV
 
       - name: Set OS Environment Variables (not Windows)
         if: runner.os != 'Windows'
@@ -110,6 +109,30 @@ jobs:
         run: |
           curl https://downloads.circuitpython.org/bin/raspberry_pi_pico/en_US/adafruit-circuitpython-raspberry_pi_pico-en_US-8.0.0.uf2 -o rp2040js/circuitpython-v8.0.0.uf2
 
+      - name: Cache Pi Pico MicroPython 1.24.1 firmware
+        id: cached-pi-pico-micropython-1-24-1-firmware
+        uses: actions/cache@v4
+        with:
+          path: rp2040js/micropython-v1.24.1.uf2
+          key: pi-pico-rp2040js/micropython-v1.24.1.uf2
+
+      - name: Download Pi Pico MicroPython 1.24.1 firmware
+        if: steps.cached-pi-pico-micropython-1-24-1-firmware.outputs.cache-hit != 'true'
+        run: |
+          curl https://micropython.org/resources/firmware/RPI_PICO-20241129-v1.24.1.uf2 -o rp2040js/micropython-v1.24.1.uf2
+
+      - name: Cache Pi Pico CircuitPython 9.2.0 firmware
+        id: cached-pi-pico-circuitpython-9-2-0-firmware
+        uses: actions/cache@v4
+        with:
+          path: rp2040js/circuitpython-v9.2.0.uf2
+          key: pi-pico-rp2040js/circuitpython-v9.2.0.uf2
+
+      - name: Download Pi Pico CircuitPython 9.2.0 firmware
+        if: steps.cached-pi-pico-circuitpython-9-2-0-firmware.outputs.cache-hit != 'true'
+        run: |
+          curl https://downloads.circuitpython.org/bin/raspberry_pi_pico/en_US/adafruit-circuitpython-raspberry_pi_pico-en_US-9.2.0.uf2 -o rp2040js/circuitpython-v9.2.0.uf2
+
       - name: Cache Node Modules
         id: cached-npm
         uses: actions/cache@v4
@@ -155,7 +178,7 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           source ${{ env.ACTIVATE_PYTHON_VENV }}
-          python -m pytest --cov=belay --cov-report=term --cov-report=xml --cov-config=.coveragerc --junitxml=testresults.xml --network tests tests/integration -s
+          python -m pytest --cov=belay --cov-report=term --cov-report=xml --cov-config=.coveragerc --junitxml=testresults.xml --network --long-integration tests tests/integration -s
           coverage report
 
       - name: Upload coverage to Codecov
