@@ -9,6 +9,17 @@ from belay import Device, DeviceMeta
 from belay.cli.questionary_ext import select_table
 from belay.usb_specifier import list_devices
 
+# These must all be UPPERCASE
+ALLOWED_PIN_NAMES = {
+    "LED",
+    "LED_RED",
+    "LED_GREEN",
+    "LED_BLUE",
+    "RGB_LED_RED",
+    "RGB_LED_GREEN",
+    "RGB_LED_BLUE",
+}
+
 
 async def blink_loop(device):
     while True:
@@ -28,15 +39,15 @@ async def blink_until_prompt(device):
 
 class CircuitPythonBlinker(metaclass=DeviceMeta):
     @Device.setup(implementation="circuitpython")
-    def setup(pin: str, is_neopixel) -> None:
+    def setup(pin, is_neopixel) -> None:
         import board
         import digitalio
 
         if is_neopixel:
             from neopixel_write import neopixel_write
 
-        pin_name = "GP"
-        pin_name = "LED" if pin.upper() == "LED" else f"GP{pin}"
+        # Named pins (str) are used directly, numeric pins (int) need GP prefix
+        pin_name = pin if isinstance(pin, str) else f"GP{pin}"
 
         led_io = digitalio.DigitalInOut(getattr(board, pin_name))
         led_io.direction = digitalio.Direction.OUTPUT
@@ -62,8 +73,7 @@ class MicroPythonBlinker(metaclass=DeviceMeta):
     def setup(pin, is_neopixel) -> None:
         from machine import Pin
 
-        led_io = Pin(int(pin), Pin.OUT)
-
+        led_io = Pin(pin, Pin.OUT)
         if is_neopixel:
             from neopixel import NeoPixel
 
@@ -130,24 +140,28 @@ def select():
     with Blinker(spec) as device:
         questionary.print(str(device.implementation), style=style)
 
-        def validate_led_pin_number(response):
+        def validate_led_pin(response):
             if not response:
                 return True
+            # Accept integers (numeric GPIO pins)
+            if response.isdigit():
+                return True
+            # Accept known pin names (case-insensitive)
+            return response.upper() in ALLOWED_PIN_NAMES
 
-            try:
-                int(response)
-            except ValueError:
-                return False
-            return True
-
-        pin_number = questionary.text(
-            "Blink LED Pin Number [skip]?",
-            validate=validate_led_pin_number,
+        pin = questionary.text(
+            "Blink LED Pin (number or 'LED') [skip]?",
+            validate=validate_led_pin,
         ).ask()
 
-        if pin_number:
+        if pin:
+            # Convert to int for numeric pins, uppercase for named pins
+            if pin.isdigit():
+                pin = int(pin)
+            else:
+                pin = pin.upper()
             is_neopixel = questionary.confirm("Is this a NeoPixel?", default=False).ask()
-            device.setup(pin_number, is_neopixel)
+            device.setup(pin, is_neopixel)
 
             asyncio.run(blink_until_prompt(device))
 
