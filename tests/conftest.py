@@ -1,7 +1,6 @@
 import os
 import shutil
 from contextlib import suppress
-from functools import partial
 from pathlib import Path
 
 import pytest
@@ -9,7 +8,6 @@ import pytest
 import belay
 import belay.cli.common
 import belay.project
-from belay.utils import env_parse_bool
 
 
 def run_cli(app, args):
@@ -78,26 +76,36 @@ def mock_device(mocker):
     return MockDevice(mocker)
 
 
-@pytest.fixture(
-    params=(
-        [
-            "micropython-v1.17.uf2",
-        ]
-        if env_parse_bool("BELAY_SHORT_INTEGRATION_TEST")
-        else [
-            "micropython-v1.17.uf2",
-            "circuitpython-v7.3.3.uf2",
-            "circuitpython-v8.0.0.uf2",
-        ]
-    )
-)
+ALL_FIRMWARES = [
+    "micropython-v1.17.uf2",
+    "micropython-v1.24.1.uf2",
+    "circuitpython-v7.3.3.uf2",
+    "circuitpython-v8.0.0.uf2",
+    "circuitpython-v9.2.0.uf2",
+]
+SHORT_FIRMWARES = [
+    "micropython-v1.17.uf2",
+]
+
+
+@pytest.fixture
 def emulate_command(request):
-    firmware_file = Path("rp2040js") / request.param
+    firmware = request.param
+    firmware_file = Path("rp2040js") / firmware
     if not firmware_file.exists():
         pytest.fail(
             f"Firmware file not found: {firmware_file}. Run 'make download-firmware' to download required files."
         )
-    return f"exec:npm run --prefix rp2040js start:micropython -- --image={request.param}"
+    return f"exec:npm run --prefix rp2040js start:micropython -- --image={firmware}"
+
+
+def pytest_generate_tests(metafunc):
+    if "emulate_command" in metafunc.fixturenames:
+        if metafunc.config.getoption("--long-integration"):
+            firmwares = ALL_FIRMWARES
+        else:
+            firmwares = SHORT_FIRMWARES
+        metafunc.parametrize("emulate_command", firmwares, indirect=True)
 
 
 @pytest.fixture
@@ -133,6 +141,11 @@ def pytest_addoption(parser):
         "--network",
         action="store_true",
         help="Include tests that interact with network (marked with marker @network)",
+    )
+    parser.addoption(
+        "--long-integration",
+        action="store_true",
+        help="Run integration tests with all firmwares instead of just micropython-v1.17.",
     )
 
 
