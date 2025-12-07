@@ -39,14 +39,15 @@ async def blink_until_prompt(device):
 
 class CircuitPythonBlinker(metaclass=DeviceMeta):
     @Device.setup(implementation="circuitpython")
-    def setup(pin: str, is_neopixel) -> None:
+    def setup(pin, is_neopixel) -> None:
         import board
         import digitalio
 
         if is_neopixel:
             from neopixel_write import neopixel_write
 
-        pin_name = "LED" if pin.upper() == "LED" else f"GP{pin}"
+        # Named pins (str) are used directly, numeric pins (int) need GP prefix
+        pin_name = pin if isinstance(pin, str) else f"GP{pin}"
 
         led_io = digitalio.DigitalInOut(getattr(board, pin_name))
         led_io.direction = digitalio.Direction.OUTPUT
