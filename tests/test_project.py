@@ -1,6 +1,3 @@
-import os
-
-import pydantic
 import pytest
 from pydantic import ValidationError
 
@@ -25,10 +22,10 @@ def test_load_toml_standard(toml_file_standard):
     assert actual == {"name": "bar"}
 
 
-def test_find_pyproject_parents(tmp_path, toml_file_standard):
-    fn = tmp_path / "folder1" / "folder2" / "folder3" / "pyproject.toml"
+def test_find_pyproject_parents(tmp_cwd, toml_file_standard, monkeypatch):
+    fn = tmp_cwd / "folder1" / "folder2" / "folder3" / "pyproject.toml"
     fn.parent.mkdir(exist_ok=True, parents=True)
-    os.chdir(fn.parent)
+    monkeypatch.chdir(fn.parent)
 
     actual = find_pyproject()
     assert actual == toml_file_standard
