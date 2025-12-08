@@ -13,6 +13,13 @@ BELAY_DEPENDENCIES_PATH = ".belay/dependencies/main"
 def new(path: str = "."):
     """Create a new micropython project structure.
 
+    If ``pyproject.toml`` already exists, adds the following sections:
+
+    - ``[tool.belay]`` with project name derived from directory name.
+    - ``[tool.belay.dependencies]`` for specifying micropython dependencies.
+    - ``[tool.pytest.ini_options]`` with ``pythonpath`` including
+      ``.belay/dependencies/main`` for test imports.
+
     Parameters
     ----------
     path : str
