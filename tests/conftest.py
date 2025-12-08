@@ -1,4 +1,3 @@
-import os
 import shutil
 from contextlib import suppress
 from pathlib import Path
@@ -64,11 +63,11 @@ def cache_clear():
     belay.project.load_groups.cache_clear()
 
 
-@pytest.fixture(autouse=True)
-def restore_cwd():
-    cwd = Path.cwd()
-    yield
-    os.chdir(cwd)
+@pytest.fixture
+def tmp_cwd(tmp_path, monkeypatch):
+    """Change to a temporary directory for the duration of the test."""
+    monkeypatch.chdir(tmp_path)
+    return tmp_path
 
 
 @pytest.fixture
