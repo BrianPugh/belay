@@ -1,5 +1,5 @@
+import functools
 import platform
-from functools import lru_cache
 from pathlib import Path
 from typing import Union
 
@@ -8,7 +8,35 @@ import tomli
 from belay.packagemanager import BelayConfig, Group
 
 
-@lru_cache
+class ProjectCache:
+    """Decorator that caches functions and supports bulk cache clearing.
+
+    Use this instead of ``@lru_cache`` for project config functions
+    that need to be invalidated when pyproject.toml changes.
+    """
+
+    def __init__(self):
+        self._cached_functions: list = []
+
+    def __call__(self, func=None):
+        """Decorate a function with LRU caching and register it."""
+        if func is None:  # Called as @project_cache()
+            return self
+        # Called as @project_cache
+        cached_func = functools.lru_cache(func)
+        self._cached_functions.append(cached_func)
+        return cached_func
+
+    def clear(self):
+        """Clear all registered caches."""
+        for func in self._cached_functions:
+            func.cache_clear()
+
+
+project_cache = ProjectCache()
+
+
+@project_cache
 def find_pyproject() -> Path:
     path = Path("pyproject.toml").absolute()
 
@@ -21,23 +49,23 @@ def find_pyproject() -> Path:
     )
 
 
-@lru_cache
+@project_cache
 def find_project_folder() -> Path:
     return find_pyproject().parent
 
 
-@lru_cache
+@project_cache
 def find_belay_folder() -> Path:
     return find_project_folder() / ".belay"
 
 
-@lru_cache
+@project_cache
 def find_dependencies_folder() -> Path:
     config = load_pyproject()
     return find_project_folder() / config.dependencies_path
 
 
-@lru_cache
+@project_cache
 def find_cache_folder() -> Path:
     system = platform.system()
     cache_folder = Path.home()
@@ -52,12 +80,12 @@ def find_cache_folder() -> Path:
     return cache_folder.absolute()
 
 
-@lru_cache
+@project_cache
 def find_cache_dependencies_folder() -> Path:
     return find_cache_folder() / "dependencies"
 
 
-@lru_cache
+@project_cache
 def load_toml(path: Union[str, Path]) -> dict:
     path = Path(path)
     with path.open("rb") as f:
@@ -71,7 +99,7 @@ def load_toml(path: Union[str, Path]) -> dict:
     return toml
 
 
-@lru_cache
+@project_cache
 def load_pyproject() -> BelayConfig:
     """Load the pyproject TOML file."""
     pyproject_path = find_pyproject()
@@ -79,7 +107,7 @@ def load_pyproject() -> BelayConfig:
     return BelayConfig(**belay_data)
 
 
-@lru_cache
+@project_cache
 def load_groups() -> list[Group]:
     config = load_pyproject()
     groups = [Group("main", dependencies=config.dependencies)]
