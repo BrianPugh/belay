@@ -1,5 +1,3 @@
-import os
-
 import pytest
 
 from belay.cli.clean import clean
@@ -7,20 +5,18 @@ from belay.packagemanager import Group
 
 
 @pytest.fixture
-def project_folder(tmp_path):
-    (tmp_path / ".belay").mkdir()
-    (tmp_path / ".belay" / "dependencies").mkdir()
-    (tmp_path / ".belay" / "dependencies" / "dev").mkdir()
-    (tmp_path / ".belay" / "dependencies" / "dev" / "bar").touch()
-    (tmp_path / ".belay" / "dependencies" / "dev" / "baz").touch()
-    (tmp_path / ".belay" / "dependencies" / "main").mkdir()
-    (tmp_path / ".belay" / "dependencies" / "main" / "foo").touch()
+def project_folder(tmp_cwd):
+    (tmp_cwd / ".belay").mkdir()
+    (tmp_cwd / ".belay" / "dependencies").mkdir()
+    (tmp_cwd / ".belay" / "dependencies" / "dev").mkdir()
+    (tmp_cwd / ".belay" / "dependencies" / "dev" / "bar").touch()
+    (tmp_cwd / ".belay" / "dependencies" / "dev" / "baz").touch()
+    (tmp_cwd / ".belay" / "dependencies" / "main").mkdir()
+    (tmp_cwd / ".belay" / "dependencies" / "main" / "foo").touch()
 
-    (tmp_path / "pyproject.toml").touch()
+    (tmp_cwd / "pyproject.toml").touch()
 
-    os.chdir(tmp_path)
-
-    return tmp_path
+    return tmp_cwd
 
 
 def test_clean_basic(project_folder, mocker):

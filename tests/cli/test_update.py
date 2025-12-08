@@ -1,15 +1,10 @@
-import os
-
 from belay.cli.main import app
 from belay.packagemanager import Group
 from tests.conftest import run_cli
 
 
-def test_update(mocker, tmp_path):
-    os.chdir(tmp_path)
-
-    toml_path = tmp_path / "pyproject.toml"
-    toml_path.touch()
+def test_update(mocker, tmp_cwd):
+    (tmp_cwd / "pyproject.toml").touch()
 
     groups = [Group("name", dependencies={"foo": "foo.py"})]
     mock_download = mocker.patch.object(groups[0], "download")
@@ -25,11 +20,8 @@ def test_update(mocker, tmp_path):
     )
 
 
-def test_update_specific_packages(mocker, tmp_path):
-    os.chdir(tmp_path)
-
-    toml_path = tmp_path / "pyproject.toml"
-    toml_path.touch()
+def test_update_specific_packages(mocker, tmp_cwd):
+    (tmp_cwd / "pyproject.toml").touch()
 
     groups = [Group("name", dependencies={"foo": "foo.py", "bar": "bar.py", "baz": "baz.py"})]
     mock_download = mocker.patch.object(groups[0], "download")
