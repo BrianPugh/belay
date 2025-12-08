@@ -8,6 +8,7 @@ from typing import Annotated
 from cyclopts import App, Parameter
 
 import belay
+from belay.cli.add import add
 from belay.cli.cache import app as cache_app
 from belay.cli.clean import clean
 from belay.cli.exec import exec
@@ -23,6 +24,7 @@ from belay.cli.update import update
 from belay.project import load_groups
 
 app = App(version_flags=("--version", "-v"), help_format="markdown")
+app.command(add)
 app.command(cache_app, name="cache")
 app.command(clean)
 app.command(exec)

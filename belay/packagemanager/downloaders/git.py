@@ -17,6 +17,7 @@ __all__ = [
     "GitProviderUrl",
     "InvalidGitUrlError",
     "rewrite_url",
+    "split_version_suffix",
 ]
 
 logger = logging.getLogger(__name__)
@@ -24,6 +25,42 @@ logger = logging.getLogger(__name__)
 
 class InvalidGitUrlError(Exception):
     """URL is not a recognized git provider URL (GitHub, GitLab, etc.)."""
+
+
+def split_version_suffix(uri: str) -> tuple[str, Optional[str]]:
+    """Split URI into base and version suffix.
+
+    Extracts @version suffix from URIs while correctly handling HTTP URLs
+    that may contain @ in userinfo (e.g., https://user@host/path).
+
+    Parameters
+    ----------
+    uri
+        URI that may contain @version suffix.
+
+    Returns
+    -------
+    tuple[str, Optional[str]]
+        (base_uri, version) where version is None if not present.
+
+    Examples
+    --------
+    >>> split_version_suffix("aiohttp@1.0.0")
+    ('aiohttp', '1.0.0')
+    >>> split_version_suffix("github:user/repo@v1.0")
+    ('github:user/repo', 'v1.0')
+    >>> split_version_suffix("https://example.com/file.py")
+    ('https://example.com/file.py', None)
+    >>> split_version_suffix("aiohttp")
+    ('aiohttp', None)
+    """
+    # Don't split on @ for http(s) URLs (they may have @ in userinfo)
+    if uri.startswith(("http://", "https://")):
+        return uri, None
+    if "@" in uri:
+        base, version = uri.rsplit("@", 1)
+        return base, version
+    return uri, None
 
 
 @dataclass
@@ -146,6 +183,32 @@ class GitProviderUrl(Registry, suffix="Url"):
     def canonical_id(self) -> str:
         """Return canonical identifier (user/repo) for deduplication."""
         return f"{self.user}/{self.repo}".lower()
+
+    @property
+    def inferred_package_name(self) -> str:
+        """Infer a package name from this URL's path or repo.
+
+        Returns the last component of the path if present, otherwise
+        the repository name. Does not sanitize the name (caller should
+        handle conversion to valid Python identifier if needed).
+
+        Returns
+        -------
+        str
+            Inferred package name (may need sanitization).
+
+        Examples
+        --------
+        >>> url = GitProviderUrl.parse("github:user/repo/path/module.py")
+        >>> url.inferred_package_name
+        'module.py'
+        >>> url = GitProviderUrl.parse("github:user/my-repo")
+        >>> url.inferred_package_name
+        'my-repo'
+        """
+        if self.path:
+            return self.path.rstrip("/").split("/")[-1]
+        return self.repo
 
     @property
     @abstractmethod

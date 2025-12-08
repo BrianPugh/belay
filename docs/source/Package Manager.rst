@@ -185,8 +185,9 @@ This section describes all the commands available via ``belay``.
 The typical workflow is:
 
 1. ``belay new my-project`` — Create a new project (one-time setup)
-2. ``belay update`` — Download dependencies after editing ``pyproject.toml``
-3. ``belay install [PORT]`` — Sync everything to your device
+2. ``belay add DEPENDENCY`` — Add dependencies to ``pyproject.toml``
+3. ``belay update`` — Download dependencies (also called automatically by ``add``)
+4. ``belay install [PORT]`` — Sync everything to your device
 
 To get help from the command-line, add ``--help`` to any command for more information.
 
@@ -210,6 +211,80 @@ Otherwise, it creates a new project with the following structure:
    ├─ pyproject.toml
    └─ README.md
 
+
+add
+~~~
+Adds a dependency to ``pyproject.toml`` and optionally downloads it immediately.
+
+.. code-block:: bash
+
+   belay add URI
+   belay add NAME URI
+
+When only a URI is provided, the package name is automatically inferred from it.
+For example, ``belay add github:user/my-sensor`` will add a dependency named ``my_sensor``.
+
+When both a name and URI are provided, the first argument is the package name and the second is the source URI.
+This is useful when the inferred name isn't what you want.
+
+**Supported URI formats:**
+
+* **Index packages** — Plain package names from the MicroPython package index:
+
+  .. code-block:: bash
+
+     belay add aiohttp              # latest version
+     belay add aiohttp@1.0.0        # specific version
+     belay add mip:ntptime          # explicit mip prefix
+
+* **GitHub/GitLab shorthand** — Concise syntax for git repositories:
+
+  .. code-block:: bash
+
+     belay add github:user/repo
+     belay add github:user/repo@v1.0
+     belay add github:micropython/micropython-lib/python-stdlib/pathlib
+     belay add gitlab:user/repo/lib.py@main
+
+* **Full URLs** — Standard GitHub/GitLab URLs:
+
+  .. code-block:: bash
+
+     belay add https://github.com/user/repo/blob/main/sensor.py
+     belay add https://github.com/user/my-lib
+
+* **Local paths** — Files or directories on your local filesystem:
+
+  .. code-block:: bash
+
+     belay add ./local/path
+     belay add /absolute/path/to/lib.py
+
+**Options:**
+
+* ``--group`` — Add to a specific dependency group (default: ``main``):
+
+  .. code-block:: bash
+
+     belay add unittest --group dev
+
+* ``--develop`` — Mark as a develop/editable dependency (always re-downloaded during install):
+
+  .. code-block:: bash
+
+     belay add ../my-local-lib --develop
+
+* ``--no-rename-to-init`` — Don't rename single ``.py`` files to ``__init__.py``:
+
+  .. code-block:: bash
+
+     belay add github:user/repo/helper.py --no-rename-to-init
+
+* ``--no-update`` — Only add to ``pyproject.toml`` without downloading:
+
+  .. code-block:: bash
+
+     belay add aiohttp --no-update
 
 update
 ~~~~~~

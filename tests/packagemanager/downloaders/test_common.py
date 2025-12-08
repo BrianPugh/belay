@@ -8,6 +8,7 @@ from belay.packagemanager.downloaders import (
     rewrite_url,
 )
 from belay.packagemanager.downloaders.common import _download_generic
+from belay.packagemanager.downloaders.git import split_version_suffix
 
 
 @pytest.mark.parametrize(
@@ -96,6 +97,91 @@ def test_git_provider_url_parse_invalid_format_raises():
 def test_git_provider_url_canonical_id():
     parsed = GitProviderUrl.parse("github:User/Repo/path@main")
     assert parsed.canonical_id == "user/repo"
+
+
+@pytest.mark.parametrize(
+    "url,expected_name",
+    [
+        # With path - uses last path component
+        ("github:user/repo/path/module.py", "module.py"),
+        ("github:user/repo/path/module", "module"),
+        ("github:user/repo/lib.py", "lib.py"),
+        ("github:user/repo/deep/nested/path/file.mpy", "file.mpy"),
+        # Without path - uses repo name
+        ("github:user/repo", "repo"),
+        ("github:user/my-repo", "my-repo"),
+        ("gitlab:user/my_lib", "my_lib"),
+        # HTTPS URLs
+        ("https://github.com/user/repo/blob/main/sensor.py", "sensor.py"),
+        ("https://github.com/user/my-lib", "my-lib"),  # Repo root URL
+    ],
+)
+def test_git_provider_url_inferred_package_name(url, expected_name):
+    parsed = GitProviderUrl.parse(url)
+    assert parsed.inferred_package_name == expected_name
+
+
+@pytest.mark.parametrize(
+    "url,expected",
+    [
+        # GitHub repo root URLs (new functionality)
+        (
+            "https://github.com/user/repo",
+            ("github", "user", "repo", "", "HEAD"),
+        ),
+        (
+            "https://github.com/user/my-lib",
+            ("github", "user", "my-lib", "", "HEAD"),
+        ),
+        (
+            "https://github.com/user/repo.git",
+            ("github", "user", "repo", "", "HEAD"),
+        ),
+        (
+            "https://github.com/user/repo/",
+            ("github", "user", "repo", "", "HEAD"),
+        ),
+        # GitLab repo root URLs
+        (
+            "https://gitlab.com/user/repo",
+            ("gitlab", "user", "repo", "", "HEAD"),
+        ),
+        (
+            "https://gitlab.com/user/my-lib.git",
+            ("gitlab", "user", "my-lib", "", "HEAD"),
+        ),
+    ],
+)
+def test_git_provider_url_parse_repo_root(url, expected):
+    """Test that repo root URLs (without blob/tree/raw paths) are parsed correctly."""
+    result = GitProviderUrl.parse(url)
+    assert result is not None
+    assert (result.scheme, result.user, result.repo, result.path, result.branch) == expected
+
+
+@pytest.mark.parametrize(
+    "uri,expected_base,expected_version",
+    [
+        # No version suffix
+        ("aiohttp", "aiohttp", None),
+        ("mip:aiohttp", "mip:aiohttp", None),
+        ("github:user/repo", "github:user/repo", None),
+        # With version suffix
+        ("aiohttp@1.0.0", "aiohttp", "1.0.0"),
+        ("mip:aiohttp@2.0", "mip:aiohttp", "2.0"),
+        ("github:user/repo@v1.0", "github:user/repo", "v1.0"),
+        ("gitlab:org/lib@main", "gitlab:org/lib", "main"),
+        # HTTP URLs - should NOT split on @ (may be userinfo)
+        ("https://example.com/file.py", "https://example.com/file.py", None),
+        ("https://user@example.com/file.py", "https://user@example.com/file.py", None),
+        ("http://test@server/path", "http://test@server/path", None),
+    ],
+)
+def test_split_version_suffix(uri, expected_base, expected_version):
+    """Test that split_version_suffix correctly handles @version suffixes."""
+    base, version = split_version_suffix(uri)
+    assert base == expected_base
+    assert version == expected_version
 
 
 def test_git_provider_url_scheme():
