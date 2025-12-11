@@ -1,22 +1,41 @@
 Package Manager
 ===============
 
-The Belay CLI provides package manager functionality.
-At a high level, the Belay Package Manager does the following:
+The Belay CLI includes a package manager that downloads MicroPython libraries and syncs them to your device alongside your project code.
 
-1. Reads settings from ``pyproject.toml``. Dependencies are defined by URL's where they can be fetched.
-   Commonly these are files hosted on github.
-2. Downloads dependencies to the ``.belay/dependencies/`` folder. This folder should be committed to the
-   project's git repository. This allows for repeatable deployment, even if a remote dependency
-   goes missing or changes it's API.
-3. Syncs the contents of ``.belay/dependencies/`` to the on-device ``/lib`` folder. This folder is included
-   in the on-device ``PATH``.
-4. Syncs the contents of the project package directory.
+Why Use a Package Manager?
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+MicroPython and CircuitPython devices have their own filesystem where your code and libraries must be stored.
+Many MicroPython libraries lack formal versioning and packaging—they're often just Python files in a GitHub
+repository rather than published packages on an index. MicroPython's built-in mip_ tool can install
+packages, but it doesn't provide a way to record your project's dependencies in a configuration file—you
+have to remember which packages to install. It also fetches fresh copies each time, meaning your project
+could break if an upstream dependency changes or disappears.
+
+Belay's package manager solves these challenges:
+
+* **Simplified deployment** — Automatically sync your code and dependencies to the device with a single command.
+* **Reproducibility** — Downloaded dependencies are cached locally and committed to your git repository.
+  Your project will continue to work even if an upstream library changes or goes offline.
+* **Consistency** — Every team member and every deployment uses the exact same dependency versions.
+
+How It Works
+^^^^^^^^^^^^
+
+The Belay Package Manager follows this workflow:
+
+1. **Configure** — Define your dependencies in ``pyproject.toml`` (commonly from the MicroPython package index,
+   GitHub, or GitLab).
+2. **Download** — Run ``belay update`` to fetch dependencies into the ``.belay/dependencies/`` folder.
+   This folder should be committed to git—think of it as a lock file that captures exact dependency versions.
+3. **Sync** — Run ``belay install`` to transfer dependencies and your project code to the device.
 
 Configuration
 ^^^^^^^^^^^^^
-Belay's Package Manager uses ``pyproject.toml`` to define project configurations and dependencies.
-A typical project will look like:
+
+Belay's Package Manager uses ``pyproject.toml`` to define project configurations and dependencies,
+following modern Python packaging conventions. A minimal project configuration looks like:
 
 .. code-block:: toml
 
@@ -29,34 +48,85 @@ A typical project will look like:
 Belay assumes the project contains a python-package (folder) with the same name as ``tool.belay.name``.
 This directory is synced (in addition to dependencies) when ``belay install`` is ran.
 
-Dependencies
-------------
-To add python dependencies to a project, specify them in the ``tool.belay.dependencies`` section.
-This section contains a mapping of package names to URIs where they can be fetched from.
-There isn't a strong centralized micropython package repository, so Belay relies on directly specifying python file URLs.
-Belay supports several dependency values:
+Package Index Settings
+~~~~~~~~~~~~~~~~~~~~~~
+When using MicroPython index packages, Belay uses ``https://micropython.org/pi/v2`` by default.
+You can customize this behavior with the following settings:
 
-1. A string to a local file/folder path:
+.. code-block:: toml
+
+   [tool.belay]
+   # Custom package index URLs (tried in order)
+   package_indices = ["https://micropython.org/pi/v2"]
+
+   # MicroPython version for index lookups
+   # "py" for pure Python, "6" for .mpy format version 6, etc.
+   mpy_version = "py"
+
+Dependencies
+~~~~~~~~~~~~
+
+To add Python dependencies to your project, specify them in the ``tool.belay.dependencies`` section.
+Each entry maps a package name to a source location where Belay can fetch it.
+Belay supports several source types, from the official MicroPython package index to GitHub repositories and local files:
+
+1. **MicroPython package index** - Packages from the official MicroPython package index.
+   Dependencies are automatically resolved recursively:
+
+   .. code-block:: toml
+
+      # Concise syntax (recommended)
+      aiohttp = "*"           # latest version
+      ntptime = "latest"      # explicit latest
+      requests = "1.0.0"      # specific version
+
+      # Explicit syntax (also supported)
+      aiohttp = "aiohttp"
+      ntptime = "mip:ntptime"
+      requests = "requests@1.0.0"
+
+   The ``*`` wildcard or ``"latest"`` fetches the newest version. Exact versions like ``"1.0.0"``
+   are also supported. The ``mip:`` prefix and ``@version`` suffix are optional.
+
+   .. note::
+
+      Version ranges (e.g., ``"^1.0.0"``, ``">=1.0"``) are **not** supported.
+      Use ``"*"`` for latest or specify an exact version.
+
+2. **GitHub/GitLab** - Either shorthand or full URLs:
+
+   .. code-block:: toml
+
+      # Shorthand syntax
+      pathlib = "github:micropython/micropython-lib/python-stdlib/pathlib/pathlib.py"
+      mylib = "github:user/repo@v1.0"
+      mylib = "gitlab:user/repo/path/to/file.py@develop"
+
+      # Full URLs
+      pathlib = "https://github.com/micropython/micropython-lib/blob/master/python-stdlib/pathlib/pathlib.py"
+
+3. **Local file/folder path**:
 
    .. code-block:: toml
 
       pathlib = "../micropython-lib/python-stdlib/pathlib/pathlib.py"
       os = "../micropython-lib/python-stdlib/os/os"
 
-2. A github link to a single file or a folder:
-
-   .. code-block:: toml
-
-      pathlib = "https://github.com/micropython/micropython-lib/blob/master/python-stdlib/pathlib/pathlib.py"
-      os = "https://github.com/micropython/micropython-lib/tree/master/python-stdlib/os/os"
-
-3. A dictionary with a detailed specification:
+4. **Dictionary with detailed specification**:
 
    .. code-block:: toml
 
       pathlib = {uri="../micropython-lib/python-stdlib/pathlib/pathlib.py", develop=true}
 
-4. A list of any of the above if multiple files are required for a single package:
+   Available fields:
+
+   * ``uri`` - local or remote path to fetch data from. **Required**.
+
+   * ``develop`` - Dependency is in "editable" mode. The dependency source is directly used during ``belay install``.
+     Primarily used for a local dependency actively under development.
+     Defaults to ``False``.
+
+5. **List of sources** for packages requiring multiple files:
 
    .. code-block:: toml
 
@@ -67,15 +137,7 @@ Belay supports several dependency values:
 
    This is most common for packages that have optional submodules.
 
-Support for other types can be added. Please open up a github issue if Belay doesn't support a desired file source.
-
-If specifying a dependency via dictionary, the following fields are available:
-
-* ``uri`` - local or remote path to fetch data from. **Must** be provided.
-
-* ``develop`` - Dependency is in "editable" mode. The dependency source is directly used during ``belay install``.
-  Primarily used for a local dependency actively under development.
-  Defaults to ``False``.
+Support for other types can be added. Please open up a GitHub issue if Belay doesn't support a desired file source.
 
 Groups
 ~~~~~~
@@ -100,7 +162,7 @@ A dependency group can be marked as optional, meaning it won't be installed duri
    optional = true
 
 All dependency groups are available to a host micropython interpreter via ``belay run micropython``.
-See the `run`_ command section for more details.
+See the ``run`` command section below for more details.
 
 Pytest
 ~~~~~~
@@ -118,18 +180,27 @@ This will inherently produce better structured, more robust code and improve dev
 
 CLI Commands
 ^^^^^^^^^^^^
+
 This section describes all the commands available via ``belay``.
+The typical workflow is:
+
+1. ``belay new my-project`` — Create a new project (one-time setup)
+2. ``belay update`` — Download dependencies after editing ``pyproject.toml``
+3. ``belay install [PORT]`` — Sync everything to your device
+
 To get help from the command-line, add ``--help`` to any command for more information.
 
 new
----
-Creates a new directory structure suitable as a starting point for most belay projects.
+~~~
+Creates a new project structure or adds Belay configuration to an existing project.
 
 .. code-block:: bash
 
-   belay new my-project
+   belay new [PATH]
 
-The project structure is as follows:
+If ``PATH`` is omitted, defaults to the current directory. If a ``pyproject.toml`` already exists,
+Belay adds the necessary ``[tool.belay]`` and ``[tool.belay.dependencies]`` sections to it.
+Otherwise, it creates a new project with the following structure:
 
 .. code-block:: text
 
@@ -141,7 +212,7 @@ The project structure is as follows:
 
 
 update
-------
+~~~~~~
 Updates dependencies specified in  ``pyproject.toml``.
 
 .. code-block:: bash
@@ -151,9 +222,9 @@ Updates dependencies specified in  ``pyproject.toml``.
 By default, the downloaded dependencies are stored in ``.belay/dependencies/<group>/``.
 The ``.belay/`` folder **should be committed** to git and can be thought of as a dependency lock file.
 
-Belay **will not** perform any dependency solving.
-It will only download the dependencies explicitly specified in the ``pyproject.toml``.
-If a dependency itself has dependencies, they must be explicitly added to ``pyproject.toml``.
+For MicroPython index packages (plain names or ``mip:`` URIs), Belay automatically resolves and downloads
+transitive dependencies recursively. For other URI types (GitHub URLs, local paths, etc.), dependencies
+must be explicitly added to ``pyproject.toml``.
 
 By default, all dependencies are updated.
 To update only specific dependencies, list them as such:
@@ -165,7 +236,7 @@ To update only specific dependencies, list them as such:
 Previously downloaded dependencies that are no longer referenced in ``tool.belay.dependencies`` are automatically deleted.
 
 install
--------
+~~~~~~~
 Syncs the project and dependencies to device.
 
 .. code-block:: bash
@@ -201,7 +272,7 @@ To include a dependency group that has been declared optional, add the ``--with`
    belay install [PORT] --with dev
 
 run
----
+~~~
 The ``run`` command serves 2 purposes:
 
 1. Run a python script on-device.
@@ -209,7 +280,7 @@ The ``run`` command serves 2 purposes:
 2. Run a local executable in a pseudo-micropython-virtual-environment.
 
 Running a Script on Device
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+--------------------------
 When developing a script, it is often useful to edit it on-host and then execute it on-device.
 This helps circumvent issues with a flaky device filesystem.
 In the following command, ``my_script.py`` is executed on-device without explicitly writing it to the device's filesystem.
@@ -219,7 +290,7 @@ In the following command, ``my_script.py`` is executed on-device without explici
    belay run [PORT] my_script.py
 
 Virtual Environment
-~~~~~~~~~~~~~~~~~~~
+-------------------
 If the first argument after ``run`` is an executable, Belay will instead execute the remainder of the command after setting some environment variables.
 Namely, Belay will set the environment variable ``MICROPYPATH`` to all of the dependency groups' folders.
 This makes all of the dependencies accessible to a ``micropython`` binary, making it easier to test micropython code on-host.
@@ -231,7 +302,7 @@ This makes all of the dependencies accessible to a ``micropython`` binary, makin
 This is not a true virtual environment; currently the ``micropython`` binary must be externally supplied.
 
 clean
------
+~~~~~
 Removes any previously downloaded dependencies no longer specified in ``tool.belay.dependencies``.
 
 .. code-block:: bash
@@ -242,7 +313,7 @@ Removes any previously downloaded dependencies no longer specified in ``tool.bel
 so this command will usually **not** be necessary.
 
 cache
------
+~~~~~
 Belay keeps a cache of files that aid when downloading and updating dependencies.
 The location of this cache depends on the operating system:
 
@@ -253,7 +324,7 @@ The location of this cache depends on the operating system:
 * Linux: ``~/.cache/belay``
 
 info
-~~~~
+----
 Displays Belay's cache location and other metadata.
 
 .. code-block:: bash
@@ -264,7 +335,7 @@ Displays Belay's cache location and other metadata.
    Total Size: 3.84MB
 
 list
-~~~~
+----
 Lists all the items Belay is currently caching.
 
 .. code-block:: bash
@@ -273,7 +344,7 @@ Lists all the items Belay is currently caching.
    git-github-micropython-micropython-lib
 
 clear
-~~~~~
+-----
 Deletes all cached items that begin with the provided prefix
 
 .. code-block:: bash
@@ -301,7 +372,7 @@ This confirmation prompt can be bypassed by specifying the ``--yes`` flag.
    belay cache clear --all --yes
 
 terminal
---------
+~~~~~~~~
 Opens up an interactive terminal with the device.
 Press ``ctrl-]`` to exit the terminal.
 
@@ -310,7 +381,7 @@ Press ``ctrl-]`` to exit the terminal.
    belay terminal [PORT]
 
 select
-------
+~~~~~~
 Interactive menu for selecting a usb-connected micropython board.
 Helps identify and appropriate `UsbSpecifier`; particularly useful when interacting with multiple boards.
 
@@ -343,50 +414,47 @@ Example output:
 Q&A
 ^^^
 
-How does Belay's package manager compare to ``mip``?
-----------------------------------------------------
-Mip and Belay have different design goals and associated restrictions.
-Mip is designed to be ran on micropython, and is thusly restricted by available libraries.
-Belay is designed to be ran on full desktop python (e.g. cpython) to provide support to a micropython environment.
-The closest tool to Belay's Package Manager would actually be ``mpremote mip``.
-With this tool you can specify remote files via a json configuration file.
+This section answers common questions about Belay's package manager design decisions.
 
-Belay aims to provide a more robust, friendly experience by the following:
+How does Belay's package manager compare to ``mip`` and ``mpremote mip``?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-1. Use the standard ``pyproject.toml`` file for configurations and dependency specifications.
+MicroPython provides two built-in tools for package management:
 
-2. Make project robust to third-party changes by caching dependencies in-project.
-   Your project won't become non-functional due to a remote dependency gone missing.
-   Your project won't unexpectedly break due to a dependency change
-   unless ``belay update`` is ran to update dependencies.
-   Changes can be easily revertted due to git versioning.
+* **mip** — Runs directly on the MicroPython device (requires network connectivity).
+  Install packages with ``import mip; mip.install("pkgname")``.
 
-3. Options to minify or compile code prior to sending it to device.
-   This encourages more comments and docstrings.
+* **mpremote mip** — Runs on your desktop and installs packages to a connected device over USB/UART.
+  Install packages with ``mpremote mip install pkgname``.
 
-What limitations does Belay's package manager have?
----------------------------------------------------
-* Belay currently does not currently support manifest.py_, but that may
-  change in the future.
+Both tools fetch packages from the micropython-lib_ index
+or from GitHub/GitLab URLs, and both support a ``package.json`` format for defining multi-file packages with dependencies.
 
-* Dependencies are not recursively searched/solved; if a dependency
-  has it's own dependencies, you must add them yourself to your
-  ``pyproject.toml``.
+**Where Belay differs:**
+
+Belay's package manager is designed around **reproducibility** and **offline-first workflows**:
+
+1. **Local dependency caching** — Dependencies are downloaded once to ``.belay/dependencies/`` and committed to git.
+   This acts as a lock file: your project continues to work even if upstream packages change or disappear.
+   With ``mip``/``mpremote mip``, packages are fetched fresh each time, so your project could break
+   if a dependency is updated or removed.
+
+2. **Standard Python tooling** — Belay uses ``pyproject.toml`` for all configuration, following modern Python
+   packaging conventions. The MicroPython ecosystem is exploring ``pyproject.toml`` support, but it's not yet available.
+
+3. **Pre-processing options** — Belay can minify or compile (``.mpy``) code before syncing to the device,
+   reducing flash usage and improving import times while keeping your source code readable and well-documented.
+
+4. **Integrated project sync** — ``belay install`` syncs both dependencies *and* your project code in one command,
+   with smart delta transfers that only send changed files.
 
 Why should I commit ``.belay`` to my git repository?
-----------------------------------------------------
-The ``.belay/`` folder primarily contains cached micropython dependencies.
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Cached dependencies are to be included in your git repo because:
-
-1. Micropython libraries are inherently small due to their operating conditions.
-   Adding them to the git repo is not an unreasonable burden.
-
-2. The project will continue to work, even if an upstream dependency goes missing.
-
-3. A lot of micropython libraries don't implement versioning, so more complicated
-   dependency solving isn't feasible. Caching "known working" versions is the only
-   convenient way of guaranteeing a repeatable deployment.
+The ``.belay/`` folder acts as a lock file, ensuring every team member uses the exact same dependency versions.
+It also protects your project from upstream changes or deletions—many MicroPython libraries lack formal versioning.
+MicroPython libraries are small, so the repository overhead is negligible.
 
 
-.. _manifest.py: https://docs.micropython.org/en/latest/reference/manifest.html
+.. _mip: https://docs.micropython.org/en/latest/reference/packages.html
+.. _micropython-lib: https://github.com/micropython/micropython-lib

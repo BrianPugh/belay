@@ -1,58 +1,28 @@
+"""GitHub URL handling for package downloads."""
+
 import re
-import shutil
-from pathlib import Path
+from dataclasses import dataclass
 
-import git
-import requests
-
-from .common import NonMatchingURI, downloaders
+from belay.packagemanager.downloaders.git import GitProviderUrl
 
 
-@downloaders
-def github(dst: Path, uri: str):
-    """Download a file or folder from github."""
-    # Single File Website; e.g.:
-    #     https://github.com/BrianPugh/belay/blob/main/belay/__init__.py
-    match = re.search(r"github\.com/(.+?)/(.+?)/blob/(.+?)/(.*)", uri)
-    if not match:
-        # Folder; e.g.:
-        #     https://github.com/BrianPugh/belay/tree/main/belay
-        match = re.search(r"github\.com/(.+?)/(.+?)/tree/(.+?)/(.*)", uri)
-    if not match:
-        match = re.search(r"raw\.githubusercontent\.com/(.+?)/(.+?)/(.+?)/(.*)", uri)
-    if not match:
-        raise NonMatchingURI
-    org, repo, ref, path = match.groups()
+@dataclass
+class GitHubUrl(GitProviderUrl):
+    """Parsed GitHub URL (shorthand or full HTTPS)."""
 
-    githubusercontent_url = f"https://raw.githubusercontent.com/{org}/{repo}/{ref}/{path}"
+    # Patterns for full HTTPS URLs
+    https_patterns = (
+        re.compile(r"github\.com/(.+?)/(.+?)/blob/(.+?)/(.*)"),  # blob view
+        re.compile(r"github\.com/(.+?)/(.+?)/tree/(.+?)/(.*)"),  # tree view
+        re.compile(r"raw\.githubusercontent\.com/(.+?)/(.+?)/(.+?)/(.*)"),  # raw
+    )
 
-    r = requests.get(githubusercontent_url, timeout=10.0)
+    @property
+    def scheme(self) -> str:
+        return "github"
 
-    if r.status_code == 200:
-        # Provided URI is a single file.
-        dst /= Path(path).name
-        dst.write_bytes(r.content)
-    elif r.status_code == 404:
-        # Probably a folder; use git.
-        from belay.project import find_cache_folder
-
-        repo_url = f"https://github.com/{org}/{repo}.git"
-        repo_folder = find_cache_folder() / f"git-github-{org}-{repo}"
-        repo_folder.mkdir(exist_ok=True, parents=True)
-
-        # Check if we have already cloned
-        if (repo_folder / ".git").is_dir():
-            # Already been cloned
-            repo = git.Repo(repo_folder)
-            repo.remotes.origin.pull()
-        else:
-            repo = git.Repo.clone_from(repo_url, repo_folder)
-
-        repo.git.clean("-xdf")
-        repo.git.checkout(ref)
-
-        shutil.copytree(repo_folder / path, dst, dirs_exist_ok=True)
-    else:
-        r.raise_for_status()
-
-    return dst
+    @property
+    def raw_url(self) -> str:
+        """Raw content URL at raw.githubusercontent.com."""
+        base = f"https://raw.githubusercontent.com/{self.user}/{self.repo}/{self.branch}"
+        return f"{base}/{self.path}" if self.path else base

@@ -51,3 +51,11 @@ class NotBelayResponseError(BelayException):
 
 class NoMatchingExecuterError(BelayException):
     """No valid executer found for the given board Implementation."""
+
+
+class PackageNotFoundError(BelayException):
+    """Package could not be found in index or URL."""
+
+
+class IntegrityError(BelayException):
+    """File integrity verification failed (hash mismatch)."""
