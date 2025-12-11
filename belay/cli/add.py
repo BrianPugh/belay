@@ -56,7 +56,8 @@ def infer_package_name(uri: str) -> str:
         pass
 
     # Try local path (absolute or relative, cross-platform)
-    if Path(uri).is_absolute() or uri.startswith("./") or uri.startswith("../"):
+    # Note: uri.startswith("/") handles Unix paths on Windows where Path.is_absolute() returns False
+    if Path(uri).is_absolute() or uri.startswith("/") or uri.startswith("./") or uri.startswith("../"):
         path = Path(uri)
         name = path.name
         return sanitize_package_name(name)
