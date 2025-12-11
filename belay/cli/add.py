@@ -3,73 +3,11 @@ from typing import Optional
 
 import tomlkit
 
-from belay.cli.update import update
-from belay.packagemanager.downloaders._package_json import _is_plain_package_name
+from belay.helpers import sanitize_package_name
+from belay.packagemanager.downloaders._package_json import _is_package_json_uri, _is_plain_package_name
 from belay.packagemanager.downloaders.git import GitProviderUrl, InvalidGitUrlError, split_version_suffix
-from belay.project import find_pyproject, project_cache
-
-
-def _sanitize_package_name(name: str) -> str:
-    """Convert string to valid Python identifier.
-
-    Parameters
-    ----------
-    name : str
-        Raw name extracted from URI.
-
-    Returns
-    -------
-    str
-        Sanitized package name.
-
-    Raises
-    ------
-    ValueError
-        If name cannot be converted to valid identifier.
-    """
-    # Remove .py extension
-    if name.endswith(".py"):
-        name = name[:-3]
-    # Replace hyphens with underscores
-    name = name.replace("-", "_")
-    # Validate result
-    if not name.isidentifier():
-        raise ValueError(f"Cannot convert '{name}' to valid package name.")
-    return name
-
-
-def _parse_index_package(uri: str) -> Optional[str]:
-    """Parse URI as an index package and return the dependency value.
-
-    For index packages, returns the appropriate value:
-    - "aiohttp" -> "*" (latest)
-    - "aiohttp@1.0.0" -> "1.0.0" (specific version)
-    - "mip:aiohttp" -> "*" (explicit mip prefix, latest)
-    - "mip:aiohttp@1.0.0" -> "1.0.0" (explicit mip prefix, specific version)
-
-    For non-index packages, returns None.
-
-    Parameters
-    ----------
-    uri : str
-        URI to check.
-
-    Returns
-    -------
-    Optional[str]
-        The dependency value if this is an index package, None otherwise.
-    """
-    base_uri, version = split_version_suffix(uri)
-
-    # Handle mip: prefix (explicit index package)
-    if base_uri.startswith("mip:"):
-        return version if version else "*"
-
-    # Handle plain package names (index lookup)
-    if _is_plain_package_name(base_uri):
-        return version if version else "*"
-
-    return None
+from belay.packagemanager.group import Group
+from belay.project import find_pyproject
 
 
 def infer_package_name(uri: str) -> str:
@@ -103,16 +41,16 @@ def infer_package_name(uri: str) -> str:
     # Handle mip: prefix (explicit index package)
     if base_uri.startswith("mip:"):
         name = base_uri[4:]  # Strip "mip:" prefix
-        return _sanitize_package_name(name)
+        return sanitize_package_name(name)
 
     # Handle plain package names (index lookup)
     if _is_plain_package_name(base_uri):
-        return _sanitize_package_name(base_uri)
+        return sanitize_package_name(base_uri)
 
     # Handle git provider URLs (shorthand and HTTPS, including repo root URLs)
     try:
         parsed = GitProviderUrl.parse(uri)
-        return _sanitize_package_name(parsed.inferred_package_name)
+        return sanitize_package_name(parsed.inferred_package_name)
     except InvalidGitUrlError:
         pass
 
@@ -120,7 +58,7 @@ def infer_package_name(uri: str) -> str:
     if uri.startswith("/") or uri.startswith("./") or uri.startswith("../"):
         path = Path(uri)
         name = path.name
-        return _sanitize_package_name(name)
+        return sanitize_package_name(name)
 
     raise ValueError(f"Cannot infer package name from URI: {uri}")
 
@@ -132,12 +70,11 @@ def add(
     group: str = "main",
     develop: bool = False,
     rename_to_init: bool = True,
-    no_update: bool = False,
 ):
     """Add a dependency to pyproject.toml.
 
-    Adds a new dependency to the specified group in pyproject.toml and
-    optionally downloads it immediately.
+    Downloads the dependency first, then adds it to pyproject.toml only
+    if the download succeeds.
 
     If only a URI is provided, the package name is inferred from it.
 
@@ -160,8 +97,6 @@ def add(
         Install in develop/editable mode (always re-download).
     rename_to_init : bool
         Rename single .py file to __init__.py.
-    no_update : bool
-        Skip downloading the dependency after adding.
     """
     if uri is None:
         # Single argument: name_or_uri is actually the URI
@@ -174,32 +109,92 @@ def add(
     if not package.isidentifier():
         raise ValueError(f"Package name '{package}' must be a valid Python identifier.")
 
-    # Check if this is an index package (plain name or mip: prefix)
-    index_value = _parse_index_package(uri)
-    is_index_package = index_value is not None
-
-    # For index packages, use the version/wildcard value; otherwise use the URI
-    dep_value = index_value if is_index_package else uri
-
     # Index packages have their structure defined by package.json,
-    # so rename_to_init is not applicable (use simple string format)
+    # so rename_to_init is not applicable
+    is_index_package = _is_package_json_uri(uri)
     use_rename_to_init = rename_to_init if not is_index_package else True
 
+    # Check for existing dependency before downloading
     pyproject_path = find_pyproject()
+    _check_dependency_not_exists(pyproject_path, package, group)
+
+    # Build dependency config and download first
+    dep_config = {package: _build_dependency_value(uri, develop, use_rename_to_init)}
+    temp_group = Group(name=group, dependencies=dep_config)
+    temp_group._download_package(package)
+
+    # Download succeeded - now add to pyproject.toml
     _add_dependency_to_toml(
         pyproject_path=pyproject_path,
         package=package,
-        uri=dep_value,
+        uri=uri,
         group=group,
         develop=develop,
         rename_to_init=use_rename_to_init,
     )
 
-    # Clear caches so update sees the new dependency
-    project_cache.clear()
 
-    if not no_update:
-        update(package)
+def _build_dependency_value(uri: str, develop: bool, rename_to_init: bool):
+    """Build the dependency value for Group config.
+
+    Parameters
+    ----------
+    uri : str
+        Source URI for the dependency.
+    develop : bool
+        Whether this is a develop/editable dependency.
+    rename_to_init : bool
+        Whether to rename single .py to __init__.py.
+
+    Returns
+    -------
+    str or dict
+        Dependency value suitable for GroupConfig.
+    """
+    if develop or not rename_to_init:
+        value = {"uri": uri}
+        if develop:
+            value["develop"] = True
+        if not rename_to_init:
+            value["rename_to_init"] = False
+        return value
+    return uri
+
+
+def _check_dependency_not_exists(pyproject_path: Path, package: str, group: str):
+    """Check that a dependency doesn't already exist.
+
+    Parameters
+    ----------
+    pyproject_path : Path
+        Path to pyproject.toml.
+    package : str
+        Package name to check.
+    group : str
+        Dependency group ("main" or named group).
+
+    Raises
+    ------
+    ValueError
+        If the dependency already exists.
+    """
+    content = pyproject_path.read_text(encoding="utf-8")
+    doc = tomlkit.parse(content)
+
+    try:
+        if group == "main":
+            deps = doc["tool"]["belay"]["dependencies"]
+        else:
+            deps = doc["tool"]["belay"]["group"][group]["dependencies"]
+
+        if package in deps:
+            raise ValueError(
+                f"Dependency '{package}' already exists in group '{group}'. "
+                "Remove it first or manually edit pyproject.toml."
+            )
+    except KeyError:
+        # Section doesn't exist yet, so dependency definitely doesn't exist
+        pass
 
 
 def _get_dependencies_table(doc, group: str):
@@ -268,13 +263,6 @@ def _add_dependency_to_toml(
     content = pyproject_path.read_text(encoding="utf-8")
     doc = tomlkit.parse(content)
     deps = _get_dependencies_table(doc, group)
-
-    # Check if dependency already exists
-    if package in deps:
-        raise ValueError(
-            f"Dependency '{package}' already exists in group '{group}'. "
-            "Remove it first or manually edit pyproject.toml."
-        )
 
     # Create dependency value based on options
     if develop or not rename_to_init:

@@ -280,12 +280,6 @@ This is useful when the inferred name isn't what you want.
 
      belay add github:user/repo/helper.py --no-rename-to-init
 
-* ``--no-update`` — Only add to ``pyproject.toml`` without downloading:
-
-  .. code-block:: bash
-
-     belay add aiohttp --no-update
-
 update
 ~~~~~~
 Updates dependencies specified in  ``pyproject.toml``.

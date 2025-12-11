@@ -166,11 +166,15 @@ def test_git_provider_url_parse_repo_root(url, expected):
         ("aiohttp", "aiohttp", None),
         ("mip:aiohttp", "mip:aiohttp", None),
         ("github:user/repo", "github:user/repo", None),
-        # With version suffix
+        # With version suffix (@ syntax)
         ("aiohttp@1.0.0", "aiohttp", "1.0.0"),
         ("mip:aiohttp@2.0", "mip:aiohttp", "2.0"),
         ("github:user/repo@v1.0", "github:user/repo", "v1.0"),
         ("gitlab:org/lib@main", "gitlab:org/lib", "main"),
+        # With version suffix (== syntax, pip-style)
+        ("aiohttp==1.0.0", "aiohttp", "1.0.0"),
+        ("mip:aiohttp==2.0", "mip:aiohttp", "2.0"),
+        ("requests==2.28.0", "requests", "2.28.0"),
         # HTTP URLs - should NOT split on @ (may be userinfo)
         ("https://example.com/file.py", "https://example.com/file.py", None),
         ("https://user@example.com/file.py", "https://user@example.com/file.py", None),

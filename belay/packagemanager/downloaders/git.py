@@ -30,13 +30,14 @@ class InvalidGitUrlError(Exception):
 def split_version_suffix(uri: str) -> tuple[str, Optional[str]]:
     """Split URI into base and version suffix.
 
-    Extracts @version suffix from URIs while correctly handling HTTP URLs
-    that may contain @ in userinfo (e.g., https://user@host/path).
+    Extracts version suffix from URIs, supporting both ``@version`` and
+    ``==version`` syntax. Correctly handles HTTP URLs that may contain
+    @ in userinfo (e.g., https://user@host/path).
 
     Parameters
     ----------
     uri
-        URI that may contain @version suffix.
+        URI that may contain version suffix.
 
     Returns
     -------
@@ -46,6 +47,8 @@ def split_version_suffix(uri: str) -> tuple[str, Optional[str]]:
     Examples
     --------
     >>> split_version_suffix("aiohttp@1.0.0")
+    ('aiohttp', '1.0.0')
+    >>> split_version_suffix("aiohttp==1.0.0")
     ('aiohttp', '1.0.0')
     >>> split_version_suffix("github:user/repo@v1.0")
     ('github:user/repo', 'v1.0')
@@ -57,6 +60,11 @@ def split_version_suffix(uri: str) -> tuple[str, Optional[str]]:
     # Don't split on @ for http(s) URLs (they may have @ in userinfo)
     if uri.startswith(("http://", "https://")):
         return uri, None
+    # Support == syntax (pip-style)
+    if "==" in uri:
+        base, version = uri.rsplit("==", 1)
+        return base, version
+    # Support @ syntax
     if "@" in uri:
         base, version = uri.rsplit("@", 1)
         return base, version

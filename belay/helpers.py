@@ -32,3 +32,45 @@ def get_fnv1a32_native_path(implementation) -> Optional[Path]:
     mpy_fn = f"mpy{implementation.version[0]}.{implementation.version[1]}-{implementation.arch}.mpy"
     filepath = importlib_resources.files(nativemodule_fnv1a32).joinpath(mpy_fn)
     return filepath if filepath.exists() else None
+
+
+def sanitize_package_name(name: str) -> str:
+    """Convert string to valid Python identifier.
+
+    Strips file extensions (.py, .mpy) and replaces hyphens with underscores.
+
+    Parameters
+    ----------
+    name
+        Raw name (e.g., from a URI path component).
+
+    Returns
+    -------
+    str
+        Sanitized package name suitable as a Python identifier.
+
+    Raises
+    ------
+    ValueError
+        If name cannot be converted to a valid identifier.
+
+    Examples
+    --------
+    >>> sanitize_package_name("my-package")
+    'my_package'
+    >>> sanitize_package_name("module.py")
+    'module'
+    >>> sanitize_package_name("sensor.mpy")
+    'sensor'
+    """
+    # Remove common file extensions
+    for ext in (".py", ".mpy"):
+        if name.endswith(ext):
+            name = name[: -len(ext)]
+            break
+    # Replace hyphens with underscores
+    name = name.replace("-", "_")
+    # Validate result
+    if not name.isidentifier():
+        raise ValueError(f"Cannot convert '{name}' to valid package name.")
+    return name
