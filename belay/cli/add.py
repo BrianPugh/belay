@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Optional
 
 import tomlkit
+import tomlkit.items
 
 from belay.helpers import sanitize_package_name
 from belay.packagemanager.downloaders._package_json import _is_package_json_uri, _is_plain_package_name
@@ -54,8 +55,8 @@ def infer_package_name(uri: str) -> str:
     except InvalidGitUrlError:
         pass
 
-    # Try local path (absolute or relative)
-    if uri.startswith("/") or uri.startswith("./") or uri.startswith("../"):
+    # Try local path (absolute or relative, cross-platform)
+    if Path(uri).is_absolute() or uri.startswith("./") or uri.startswith("../"):
         path = Path(uri)
         name = path.name
         return sanitize_package_name(name)
@@ -88,7 +89,7 @@ def add(
     ----------
     name_or_uri : str
         Package name (if uri is provided) or source URI (if uri is omitted).
-    uri : str
+    uri : Optional[str]
         Source URI (GitHub URL, local path, etc.). If omitted, name_or_uri
         is treated as the URI and the package name is inferred.
     group : str
@@ -110,7 +111,8 @@ def add(
         raise ValueError(f"Package name '{package}' must be a valid Python identifier.")
 
     # Index packages have their structure defined by package.json,
-    # so rename_to_init is not applicable
+    # so rename_to_init is ignored. We set use_rename_to_init to True
+    # as a safe default that won't interfere with package.json behavior.
     is_index_package = _is_package_json_uri(uri)
     use_rename_to_init = rename_to_init if not is_index_package else True
 
@@ -197,21 +199,21 @@ def _check_dependency_not_exists(pyproject_path: Path, package: str, group: str)
         pass
 
 
-def _get_dependencies_table(doc, group: str):
+def _get_dependencies_table(doc: tomlkit.TOMLDocument, group: str) -> tomlkit.items.Table:
     """Get or create the dependencies table for a group.
 
     Creates any missing intermediate tables ([tool], [tool.belay], etc.).
 
     Parameters
     ----------
-    doc
+    doc : tomlkit.TOMLDocument
         Parsed pyproject.toml document.
     group : str
         Dependency group ("main" or named group).
 
     Returns
     -------
-    dict-like
+    tomlkit.items.Table
         The dependencies table for the specified group.
     """
     if "tool" not in doc:
