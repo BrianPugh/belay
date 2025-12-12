@@ -11,6 +11,11 @@ from belay.packagemanager.group import Group
 from belay.project import find_pyproject
 
 
+def _is_local_path(uri: str) -> bool:
+    """Check if URI is a local filesystem path."""
+    return Path(uri).is_absolute() or uri.startswith("/") or uri.startswith("./") or uri.startswith("../")
+
+
 def infer_package_name(uri: str) -> str:
     """Infer package name from URI.
 
@@ -56,11 +61,8 @@ def infer_package_name(uri: str) -> str:
         pass
 
     # Try local path (absolute or relative, cross-platform)
-    # Note: uri.startswith("/") handles Unix paths on Windows where Path.is_absolute() returns False
-    if Path(uri).is_absolute() or uri.startswith("/") or uri.startswith("./") or uri.startswith("../"):
-        path = Path(uri)
-        name = path.name
-        return sanitize_package_name(name)
+    if _is_local_path(uri):
+        return sanitize_package_name(Path(uri).name)
 
     raise ValueError(f"Cannot infer package name from URI: {uri}")
 
@@ -96,7 +98,7 @@ def add(
     group : str
         Dependency group to add to. Defaults to "main".
     develop : bool
-        Install in develop/editable mode (always re-download).
+        Install in develop/editable mode (always re-download). Only valid for local paths.
     rename_to_init : bool
         Rename single .py file to __init__.py.
     """
@@ -110,6 +112,9 @@ def add(
 
     if not package.isidentifier():
         raise ValueError(f"Package name '{package}' must be a valid Python identifier.")
+
+    if develop and not _is_local_path(uri):
+        raise ValueError("--develop can only be used with local paths (e.g., ./path, ../path, /absolute/path)")
 
     # Index packages have their structure defined by package.json,
     # so rename_to_init is ignored. We set use_rename_to_init to True

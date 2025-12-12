@@ -268,7 +268,7 @@ This is useful when the inferred name isn't what you want.
 
      belay add unittest --group dev
 
-* ``--develop`` — Mark as a develop/editable dependency (always re-downloaded during install):
+* ``--develop`` — Mark as a develop/editable dependency (always re-downloaded during install). Only valid for local paths:
 
   .. code-block:: bash
 

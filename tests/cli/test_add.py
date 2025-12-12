@@ -132,6 +132,36 @@ def test_add_invalid_package_name(tmp_cwd):
         add("invalid-name", "https://example.com/pkg")
 
 
+@pytest.mark.parametrize(
+    "uri",
+    [
+        "https://github.com/user/repo",
+        "github:user/repo",
+        "aiohttp",
+        "mip:aiohttp",
+    ],
+)
+def test_add_develop_requires_local_path(tmp_cwd, uri):
+    pyproject = tmp_cwd / "pyproject.toml"
+    pyproject.write_text("[tool.belay]\n")
+
+    with pytest.raises(ValueError, match="--develop can only be used with local paths"):
+        add(uri, develop=True)
+
+
+def test_add_develop_with_local_path(mocker, tmp_cwd):
+    pyproject = tmp_cwd / "pyproject.toml"
+    pyproject.write_text("[tool.belay]\n")
+    mocker.patch("belay.packagemanager.group.Group._download_package")
+
+    add("./local/mylib", develop=True)
+
+    doc = tomlkit.parse(pyproject.read_text())
+    dep = doc["tool"]["belay"]["dependencies"]["mylib"]
+    assert dep["uri"] == "./local/mylib"
+    assert dep["develop"] is True
+
+
 def test_add_downloads_then_writes(mocker, tmp_cwd):
     """Test that add() downloads first, then writes to pyproject.toml."""
     pyproject = tmp_cwd / "pyproject.toml"
