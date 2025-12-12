@@ -171,14 +171,14 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           source ${{ env.ACTIVATE_PYTHON_VENV }}
-          python -m pytest --cov=belay --cov-report=term --cov-report=xml --cov-config=.coveragerc --junitxml=testresults.xml --network tests -s
+          python -m pytest --cov=belay --cov-report=term --cov-report=xml --cov-config=.coveragerc --junitxml=testresults.xml --network tests
           coverage report
 
       - name: Run tests (unit + integration)
         if: runner.os != 'Windows'
         run: |
           source ${{ env.ACTIVATE_PYTHON_VENV }}
-          python -m pytest --cov=belay --cov-report=term --cov-report=xml --cov-config=.coveragerc --junitxml=testresults.xml --network --long-integration tests tests/integration -s
+          python -m pytest --cov=belay --cov-report=term --cov-report=xml --cov-config=.coveragerc --junitxml=testresults.xml --network --long-integration tests tests/integration
           coverage report
 
       - name: Upload coverage to Codecov
