@@ -20,9 +20,10 @@ __all__ = [
 ]
 
 import logging
-from dataclasses import dataclass, field
 from typing import Optional
 from urllib.parse import urljoin
+
+from attrs import define, field
 
 from belay.packagemanager.downloaders.git import GitProviderUrl, InvalidGitUrlError
 from belay.packagemanager.package_json import (
@@ -104,7 +105,7 @@ class CircularDependencyError(Exception):
     """Circular dependency detected during resolution."""
 
 
-@dataclass
+@define
 class ResolvedFile:
     """A single file to be downloaded and installed.
 
@@ -136,7 +137,7 @@ class ResolvedFile:
     hash: Optional[str] = None
 
 
-@dataclass
+@define
 class ResolvedPackage:
     """A fully resolved package with all its files ready for download.
 
@@ -162,7 +163,7 @@ class ResolvedPackage:
 
     name: str
     version: str
-    files: list[ResolvedFile] = field(default_factory=list)
+    files: list[ResolvedFile] = field(factory=list)
 
 
 def resolve_dependencies(

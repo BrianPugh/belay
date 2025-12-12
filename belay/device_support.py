@@ -1,6 +1,5 @@
+import itertools
 import math
-from dataclasses import dataclass
-from threading import Lock
 from typing import Callable, Literal, Optional, get_args
 
 from attrs import define, field
@@ -224,11 +223,10 @@ class TimeSync:
         self._reference_device_tick_unwrapped = None
 
 
-_method_metadata_counter_lock = Lock()
-_method_metadata_counter = 0
+_method_metadata_counter = itertools.count()
 
 
-@dataclass
+@define
 class MethodMetadata:
     """Metadata for executer-decorated Device methods."""
 
@@ -237,13 +235,9 @@ class MethodMetadata:
     autoinit: bool = False  # Only applies to ``SetupExecuter``.
     implementation: Optional[str] = None
 
-    id: int = -1  # monotonically increasing global identifier.
-
-    def __post_init__(self):
-        global _method_metadata_counter
-        with _method_metadata_counter_lock:
-            self.id = _method_metadata_counter
-            _method_metadata_counter += 1
+    id: int = field(
+        factory=lambda: next(_method_metadata_counter), init=False
+    )  # monotonically increasing global identifier.
 
 
 def sort_executers(executers):
