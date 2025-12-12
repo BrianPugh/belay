@@ -1,11 +1,13 @@
 import functools
 import platform
 from pathlib import Path
-from typing import Union
+from typing import Callable, Optional, TypeVar, Union, overload
 
 import tomli
 
 from belay.packagemanager import BelayConfig, Group
+
+F = TypeVar("F", bound=Callable)
 
 
 class ProjectCache:
@@ -15,19 +17,25 @@ class ProjectCache:
     that need to be invalidated when pyproject.toml changes.
     """
 
-    def __init__(self):
-        self._cached_functions: list = []
+    def __init__(self) -> None:
+        self._cached_functions: list[functools._lru_cache_wrapper] = []
 
-    def __call__(self, func=None):
+    @overload
+    def __call__(self, func: F) -> F: ...
+
+    @overload
+    def __call__(self, func: None = None) -> "ProjectCache": ...
+
+    def __call__(self, func: Optional[F] = None) -> Union[F, "ProjectCache"]:
         """Decorate a function with LRU caching and register it."""
         if func is None:  # Called as @project_cache()
             return self
         # Called as @project_cache
         cached_func = functools.lru_cache(func)
         self._cached_functions.append(cached_func)
-        return cached_func
+        return cached_func  # type: ignore[return-value]
 
-    def clear(self):
+    def clear(self) -> None:
         """Clear all registered caches."""
         for func in self._cached_functions:
             func.cache_clear()

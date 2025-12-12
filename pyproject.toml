@@ -54,6 +54,7 @@ pytest-mock = "^3.7.0"
 pytest-timeout = "^2.1.0"
 flaky = "^3.7.0"
 ipdb = ">=0.13.13, <1.0.0"
+pytest-xdist = "^3.8.0"
 
 [tool.poetry.group.debug]
 optional = true
@@ -99,7 +100,7 @@ exclude_lines = [
 ]
 
 [tool.pytest.ini_options]
-addopts = "--import-mode=importlib --max-runs=3 --timeout=240 --force-flaky --no-success-flaky-report"
+addopts = "--import-mode=importlib --max-runs=3 --timeout=240 --force-flaky --no-success-flaky-report -n auto"
 norecursedirs = "integration"
 markers = [
     "network: mark a test that requires network access.",

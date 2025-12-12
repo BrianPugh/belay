@@ -13,7 +13,7 @@ import requests
 from belay.exceptions import IntegrityError, PackageNotFoundError
 from belay.packagemanager.downloaders._retry import fetch_url
 from belay.packagemanager.downloaders.common import NonMatchingURI
-from belay.packagemanager.downloaders.git import GitProviderUrl, InvalidGitUrlError
+from belay.packagemanager.downloaders.git import GitProviderUrl, InvalidGitUrlError, split_version_suffix
 from belay.packagemanager.package_json import (
     DEFAULT_MPY_VERSION,
     DEFAULT_PACKAGE_INDICES,
@@ -79,7 +79,7 @@ def _is_package_json_uri(uri: str) -> bool:
         True if this URI should be handled as a package.json reference.
     """
     # Extract version suffix if present (e.g., "github:user/repo@v1.0", "aiohttp@1.0")
-    base_uri = uri.split("@")[0] if "@" in uri and not uri.startswith(("http://", "https://")) else uri
+    base_uri, _ = split_version_suffix(uri)
 
     # Plain package name (e.g., "aiohttp", "ntptime", "micropython-lib")
     if _is_plain_package_name(base_uri):
@@ -152,10 +152,9 @@ def download_package_json(
         indices = list(DEFAULT_PACKAGE_INDICES)
 
     # Parse version from URI if present
-    version = "latest"
-    package = uri
-    if "@" in uri and not uri.startswith(("http://", "https://")):
-        package, version = uri.rsplit("@", 1)
+    package, version = split_version_suffix(uri)
+    if version is None:
+        version = "latest"
 
     # Strip mip: prefix if present (explicit index package)
     if package.startswith("mip:"):

@@ -84,7 +84,8 @@ def _patch_micropython_code(snippet):
 
 
 @pytest.fixture
-def sync_begin():
+def sync_begin(hf):
+    """sync_begin depends on hf because __belay_hfs calls __belay_hf."""
     snippet = belay.device.read_snippet("sync_begin")
     snippet = _patch_micropython_code(snippet)
     exec(snippet, globals())
