@@ -7,11 +7,11 @@ See: https://docs.micropython.org/en/latest/reference/packages.html
 """
 
 import hashlib
-from dataclasses import dataclass, field
 from typing import Optional
 from urllib.parse import urlparse
 
 import requests
+from attrs import define, field
 
 from belay.exceptions import PackageNotFoundError
 from belay.packagemanager.downloaders._retry import fetch_url
@@ -69,7 +69,7 @@ def compute_micropython_hash(content: bytes) -> str:
     return hashlib.sha256(content).hexdigest()[:HASH_LENGTH]
 
 
-@dataclass
+@define
 class PackageJson:
     """Parsed MicroPython package.json manifest.
 
@@ -87,9 +87,9 @@ class PackageJson:
         Base URL for resolving relative URLs in this manifest.
     """
 
-    urls: list[tuple[str, str]] = field(default_factory=list)
-    hashes: list[tuple[str, str]] = field(default_factory=list)
-    deps: list[tuple[str, str]] = field(default_factory=list)
+    urls: list[tuple[str, str]] = field(factory=list)
+    hashes: list[tuple[str, str]] = field(factory=list)
+    deps: list[tuple[str, str]] = field(factory=list)
     version: str = ""
     base_url: str = ""
 
