@@ -879,3 +879,35 @@ When writing tests for Belay:
 - Various file checks (YAML, JSON, TOML validation)
 - Codespell for typos
 - Creosote for unused dependencies
+
+---
+
+## Release Notes
+
+When asked to enhance or write release notes:
+
+1. **Keep it terse.** Don't create full sections for each feature. Expand on existing bullet points with 1-3 sub-bullets.
+
+2. **Structure:** Use the existing PR title as the main bullet, then add sub-bullets for key details. No empty lines between items:
+   ```markdown
+   * Feature one. by @Author in https://github.com/...
+     * Key detail or usage example
+   * Feature two. by @Author in https://github.com/...
+     * Another key detail
+   ```
+
+3. **What to include in sub-bullets:**
+   - Brief explanation of what it does (if not obvious from title)
+   - Key parameters, flags, or options
+   - Short usage example (inline code, not code blocks)
+   - Important behavior notes
+
+4. **What NOT to include:**
+   - Full code block examples
+   - Implementation details
+   - Exhaustive option lists
+   - Repetition of the PR title
+   - Bold text on feature names (keep the original PR title formatting)
+   - Empty lines between bullet points (no double-spacing)
+
+5. **Investigate PRs** by exploring the codebase to understand features before writing. Look at CLI commands, new methods, configuration options, and tests.
