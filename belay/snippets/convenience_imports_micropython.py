@@ -1,7 +1,11 @@
 import os, machine
 from time import sleep
 from micropython import const
-from machine import Pin, PWM, Timer
+from machine import Pin, Timer
+try:
+    from machine import PWM
+except ImportError:
+    pass
 try:
     from machine import I2C
 except ImportError:

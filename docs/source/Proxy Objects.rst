@@ -76,16 +76,14 @@ Call methods and use modules naturally:
 .. code-block:: python
 
    # Methods
-   device(
-       """
+   device("""
    class LED:
        def __init__(self, pin):
            self.state = False
        def on(self):
            self.state = True
    led = LED(25)
-   """
-   )
+   """)
    led = device.proxy("led")
    led.on()
    print(led.state)  # True
